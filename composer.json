@@ -1,0 +1,75 @@
+{
+    "name": "uhifadhilabs/roster-module",
+    "description": "Rosters: who is on duty, where and when — duty rosters, daily work plans, on-duty presence and the station registry those shifts are kept at.",
+    "type": "symfony-bundle",
+    "keywords": [
+        "rosters",
+        "duty-roster",
+        "work-plan",
+        "shifts",
+        "stations",
+        "conservation",
+        "symfony",
+        "uhifadhi"
+    ],
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Ezekiel Mjema",
+            "homepage": "https://github.com/eemjema"
+        }
+    ],
+    "require": {
+        "doctrine/doctrine-bundle": "^3.0",
+        "doctrine/orm": "^3.5",
+        "php": ">=8.4",
+        "symfony/config": "^7.3 || ^8.0",
+        "symfony/dependency-injection": "^7.3 || ^8.0",
+        "symfony/framework-bundle": "^7.3 || ^8.0",
+        "symfony/http-kernel": "^7.3 || ^8.0",
+        "uhifadhilabs/module-contracts": "dev-main"
+    },
+    "autoload": {
+        "psr-4": {
+            "UhifadhiLabs\\Roster\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "UhifadhiLabs\\Roster\\Tests\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^13.2"
+    },
+    "scripts": {
+        "cs:fix": "php-cs-fixer fix",
+        "cs:check": "php-cs-fixer fix --dry-run --diff",
+        "phpstan": "phpstan analyse --no-progress --memory-limit=1G",
+        "test": "phpunit",
+        "check": [
+            "@cs:check",
+            "@phpstan",
+            "@test"
+        ]
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1-dev"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "repositories": [
+        {
+            "name": "module-contracts",
+            "type": "vcs",
+            "url": "https://github.com/uhifadhilabs/module-contracts"
+        }
+    ]
+}
