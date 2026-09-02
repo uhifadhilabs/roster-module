@@ -1,5 +1,5 @@
 {
-    "name": "uhifadhilabs/roster-module",
+    "name": "uhifadhi/roster-module",
     "description": "Rosters: who is on duty, where and when — duty rosters, daily work plans, on-duty presence and the station registry those shifts are kept at.",
     "type": "symfony-bundle",
     "keywords": [
@@ -27,7 +27,7 @@
         "symfony/dependency-injection": "^7.3 || ^8.0",
         "symfony/framework-bundle": "^7.3 || ^8.0",
         "symfony/http-kernel": "^7.3 || ^8.0",
-        "uhifadhilabs/module-contracts": "dev-main"
+        "uhifadhi/module-contracts": "dev-main"
     },
     "autoload": {
         "psr-4": {

@@ -1,4 +1,4 @@
-# uhifadhilabs/roster-module
+# uhifadhi/roster-module
 
 Who is on duty, where and when: duty rosters, daily work plans, on-duty
 presence and the station registry those shifts are kept at. A
@@ -36,7 +36,7 @@ changes what a team *sees first* — it never gates what data exists or who may
 read it. Rosters belong to the area; the department view is a reading of them.
 
 **Not patrols.** Anything that records a route walked, an observation made or
-a track logged belongs in `uhifadhilabs/patrol-module`. Rosters may be what a
+a track logged belongs in `uhifadhi/patrol-module`. Rosters may be what a
 patrol was scheduled against — the link is a reference, never a copy.
 
 ## What is not here yet
@@ -83,7 +83,7 @@ Not yet — the host installs this module once the domain lands. For the record,
 the steps will be:
 
 ```bash
-composer require uhifadhilabs/roster-module
+composer require uhifadhi/roster-module
 ```
 
 The bundle registers via Flex (`"type": "symfony-bundle"`), which adds
