@@ -41,7 +41,7 @@ final class RosterConfigurationTest extends TestCase
     {
         $config = $this->process([]);
 
-        self::assertSame('flux', $config['module_category']);
+        self::assertSame('operations', $config['module_category']);
         self::assertFalse($config['dev_tools']);
     }
 

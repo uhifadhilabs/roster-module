@@ -95,7 +95,7 @@ and the module reaches the catalogue through the `uhifadhi.module` tag.
 ```yaml
 # config/packages/roster.yaml
 roster:
-    module_category: flux   # catalogue category for the module tile
+    module_category: operations   # catalogue category for the module tile
     dev_tools: false        # dev-only tooling; enable via when@dev / when@test
 ```
 

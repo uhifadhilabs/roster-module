@@ -21,7 +21,7 @@ use Symfony\Component\Config\Definition\Builder\NodeDefinition;
  * config/packages/roster.yaml:
  *
  *   roster:
- *     module_category: flux    # catalogue category for the tile
+ *     module_category: operations    # catalogue category for the tile
  *     dev_tools: false         # dev-only commands (when@dev / when@test)
  *
  * Deliberately small. A deployment's shift vocabulary (duty types, shift
@@ -45,7 +45,7 @@ final class RosterConfiguration
             ->children()
                 ->scalarNode('module_category')
                     ->info('Catalogue category the Rosters module is filed under in each area.')
-                    ->defaultValue('flux')->cannotBeEmpty()
+                    ->defaultValue('operations')->cannotBeEmpty()
                 ->end()
                 ->booleanNode('dev_tools')
                     ->info('Register dev-only tooling (seeders, fixtures). The recipe enables this via when@dev/when@test.')
