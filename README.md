@@ -16,6 +16,7 @@ presence and the station registry those shifts are kept at. A
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Development](#development)
+- [License](#license)
 
 ## Charter
 
@@ -119,3 +120,10 @@ composer check      # cs:check -> phpstan (max) -> phpunit
   database URL it declares
   (`postgresql://app:app@127.0.0.1:5434/roster_bundle_test`) is the shape the
   real one will take on the fundi cluster.
+
+## License
+
+**AGPL-3.0-or-later** — see [LICENSE](LICENSE): the same license as the
+uhifadhi host this module plugs into. Use, modify and self-host freely; if you
+offer a modified version to users over a network, they are entitled to the
+source of what they're running.
