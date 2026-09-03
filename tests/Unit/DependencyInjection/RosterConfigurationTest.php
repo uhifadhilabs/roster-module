@@ -11,13 +11,13 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace UhifadhiLabs\Roster\Tests\Unit\DependencyInjection;
+namespace Uhifadhi\Roster\Tests\Unit\DependencyInjection;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
-use UhifadhiLabs\Roster\DependencyInjection\RosterConfiguration;
+use Uhifadhi\Roster\DependencyInjection\RosterConfiguration;
 
 final class RosterConfigurationTest extends TestCase
 {

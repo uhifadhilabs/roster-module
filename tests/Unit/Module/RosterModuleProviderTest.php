@@ -11,11 +11,11 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace UhifadhiLabs\Roster\Tests\Unit\Module;
+namespace Uhifadhi\Roster\Tests\Unit\Module;
 
 use PHPUnit\Framework\TestCase;
-use UhifadhiLabs\ModuleContracts\ModuleProviderInterface;
-use UhifadhiLabs\Roster\Module\RosterModuleProvider;
+use Uhifadhi\ModuleContracts\ModuleProviderInterface;
+use Uhifadhi\Roster\Module\RosterModuleProvider;
 
 final class RosterModuleProviderTest extends TestCase
 {

@@ -11,14 +11,14 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace UhifadhiLabs\Roster\Tests\Integration;
+namespace Uhifadhi\Roster\Tests\Integration;
 
 use Doctrine\Bundle\DoctrineBundle\Mapping\MappingDriver as DoctrineBundleMappingDriver;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\Driver\MappingDriverChain;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use UhifadhiLabs\Roster\UhifadhiLabsRosterBundle;
+use Uhifadhi\Roster\UhifadhiRosterBundle;
 
 /**
  * The smoke test: registering the bundle in a real kernel compiles a real
@@ -30,10 +30,10 @@ final class BundleBootTest extends KernelTestCase
     {
         $kernel = self::bootKernel();
 
-        self::assertArrayHasKey('UhifadhiLabsRosterBundle', $kernel->getBundles());
+        self::assertArrayHasKey('UhifadhiRosterBundle', $kernel->getBundles());
         self::assertInstanceOf(
-            UhifadhiLabsRosterBundle::class,
-            $kernel->getBundle('UhifadhiLabsRosterBundle'),
+            UhifadhiRosterBundle::class,
+            $kernel->getBundle('UhifadhiRosterBundle'),
         );
     }
 
@@ -45,7 +45,7 @@ final class BundleBootTest extends KernelTestCase
     {
         $kernel = self::bootKernel();
 
-        self::assertSame('roster', $kernel->getBundle('UhifadhiLabsRosterBundle')
+        self::assertSame('roster', $kernel->getBundle('UhifadhiRosterBundle')
             ->getContainerExtension()?->getAlias());
     }
 
@@ -70,7 +70,7 @@ final class BundleBootTest extends KernelTestCase
         }
 
         self::assertInstanceOf(MappingDriverChain::class, $driver);
-        self::assertArrayHasKey('UhifadhiLabs\Roster\Entity', $driver->getDrivers());
+        self::assertArrayHasKey('Uhifadhi\Roster\Entity', $driver->getDrivers());
         // Nothing mapped yet, and that is the point: the seam is wired, the
         // domain arrives with the design ruling.
         self::assertSame([], $em->getMetadataFactory()->getAllMetadata());

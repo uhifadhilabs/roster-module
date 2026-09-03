@@ -8,7 +8,7 @@
          failOnNotice="true"
          failOnWarning="true">
     <php>
-        <env name="KERNEL_CLASS" value="UhifadhiLabs\Roster\Tests\Integration\TestKernel"/>
+        <env name="KERNEL_CLASS" value="Uhifadhi\Roster\Tests\Integration\TestKernel"/>
         <!--
             No database yet: the module has no entities until the roster design
             rules on the domain model, so the integration suite only boots the

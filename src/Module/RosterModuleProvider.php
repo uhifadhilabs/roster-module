@@ -11,10 +11,10 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace UhifadhiLabs\Roster\Module;
+namespace Uhifadhi\Roster\Module;
 
-use UhifadhiLabs\ModuleContracts\ModuleProviderInterface;
-use UhifadhiLabs\ModuleContracts\ModuleProviderTrait;
+use Uhifadhi\ModuleContracts\ModuleProviderInterface;
+use Uhifadhi\ModuleContracts\ModuleProviderTrait;
 
 /**
  * Declares the one module this bundle contributes — "Rosters": who is on duty

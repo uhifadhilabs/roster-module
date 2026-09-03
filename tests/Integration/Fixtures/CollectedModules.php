@@ -11,9 +11,9 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace UhifadhiLabs\Roster\Tests\Integration\Fixtures;
+namespace Uhifadhi\Roster\Tests\Integration\Fixtures;
 
-use UhifadhiLabs\ModuleContracts\ModuleProviderInterface;
+use Uhifadhi\ModuleContracts\ModuleProviderInterface;
 
 /**
  * The HOST's module catalogue, played by a fixture: it receives every service

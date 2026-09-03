@@ -11,11 +11,11 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace UhifadhiLabs\Roster\Tests\Integration\Module;
+namespace Uhifadhi\Roster\Tests\Integration\Module;
 
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use UhifadhiLabs\Roster\Module\RosterModuleProvider;
-use UhifadhiLabs\Roster\Tests\Integration\Fixtures\CollectedModules;
+use Uhifadhi\Roster\Module\RosterModuleProvider;
+use Uhifadhi\Roster\Tests\Integration\Fixtures\CollectedModules;
 
 /**
  * The host contract: installing this bundle puts "rosters" in the catalogue.

@@ -11,15 +11,15 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace UhifadhiLabs\Roster\Tests\Integration;
+namespace Uhifadhi\Roster\Tests\Integration;
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Kernel;
-use UhifadhiLabs\Roster\Tests\Integration\Fixtures\CollectedModules;
-use UhifadhiLabs\Roster\UhifadhiLabsRosterBundle;
+use Uhifadhi\Roster\Tests\Integration\Fixtures\CollectedModules;
+use Uhifadhi\Roster\UhifadhiRosterBundle;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
 
@@ -38,7 +38,7 @@ final class TestKernel extends Kernel
     {
         yield new FrameworkBundle();
         yield new DoctrineBundle();
-        yield new UhifadhiLabsRosterBundle();
+        yield new UhifadhiRosterBundle();
     }
 
     protected function configureContainer(ContainerConfigurator $container): void

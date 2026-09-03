@@ -31,12 +31,12 @@
     },
     "autoload": {
         "psr-4": {
-            "UhifadhiLabs\\Roster\\": "src/"
+            "Uhifadhi\\Roster\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "UhifadhiLabs\\Roster\\Tests\\": "tests/"
+            "Uhifadhi\\Roster\\Tests\\": "tests/"
         }
     },
     "require-dev": {

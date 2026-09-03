@@ -68,7 +68,7 @@ renders the module through its generic module page.
 
 | Piece | File |
 |---|---|
-| The Symfony plug | `src/UhifadhiLabsRosterBundle.php` |
+| The Symfony plug | `src/UhifadhiRosterBundle.php` |
 | Config tree (`roster:`) | `src/DependencyInjection/RosterConfiguration.php` |
 | Catalogue registration | `src/Module/RosterModuleProvider.php` |
 | Static service wiring (empty, ready) | `config/services.php` |
@@ -87,7 +87,7 @@ composer require uhifadhi/roster-module
 ```
 
 The bundle registers via Flex (`"type": "symfony-bundle"`), which adds
-`UhifadhiLabs\Roster\UhifadhiLabsRosterBundle` to `config/bundles.php`.
+`Uhifadhi\Roster\UhifadhiRosterBundle` to `config/bundles.php`.
 No further host wiring is required: entity mapping is prepended by the bundle,
 and the module reaches the catalogue through the `uhifadhi.module` tag.
 

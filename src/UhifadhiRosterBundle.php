@@ -11,14 +11,14 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace UhifadhiLabs\Roster;
+namespace Uhifadhi\Roster;
 
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
-use UhifadhiLabs\Roster\DependencyInjection\RosterConfiguration;
-use UhifadhiLabs\Roster\Module\RosterModuleProvider;
+use Uhifadhi\Roster\DependencyInjection\RosterConfiguration;
+use Uhifadhi\Roster\Module\RosterModuleProvider;
 
 /**
  * Rosters — who is on duty, where and when: duty rosters, daily work plans,
@@ -32,7 +32,7 @@ use UhifadhiLabs\Roster\Module\RosterModuleProvider;
  * the seam: the bundle registers, its config is keyed under "roster:", its
  * entity directory is mapped, and its module reaches the host's catalogue.
  */
-final class UhifadhiLabsRosterBundle extends AbstractBundle
+final class UhifadhiRosterBundle extends AbstractBundle
 {
     /** Config lives under "roster:", not the class-derived "uhifadhi_labs_roster:". */
     protected string $extensionAlias = 'roster';
@@ -52,10 +52,10 @@ final class UhifadhiLabsRosterBundle extends AbstractBundle
             $container->extension('doctrine', [
                 'orm' => [
                     'mappings' => [
-                        'UhifadhiLabsRoster' => [
+                        'UhifadhiRoster' => [
                             'type' => 'attribute',
                             'dir' => __DIR__.'/Entity',
-                            'prefix' => 'UhifadhiLabs\\Roster\\Entity',
+                            'prefix' => 'Uhifadhi\\Roster\\Entity',
                             'is_bundle' => false,
                         ],
                     ],
