@@ -123,6 +123,9 @@ The widget library also imports `uhifadhi/widgets`, which the CORE's own
 recipe puts in `importmap.php`; an installation running the shell already has
 it.
 
+`docs/upgrading.md` says which release added which controller, and how to
+check the compiled map rather than trusting the eye.
+
 Then **switch it on per area** — a module is installed but parked, and every
 page answers 404 in an area that has not taken it — and grant `roster.manage`
 to whoever changes how the area runs its roster. Reading needs nothing.
