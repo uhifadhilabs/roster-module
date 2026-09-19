@@ -61,6 +61,32 @@ final class SwapRepository extends ServiceEntityRepository
         return $swaps;
     }
 
+    /**
+     * THE LATEST OFFERS OVER A WINDOW, in whatever state they ended in.
+     *
+     * Bounded by the caller, because a card never grows with its data: the
+     * register shows the latest few and says how many there were.
+     *
+     * @return list<Swap>
+     */
+    public function findRecentBetween(AreaOfInterest $area, \DateTimeImmutable $from, \DateTimeImmutable $through, int $limit): array
+    {
+        /** @var list<Swap> $swaps */
+        $swaps = $this->createQueryBuilder('s')
+            ->join('s.duty', 'd')
+            ->andWhere('s.area = :area')
+            ->andWhere('d.onDay BETWEEN :from AND :through')
+            ->setParameter('area', $area)
+            ->setParameter('from', $from->setTime(0, 0))
+            ->setParameter('through', $through->setTime(0, 0))
+            ->orderBy('s.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        return $swaps;
+    }
+
     /** Whatever offer is out on this watch, or null. */
     public function findOpenForDuty(Duty $duty): ?Swap
     {

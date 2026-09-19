@@ -270,6 +270,77 @@ leave every morning before six looking unmanned, and drawing the watch as one
 block would be a lie about the day it belongs to. Positions are percentages of
 the day, so nothing depends on a pixel.
 
+## A module has no hue
+
+**RULED 2026-09-20.** The sheet declared `--r-acc` and `--r-accT` — an
+invented blue — plus `--rb-band` and `--rb-rule`. All four are gone, and so
+is the one colour literal (`#000` in two `color-mix()` calls, now
+`var(--tx)`). **The sheet now declares no custom property and contains no
+literal at all.**
+
+**Why it matters more than it looks.** A hex is the obvious way a module
+acquires a palette; a `--r-*` token is the polite one, and the polite one is
+worse because it looks deliberate. With `--r-acc` in place, "selected" meant
+one thing on a roster screen and another everywhere else.
+
+**Selected wears the HOUSE on-state**, which is *outlined* — `.mchip.on` is
+`border-color: acc; color: acc`, not a fill. `.r-pill.on` and `.rsw label.on`
+were filling with accent and now outline. `--accT` is no longer spent at all,
+because nothing is filled.
+
+`StylesheetVocabularyTest::testTheSheetDeclaresNoColourOfItsOwn` fails the
+build on either a declared token or a literal.
+
+## A day holds any number of watches
+
+**RULED by the owner, 2026-09-21.** A ranger may check in and out more than
+once in a day. `PersonDay` is one watch, not one day.
+
+**This was a live bug, not a new feature.** `dayIn()` returns
+`list<PersonDay>` and nothing ever said one per person — `PresenceReader`
+keyed the answer by person uuid and kept whichever came last, so a morning at
+the gate vanished the moment somebody checked in on an escort.
+
+**What changed.** `RosteredPerson` carries `list<PersonDay> $watches`. The
+folds are stated rather than assumed: **present if ANY watch counts**
+(somebody who spent the morning elsewhere and the afternoon at the post was
+present), **flagged if ANY is unverified** (one bad claim in three is still a
+claim somebody must look at), **the summary leads with the FIRST** (leading
+with the latest makes the morning disappear), and a post's silence is measured
+from **the newest evidence across every watch**. Today, the Day board, Live
+and the station band all render one row per watch with the day's total.
+
+Tested against a stubbed provider — the only way to hand the reader a
+two-watch day without this module inventing check-in rows the area owns.
+
+## The swap flow is two house cards, not the archived bar
+
+**Graduated 2026-09-20** (`92ddb50`). The bordered, tinted `.fg-swap` bar is
+archive-only; the flow is **"Swap a watch"** (the two cells, then each cost
+check as its own `.rln` row, then the actions) and **"Swaps"** (the register,
+one row per offer with its state chip — offered · accepted · declined ·
+withdrawn).
+
+**Every cost check is STATED, none is ENFORCED.** A duty officer may knowingly
+send an offer that breaks the rest rule — a gate that would otherwise stand
+empty is sometimes the worse outcome — and what the page must never do is send
+one *quietly*. `SwapCostService` answers with sentences; nothing refuses.
+
+**The offer under construction lives in the query string**, not a session: it
+is shareable, refreshable and gone the moment somebody navigates away, where a
+half-built swap in a session would follow a duty officer around the product.
+
+**`roster.plan` is its own permission.** Moving one watch between two people
+on one night is a duty officer's daily work; making it need `roster.manage`
+would push every shift change up to whoever rewrites rotations.
+
+## A dashboard card states facts, not sentences
+
+**Design notes, 21 sep.** The explanatory `.rfrag` lines came off all five
+tabs — nine of them. What was information rather than commentary moved: the
+week grid's shift key is now in the card's `.src` caption. Empty states stay,
+because "there is nothing here" is a fact.
+
 ## What the design asks for that nothing can answer yet
 
 These are named here rather than invented, because the honest empty state is

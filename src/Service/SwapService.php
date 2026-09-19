@@ -14,11 +14,14 @@ declare(strict_types=1);
 namespace Uhifadhi\Roster\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Uid\Uuid;
+use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Contracts\Entity\UserInterface;
 use Uhifadhi\Roster\Entity\Duty;
 use Uhifadhi\Roster\Entity\EditedDay;
 use Uhifadhi\Roster\Entity\Swap;
 use Uhifadhi\Roster\Enum\SwapState;
+use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\EditedDayRepository;
 use Uhifadhi\Roster\Repository\SwapRepository;
 
@@ -48,6 +51,8 @@ final readonly class SwapService
         private EntityManagerInterface $entityManager,
         private SwapRepository $swaps,
         private EditedDayRepository $editedDays,
+        private DutyRepository $duties,
+        private RosteredPeople $pool,
     ) {
     }
 
@@ -121,6 +126,95 @@ final readonly class SwapService
         $this->entityManager->flush();
 
         return $swap;
+    }
+
+    /**
+     * THE OFFERS STILL WAITING, over a window of days.
+     *
+     * @return list<Swap>
+     */
+    public function openBetween(AreaOfInterest $area, \DateTimeImmutable $from, \DateTimeImmutable $through): array
+    {
+        return $this->swaps->findOpenBetween($area, $from, $through);
+    }
+
+    /**
+     * THE LATEST OFFERS OVER A WINDOW, ANSWERED OR NOT — the register.
+     *
+     * EVERY STATE IT CAN END IN is shown, which is the point of keeping a
+     * declined or withdrawn offer: "we did ask, and they said no" is a fact
+     * about a week, and a register that only listed the successes would
+     * make a hole look like one nobody tried to fill.
+     *
+     * @return list<Swap>
+     */
+    public function recentBetween(AreaOfInterest $area, \DateTimeImmutable $from, \DateTimeImmutable $through, int $limit): array
+    {
+        return $this->swaps->findRecentBetween($area, $from, $through, $limit);
+    }
+
+    /**
+     * THE TRADE BEING PUT TOGETHER — the watch being given up and the person
+     * being asked, both named in the url.
+     *
+     * A CARD, NOT A SESSION. The offer under construction lives in the query
+     * string so that it is shareable, refreshable and gone the moment
+     * somebody navigates away; a half-built swap kept in a session would
+     * follow a duty officer around the product.
+     *
+     * @return array{duty: Duty, taking: UserInterface}|null
+     */
+    public function offering(AreaOfInterest $area, mixed $dutyUuid, mixed $takingUuid): ?array
+    {
+        if (!\is_string($dutyUuid) || !\is_string($takingUuid) || !Uuid::isValid($dutyUuid) || !Uuid::isValid($takingUuid)) {
+            return null;
+        }
+
+        $duty = $this->duties->findOneBy(['area' => $area, 'uuid' => Uuid::fromString($dutyUuid)]);
+        if (null === $duty) {
+            return null;
+        }
+
+        foreach ($this->pool->findCandidates($area) as $person) {
+            if ((string) $person->getUuidString() === $takingUuid) {
+                return ['duty' => $duty, 'taking' => $person];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * OFFER, ADDRESSED THE WAY A FORM ADDRESSES THINGS — by uuid, checked
+     * against this area.
+     *
+     * @throws \LogicException when the watch or the person is not this area\'s, or the offer is refused
+     */
+    public function offerFromRequest(AreaOfInterest $area, string $dutyUuid, string $takingUuid, ?UserInterface $offeredBy): Swap
+    {
+        $subject = $this->offering($area, $dutyUuid, $takingUuid);
+        if (null === $subject) {
+            throw new \LogicException('That watch or that person is not in this area.');
+        }
+
+        return $this->offer($subject['duty'], $subject['taking'], $offeredBy);
+    }
+
+    /**
+     * @throws \LogicException when the swap is not this area\'s or has already been answered
+     */
+    public function withdrawFromRequest(AreaOfInterest $area, string $swapUuid, \DateTimeImmutable $at): Swap
+    {
+        if (!Uuid::isValid($swapUuid)) {
+            throw new \LogicException('That is not a swap.');
+        }
+
+        $swap = $this->swaps->findOneBy(['area' => $area, 'uuid' => Uuid::fromString($swapUuid)]);
+        if (null === $swap) {
+            throw new \LogicException('That swap is not in this area.');
+        }
+
+        return $this->withdraw($swap, $at);
     }
 
     /**

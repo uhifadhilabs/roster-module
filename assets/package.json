@@ -3,7 +3,16 @@
     "version": "1.0.0",
     "description": "The roster module's Stimulus controllers.",
     "symfony": {
-        "controllers": {},
-        "importmap": {}
+        "controllers": {
+            "rotation": {
+                "main": "controllers/rotation_controller.js",
+                "name": "roster--rotation",
+                "fetch": "eager",
+                "enabled": true
+            }
+        },
+        "importmap": {
+            "@hotwired/stimulus": "^3.0.0"
+        }
     }
 }

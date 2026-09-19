@@ -117,15 +117,22 @@ final readonly class PresenceReader
     }
 
     /**
-     * THE AREA'S READING OF THE DAY, keyed by person.
+     * THE AREA'S READING OF THE DAY, GROUPED BY PERSON — a LIST per person,
+     * never one row.
      *
-     * @return array<string, PersonDay>
+     * A DAY HOLDS ANY NUMBER OF WATCHES (ruled): a ranger may check in and
+     * out more than once, so `dayIn()` may legitimately return two or three
+     * rows for the same person. This used to key them by person uuid, which
+     * kept whichever came last and silently dropped the rest — a morning at
+     * the gate vanishing the moment somebody checked in on an escort.
+     *
+     * @return array<string, list<PersonDay>>
      */
     private function reportedByPerson(AreaOfInterest $area, \DateTimeImmutable $day): array
     {
         $byPerson = [];
         foreach ($this->presence->dayIn((string) $area->getUuidString(), $day->format('Y-m-d')) as $personDay) {
-            $byPerson[$personDay->personUuid] = $personDay;
+            $byPerson[$personDay->personUuid][] = $personDay;
         }
 
         return $byPerson;
@@ -134,7 +141,7 @@ final readonly class PresenceReader
     /**
      * WHO IS DUE WHERE, with the area's reading of each of them attached.
      *
-     * @param array<string, PersonDay> $reported
+     * @param array<string, list<PersonDay>> $reported
      *
      * @return array<string, list<RosteredPerson>> station uuid => the people due there
      */
@@ -157,7 +164,7 @@ final readonly class PresenceReader
                 personName: $duty->getPerson()->getFullName(),
                 shiftKey: $duty->getShiftKey(),
                 shiftLabel: $labels[$duty->getShiftKey()] ?? $duty->getShiftKey(),
-                day: $reported[$personUuid] ?? null,
+                watches: $reported[$personUuid] ?? [],
             );
         }
 
@@ -207,12 +214,15 @@ final readonly class PresenceReader
      */
     private function stateOf(StationWatch $watch, array $people, \DateTimeImmutable $now, ?int &$silentFor): PostState
     {
+        // THE NEWEST EVIDENCE FROM ANYBODY HERE, across every watch of
+        // every person — not the last row of each. A post whose morning
+        // shift reported and whose afternoon has not is not silent since
+        // this morning; it is silent since the last thing that arrived.
         $newest = null;
         foreach ($people as $person) {
-            foreach ([$person->day?->lastPingAt, $person->day?->occurredAt] as $instant) {
-                if (null !== $instant && (null === $newest || $instant > $newest)) {
-                    $newest = $instant;
-                }
+            $seen = $person->lastSeenAt();
+            if (null !== $seen && (null === $newest || $seen > $newest)) {
+                $newest = $seen;
             }
         }
 

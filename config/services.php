@@ -31,9 +31,12 @@ use Uhifadhi\Roster\Service\RosterCalendar;
 use Uhifadhi\Roster\Service\RosteredPeople;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\RosterSettingsService;
+use Uhifadhi\Roster\Service\RotationEditor;
 use Uhifadhi\Roster\Service\RotationGenerator;
+use Uhifadhi\Roster\Service\RotationPreview;
 use Uhifadhi\Roster\Service\ShiftVocabularyService;
 use Uhifadhi\Roster\Service\StationWatchService;
+use Uhifadhi\Roster\Service\SwapCostService;
 use Uhifadhi\Roster\Service\SwapService;
 use Uhifadhi\Roster\Service\WeekGridService;
 use Uhifadhi\Roster\Twig\RosterTrailExtension;
@@ -162,6 +165,19 @@ return static function (ContainerConfigurator $container): void {
             service('doctrine.orm.entity_manager'),
             service(SwapRepository::class),
             service(EditedDayRepository::class),
+            service(DutyRepository::class),
+            service('roster.rostered_people'),
+        ]);
+
+    // WHAT A TRADE COSTS — every check stated, none enforced. A duty officer
+    // may knowingly send an offer that breaks the rest rule; what the page
+    // must never do is send one quietly.
+    $services->set('roster.swap_cost', SwapCostService::class)
+        ->args([
+            service(DutyRepository::class),
+            service(ShiftRepository::class),
+            service(RotationRepository::class),
+            service(AbsenceRepository::class),
         ]);
 
     /*
@@ -204,7 +220,23 @@ return static function (ContainerConfigurator $container): void {
     // rotations actually draw from, which is not the payroll and not the
     // postings.
     $services->set('roster.rostered_people', RosteredPeople::class)
-        ->args([service(RotationRepository::class), service(RotationPoolMemberRepository::class)]);
+        ->args([
+            service(RotationRepository::class),
+            service(RotationPoolMemberRepository::class),
+            service('Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository'),
+        ]);
+
+    // THE ONE WRITE THE CYCLE EDITOR MAKES. It applies a whole draft and
+    // does NOT generate: correcting a typo in a ring must not rewrite six
+    // weeks of duties on the spot.
+    $services->set('roster.rotation_editor', RotationEditor::class)
+        ->args([service('doctrine.orm.entity_manager'), service(RotationPoolMemberRepository::class)]);
+
+    // THE MONTH A RING WOULD PRODUCE, through the same pure planner the
+    // generator runs — so a preview cannot disagree with the result, and it
+    // writes nothing at all.
+    $services->set('roster.rotation_preview', RotationPreview::class)
+        ->args([service(RotationRepository::class), service(ShiftRepository::class), service('roster.cycle_planner')]);
 
     // `roster_url()` — the URL of a screen, or null where the installation did
     // not mount it. Twig's own path() THROWS on an unregistered route, so a

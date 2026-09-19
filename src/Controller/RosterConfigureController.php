@@ -17,6 +17,7 @@ use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -25,18 +26,27 @@ use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Symfony\Component\Uid\Uuid;
 use Twig\Environment;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
+use Uhifadhi\Roster\Entity\Rotation;
+use Uhifadhi\Roster\Entity\RotationPoolMember;
 use Uhifadhi\Roster\Entity\StationWatch;
 use Uhifadhi\Roster\Enum\LateThreshold;
+use Uhifadhi\Roster\Enum\RestRule;
 use Uhifadhi\Roster\Enum\VacancyAnnounce;
+use Uhifadhi\Roster\Model\RotationDraft;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Repository\RotationRepository;
+use Uhifadhi\Roster\Service\RosteredPeople;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\RosterSettingsService;
+use Uhifadhi\Roster\Service\RotationEditor;
+use Uhifadhi\Roster\Service\RotationGenerator;
+use Uhifadhi\Roster\Service\RotationPreview;
 use Uhifadhi\Roster\Service\ShiftVocabularyService;
 use Uhifadhi\Roster\Service\StationWatchService;
 
@@ -73,6 +83,8 @@ final class RosterConfigureController
     public const string WATCHES_ROUTE = 'roster_configure_watches';
     public const string SETTINGS_ROUTE = 'roster_configure_settings';
 
+    public const string SAVE_ROTATION_ROUTE = 'roster_configure_rotation_save';
+    public const string GENERATE_ROTATION_ROUTE = 'roster_configure_rotation_generate';
     public const string SAVE_WATCHES_ROUTE = 'roster_configure_watches_save';
     public const string SAVE_SETTINGS_ROUTE = 'roster_configure_settings_save';
 
@@ -98,6 +110,10 @@ final class RosterConfigureController
         private readonly StationWatchService $watches,
         private readonly StationRepository $stations,
         private readonly CheckInStatusService $checkInStatuses,
+        private readonly RosteredPeople $people,
+        private readonly RotationEditor $editor,
+        private readonly RotationPreview $preview,
+        private readonly RotationGenerator $generator,
         private readonly RotationRepository $rotations,
         private readonly AuthorizationCheckerInterface $authorization,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
@@ -107,13 +123,25 @@ final class RosterConfigureController
     #[Route('/areas/{uuid}/modules/roster/rotation', name: self::ROTATION_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['GET'])]
     public function rotation(
         #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
     ): Response {
         $rotations = $this->rotations->findByArea($area);
+        $chosen = $this->chosenRotation($rotations, $request->query->get('rotation'));
 
         return new Response($this->twig->render('@UhifadhiRoster/configure/rotation.html.twig', [
             'area' => $area,
             'band' => $this->identity->bandFor($area),
             'rotations' => $rotations,
+            'chosen' => $chosen,
+            'shifts' => $this->shifts->openFor($area),
+            'candidates' => $this->people->rosteredIn($area),
+            'restRules' => RestRule::cases(),
+            'horizons' => RotationEditor::HORIZONS,
+            'previewFeed' => $this->preview,
+            'previewScope' => null === $chosen ? null : RotationPreview::scopeFor($chosen),
+            'previewMonth' => $this->people->monthOf($request->query->get('month')),
+            'draft' => null === $chosen ? null : self::draftOf($chosen),
+            'csrfToken' => $this->csrfTokenManager->getToken(self::CSRF_TOKEN_ID)->getValue(),
             // The posts the area registers that run no ring at all. Named
             // rather than counted: "a post with no rotation is never counted,
             // reported on or called a hole" is only trustworthy if the page
@@ -161,6 +189,82 @@ final class RosterConfigureController
             'mayManage' => $this->authorization->isGranted(self::MANAGE_PERMISSION, $area),
             'csrfToken' => $this->csrfTokenManager->getToken(self::CSRF_TOKEN_ID)->getValue(),
         ]));
+    }
+
+    /**
+     * SAVE THE CYCLE EDITOR'S DRAFT — the ring, the counts, the pool, the
+     * rest rule, the anchor and the horizon, all in one write.
+     *
+     * SAVING IS NOT GENERATING. The two are separate acts and stay separate:
+     * correcting a typo in a ring must not rewrite six weeks of duties on
+     * the spot. The page offers "Generate from tomorrow" beside Save, and
+     * that is the one that writes rows.
+     */
+    #[Route('/areas/{uuid}/modules/roster/rotation/{rotation}', name: self::SAVE_ROTATION_ROUTE, requirements: ['uuid' => Requirement::UUID, 'rotation' => Requirement::UUID], methods: ['POST'])]
+    public function saveRotation(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        string $rotation,
+        Request $request,
+    ): Response {
+        $this->guardWrite($area, $request);
+
+        $subject = $this->rotations->findOneByUuid($area, Uuid::fromString($rotation));
+        if (null === $subject) {
+            throw new NotFoundHttpException('That rotation is not in this area.');
+        }
+
+        $shiftKeys = [];
+        foreach ($this->shifts->openFor($area) as $shift) {
+            $shiftKeys[$shift->getKey()] = $shift->getLabel();
+        }
+
+        try {
+            $draft = RotationDraft::fromSubmitted(
+                json_decode((string) $request->request->get('draft'), true),
+                $shiftKeys,
+            );
+            $this->editor->apply($subject, $draft, $this->people->byUuid($area));
+        } catch (\InvalidArgumentException $refused) {
+            // REFUSED WHOLE AND SAID OUT LOUD. A draft is validated as one
+            // object, so a malformed ring never lands half-applied — and the
+            // person sees the sentence rather than a page that silently kept
+            // the old ring.
+            self::flash($request, 'error', $refused->getMessage());
+        }
+
+        return $this->backTo(self::ROTATION_ROUTE, $area, ['rotation' => $rotation]);
+    }
+
+    /**
+     * RUN THE RING FROM TOMORROW. Today is left alone deliberately: people
+     * are already standing today's watches, and regenerating the day
+     * underneath them would move somebody who is at a post.
+     */
+    #[Route('/areas/{uuid}/modules/roster/rotation/{rotation}/generate', name: self::GENERATE_ROTATION_ROUTE, requirements: ['uuid' => Requirement::UUID, 'rotation' => Requirement::UUID], methods: ['POST'])]
+    public function generateRotation(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        string $rotation,
+        Request $request,
+    ): Response {
+        $this->guardWrite($area, $request);
+
+        $subject = $this->rotations->findOneByUuid($area, Uuid::fromString($rotation));
+        if (null === $subject) {
+            throw new NotFoundHttpException('That rotation is not in this area.');
+        }
+
+        $from = new \DateTimeImmutable('tomorrow');
+        $run = $this->generator->generate($subject, $from, $from->modify(\sprintf('+%d days', $subject->getHorizonDays())));
+
+        self::flash($request, 'success', \sprintf(
+            '%d watch%s written to %s.%s',
+            $run->created,
+            1 === $run->created ? '' : 'es',
+            $run->through->format('j M Y'),
+            [] === $run->protectedDays ? '' : \sprintf(' %d day%s somebody had edited were left alone.', $run->protectedDayCount(), 1 === $run->protectedDayCount() ? '' : 's'),
+        ));
+
+        return $this->backTo(self::ROTATION_ROUTE, $area, ['rotation' => $rotation]);
     }
 
     /**
@@ -307,7 +411,27 @@ final class RosterConfigureController
      * BACK TO THE SECTION THAT WAS SAVED, as a redirect: a POST answered with
      * a rendered page is a page a refresh re-submits.
      */
-    private function backTo(string $route, AreaOfInterest $area): RedirectResponse
+    /**
+     * SAY IT IN THE FRAME'S OWN FLASHES.
+     *
+     * A session only carries a flash bag where the application gave it one
+     * — `SessionInterface` does not promise it — so a page that assumed one
+     * would 500 on an installation with a stateless session rather than
+     * merely losing a sentence. The message is the lesser loss.
+     */
+    private static function flash(Request $request, string $type, string $message): void
+    {
+        $session = $request->hasSession() ? $request->getSession() : null;
+
+        if ($session instanceof FlashBagAwareSessionInterface) {
+            $session->getFlashBag()->add($type, $message);
+        }
+    }
+
+    /**
+     * @param array<string, scalar> $extra
+     */
+    private function backTo(string $route, AreaOfInterest $area, array $extra = []): RedirectResponse
     {
         $uuid = $area->getUuidString();
 
@@ -315,6 +439,51 @@ final class RosterConfigureController
             throw new NotFoundHttpException('That area has no identifier to return to.');
         }
 
-        return new RedirectResponse($this->router->generate($route, ['uuid' => $uuid]));
+        return new RedirectResponse($this->router->generate($route, ['uuid' => $uuid] + $extra));
+    }
+
+    /**
+     * WHICH ROTATION THE EDITOR IS ON — the one asked for, or the first.
+     *
+     * @param list<Rotation> $rotations
+     */
+    private function chosenRotation(array $rotations, mixed $asked): ?Rotation
+    {
+        if ([] === $rotations) {
+            return null;
+        }
+
+        if (\is_string($asked) && Uuid::isValid($asked)) {
+            foreach ($rotations as $rotation) {
+                if ($rotation->getUuid()->toRfc4122() === $asked) {
+                    return $rotation;
+                }
+            }
+        }
+
+        return $rotations[0];
+    }
+
+    /**
+     * THE ROTATION AS THE EDITOR STARTS FROM IT. Serialised into one field
+     * so the server validates the draft as one object rather than field by
+     * field.
+     *
+     * @return array<string, mixed>
+     */
+    private static function draftOf(Rotation $rotation): array
+    {
+        return [
+            'cycle' => $rotation->getCycle()->toStored(),
+            'slots' => $rotation->getSlotsPerShift(),
+            'pool' => array_values(array_map(
+                static fn (RotationPoolMember $member): string => (string) $member->getPerson()->getUuidString(),
+                $rotation->getPool()->toArray(),
+            )),
+            'standDown' => $rotation->getStandDownWeekdays(),
+            'restRule' => $rotation->getRestRule()->value,
+            'horizonDays' => $rotation->getHorizonDays(),
+            'anchoredOn' => $rotation->getAnchoredOn()->format('Y-m-d'),
+        ];
     }
 }

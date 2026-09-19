@@ -35,12 +35,15 @@
             <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed</em></div>
         {% else %}
             <table class="tbl">
-                <tr><th>post</th><th>the watch</th><th>on it now</th><th>verified</th><th>the state of the post</th></tr>
+                <tr><th>post</th><th>the watch</th><th>on it now</th><th>check-ins today</th><th>verified</th><th>the state of the post</th></tr>
                 {% for post in posts %}
                     <tr>
                         <td><b>{{ post.stationName }}</b></td>
                         <td>{{ post.expected ? post.expected ~ ' asked for' : 'no watch' }}</td>
                         <td>{{ post.rostered|length }}</td>
+                        {# A DAY HOLDS ANY NUMBER OF WATCHES, so this is the
+                           count of check-ins and not of people. #}
+                        <td>{% set checkins = 0 %}{% for person in post.rostered %}{% set checkins = checkins + person.watchCount %}{% endfor %}{{ checkins }}</td>
                         <td class="{{ post.expected and post.verified < post.expected ? 'w' : (post.expected ? 'g' : '') }}">
                             {{- post.expected ? post.verified ~ ' of ' ~ post.expected : '—' -}}
                         </td>
@@ -53,8 +56,6 @@
                 {% endfor %}
             </table>
 
-            <div class="rfrag"><b>A square is a post, a circle is a person</b><em>the two shapes never blur &mdash; &ldquo;is this post alive&rdquo; and &ldquo;where is this ranger&rdquo; are different questions</em></div>
-            <div class="rfrag"><b>Every position carries the age of its last ping</b><em>a position with no age is a rumour; the age is what makes it arguable</em></div>
         {% endif %}
     </div>
 {% endblock %}

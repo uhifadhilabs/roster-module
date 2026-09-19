@@ -14,7 +14,9 @@ declare(strict_types=1);
 namespace Uhifadhi\Roster\Service;
 
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
+use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Contracts\Atlas\YearMonth;
+use Uhifadhi\Contracts\Entity\UserInterface;
 use Uhifadhi\Roster\Repository\RotationPoolMemberRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
 
@@ -37,6 +39,7 @@ final readonly class RosteredPeople
     public function __construct(
         private RotationRepository $rotations,
         private RotationPoolMemberRepository $pool,
+        private PostingRepository $postings,
     ) {
     }
 
@@ -46,20 +49,57 @@ final readonly class RosteredPeople
     public function rosteredIn(AreaOfInterest $area): array
     {
         $people = [];
-        foreach ($this->rotations->findByArea($area) as $rotation) {
-            foreach ($this->pool->findOrdered($rotation) as $member) {
-                $person = $member->getPerson();
-                $people[(string) $person->getUuidString()] = [
-                    'uuid' => (string) $person->getUuidString(),
-                    'name' => $person->getFullName(),
-                ];
-            }
+        foreach ($this->byUuid($area) as $uuid => $person) {
+            $people[$uuid] = ['uuid' => $uuid, 'name' => $person->getFullName()];
         }
 
         $ordered = array_values($people);
         usort($ordered, static fn (array $a, array $b): int => $a['name'] <=> $b['name']);
 
         return $ordered;
+    }
+
+    /**
+     * EVERYBODY A ROTATION IN THIS AREA MAY DRAW FROM, keyed by uuid — what
+     * the editor checks a submitted pool against.
+     *
+     * IT IS THE AREA'S PEOPLE AND NOT THE INSTALLATION'S. A pool that could
+     * name anybody with an account would let one park's ring draw on another
+     * park's rangers, and nothing on either page would say so.
+     *
+     * @return array<string, UserInterface>
+     */
+    public function byUuid(AreaOfInterest $area): array
+    {
+        $people = [];
+        foreach ($this->postings->findStandingByArea($area) as $posting) {
+            $person = $posting->getPerson();
+            if (null !== $person) {
+                $people[(string) $person->getUuidString()] = $person;
+            }
+        }
+
+        // Anybody already in a ring stays offerable even if their posting
+        // moved: taking somebody out of a pool is a decision, not something
+        // that should happen behind a duty officer's back.
+        foreach ($this->rotations->findByArea($area) as $rotation) {
+            foreach ($this->pool->findOrdered($rotation) as $member) {
+                $people[(string) $member->getPerson()->getUuidString()] = $member->getPerson();
+            }
+        }
+
+        return $people;
+    }
+
+    /**
+     * EVERYBODY A SWAP MAY BE OFFERED TO — the same set a ring may draw
+     * from, as objects.
+     *
+     * @return list<UserInterface>
+     */
+    public function findCandidates(AreaOfInterest $area): array
+    {
+        return array_values($this->byUuid($area));
     }
 
     /**

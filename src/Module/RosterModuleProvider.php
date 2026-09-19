@@ -109,6 +109,19 @@ final class RosterModuleProvider implements ModuleProviderInterface
                 'Manage',
                 'Change how this area runs its roster: the rotations, what each post’s watch expects, and the module’s settings.',
             ),
+            /*
+             * ITS OWN PERMISSION, not a second use of "manage". Moving one
+             * watch between two people on one night is a duty officer's
+             * daily work; making it need the permission that rewrites an
+             * area's rotations would push every shift change up to whoever
+             * holds that one.
+             */
+            new ModulePermission(
+                RosterController::PLAN_PERMISSION,
+                'Roster',
+                'Plan',
+                'Offer a watch to somebody else, and take an offer back before it is answered.',
+            ),
         ];
     }
 }

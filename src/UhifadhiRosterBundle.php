@@ -260,6 +260,15 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service('roster.day_board'),
                 service('roster.rostered_people'),
                 service('roster.calendar'),
+                service('roster.swaps'),
+                service('roster.swap_cost'),
+                service('router'),
+                // Null where the installation runs no security: the week tab
+                // then offers no swap, because there is nobody to attribute
+                // an offer to and nothing to refuse one with.
+                service('security.authorization_checker')->nullOnInvalid(),
+                service('security.token_storage')->nullOnInvalid(),
+                service('security.csrf.token_manager')->nullOnInvalid(),
             ])
             ->public();
         $services->alias(RosterController::class, 'roster.controller.overview')->public();
@@ -299,6 +308,10 @@ final class UhifadhiRosterBundle extends AbstractBundle
                     service('roster.station_watches'),
                     service(StationRepository::class),
                     service(CheckInStatusService::class),
+                    service('roster.rostered_people'),
+                    service('roster.rotation_editor'),
+                    service('roster.rotation_preview'),
+                    service('roster.rotation_generator'),
                     service(RotationRepository::class),
                     service('security.authorization_checker'),
                     service('security.csrf.token_manager'),

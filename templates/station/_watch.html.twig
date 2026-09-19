@@ -41,26 +41,40 @@
         </span>
     </div>
 
+    {# A DAY HOLDS ANY NUMBER OF WATCHES (ruled): one row each, and the
+       name carries the day's total. #}
     {% for person in presence.rostered %}
-        <div class="rset">
-            <span class="lb"><b>{{ person.personName }}</b><em>{{ person.shiftLabel|lower }}</em></span>
-            <span class="ct">
-                <span class="r-ci {{ person.state.value }}"><i></i>{{ person.state.label }}</span>
-                {%- if person.day and person.day.lastPingAt %}
-                    <span class="unit"><time datetime="{{ person.day.lastPingAt.format('c') }}" data-localtime-format="time">{{ person.day.lastPingAt.format('H:i') }}</time></span>
-                {%- endif %}
-            </span>
-            <span class="why">
-                {%- if person.isFlagged and person.day %}
-                    {{ person.day.unverifiedReason ? person.day.unverifiedReason.label : 'unverified' }}
-                    {%- if person.day.distanceM is not null %} — {{ (person.day.distanceM / 1000)|number_format(1) }} km from the post{% endif %}
-                {%- elseif person.day and person.day.statusLabel %}
-                    {{ person.day.statusLabel }}
-                {%- else %}
-                    <span class="fog">nothing has arrived for this day</span>
-                {%- endif %}
-            </span>
-        </div>
+        {% for watch in person.watches %}
+            <div class="rset">
+                <span class="lb">
+                    <b>{{ loop.first ? person.personName : '' }}</b>
+                    <em>{{ person.shiftLabel|lower }}{% if person.watchCount > 1 %} &middot; {{ loop.index }} of {{ person.watchCount }}{% endif %}</em>
+                </span>
+                <span class="ct">
+                    <span class="r-ci {{ watch.state.value }}"><i></i>{{ watch.state.label }}</span>
+                    {%- if watch.lastPingAt %}
+                        <span class="unit"><time datetime="{{ watch.lastPingAt.format('c') }}" data-localtime-format="time">{{ watch.lastPingAt.format('H:i') }}</time></span>
+                    {%- endif %}
+                    {%- if watch.notCheckedOut %}<span class="unit">not checked out</span>{% endif %}
+                </span>
+                <span class="why">
+                    {%- if watch.state.value == 'at_post_unverified' %}
+                        {{ watch.unverifiedReason ? watch.unverifiedReason.label : 'unverified' }}
+                        {%- if watch.distanceM is not null %} &mdash; {{ (watch.distanceM / 1000)|number_format(1) }} km from the post{% endif %}
+                    {%- elseif watch.statusLabel %}
+                        {{ watch.statusLabel }}
+                    {%- else %}
+                        {{ watch.pings }} position{{ watch.pings == 1 ? '' : 's' }}
+                    {%- endif %}
+                </span>
+            </div>
+        {% else %}
+            <div class="rset">
+                <span class="lb"><b>{{ person.personName }}</b><em>{{ person.shiftLabel|lower }}</em></span>
+                <span class="ct"><span class="r-ci no_check_in"><i></i>no check-in</span></span>
+                <span class="why"><span class="fog">nothing has arrived for this day</span></span>
+            </div>
+        {% endfor %}
     {% endfor %}
 
     {% if presence.rostered is empty %}

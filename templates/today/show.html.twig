@@ -38,26 +38,42 @@
             </div>
 
             {% for person in post.rostered %}
-                <div class="r-ag-line">
-                    <span class="nm">{{ person.personName }}<em>{{ person.shiftLabel|lower }}</em></span>
-                    <span class="why">
-                        {%- if person.day is null %}
-                            nothing has arrived for this day
-                        {%- elseif person.isFlagged %}
-                            {{ person.day.unverifiedReason ? person.day.unverifiedReason.label : 'unverified' }}
-                            {%- if person.day.distanceM is not null %} &mdash; {{ (person.day.distanceM / 1000)|number_format(1) }} km from the post claimed{% endif %}
-                        {%- elseif person.day.statusLabel %}
-                            {{ person.day.statusLabel }}
-                            {%- if person.day.note %} &mdash; {{ person.day.note }}{% endif %}
-                        {%- else %}
-                            {{ person.day.pings }} position{{ person.day.pings == 1 ? '' : 's' }} since the check-in
+                {# A DAY HOLDS ANY NUMBER OF WATCHES (ruled). Each one is its
+                   own row and the name carries the day's total, because a
+                   morning at the gate and an afternoon on an escort are two
+                   facts and one row showing the latest would hide the first. #}
+                {% for watch in person.watches %}
+                    <div class="r-ag-line">
+                        <span class="nm">
+                            {{- loop.first ? person.personName : '' -}}
+                            <em>
+                                {{- person.shiftLabel|lower }}
+                                {%- if person.watchCount > 1 %} &middot; watch {{ loop.index }} of {{ person.watchCount }}{% endif -%}
+                            </em>
+                        </span>
+                        <span class="why">
+                            {%- if watch.state.value == 'at_post_unverified' %}
+                                {{ watch.unverifiedReason ? watch.unverifiedReason.label : 'unverified' }}
+                                {%- if watch.distanceM is not null %} &mdash; {{ (watch.distanceM / 1000)|number_format(1) }} km from the post claimed{% endif %}
+                            {%- elseif watch.statusLabel %}
+                                {{ watch.statusLabel }}{% if watch.note %} &mdash; {{ watch.note }}{% endif %}
+                            {%- else %}
+                                {{ watch.pings }} position{{ watch.pings == 1 ? '' : 's' }} since the check-in
+                            {%- endif %}
+                            {%- if watch.notCheckedOut %} &middot; <b>not checked out</b>{% endif %}
+                        </span>
+                        <span class="r-ci {{ watch.state.value }}"><i></i>{{ watch.state.label }}</span>
+                        {%- if watch.lastPingAt %}
+                            <span class="unit"><time datetime="{{ watch.lastPingAt.format('c') }}" data-localtime-format="time">{{ watch.lastPingAt.format('H:i') }}</time></span>
                         {%- endif %}
-                    </span>
-                    <span class="r-ci {{ person.state.value }}"><i></i>{{ person.state.label }}</span>
-                    {%- if person.day and person.day.lastPingAt %}
-                        <span class="unit"><time datetime="{{ person.day.lastPingAt.format('c') }}" data-localtime-format="time">{{ person.day.lastPingAt.format('H:i') }}</time></span>
-                    {%- endif %}
-                </div>
+                    </div>
+                {% else %}
+                    <div class="r-ag-line">
+                        <span class="nm">{{ person.personName }}<em>{{ person.shiftLabel|lower }}</em></span>
+                        <span class="why">nothing has arrived for this day</span>
+                        <span class="r-ci no_check_in"><i></i>no check-in</span>
+                    </div>
+                {% endfor %}
             {% endfor %}
 
             {% if post.shortfall %}
@@ -79,7 +95,6 @@
         {% endfor %}
 
         {% if not isToday %}
-            <div class="rfrag"><b>This day carries no state</b><em>every line is DUE &mdash; nothing has been measured, and the tab never pretends otherwise</em></div>
         {% endif %}
     </div>
 {% endblock %}

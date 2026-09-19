@@ -151,6 +151,47 @@ final class StylesheetVocabularyTest extends TestCase
     }
 
     /**
+     * MODULES HAVE NO HUE — ruled 2026-09-20, and this is the check that
+     * keeps it.
+     *
+     * A module is not a colour. This sheet once declared `--r-acc`, an
+     * invented blue, and everything selected in the module wore it; the
+     * result was a product where "on" meant one thing on a roster screen
+     * and another everywhere else. Selected and on states wear the HOUSE
+     * on-state, plates use the shell's plate palette, and the sidebar's
+     * module dot is the accent.
+     *
+     * SO THE SHEET DECLARES NO CUSTOM PROPERTY AND CONTAINS NO LITERAL. Both
+     * are how a module quietly acquires a palette of its own — a hex is the
+     * obvious way and a `--r-*` token is the polite one, and the polite one
+     * is worse because it looks deliberate.
+     */
+    public function testTheSheetDeclaresNoColourOfItsOwn(): void
+    {
+        $css = self::read(self::MODULE_SHEET);
+        $body = preg_replace('#/\*.*?\*/#s', '', $css) ?? $css;
+
+        $declared = [];
+        preg_match_all('/(--[a-z0-9_-]+)\s*:/i', $body, $matches);
+        foreach ($matches[1] as $token) {
+            $declared[] = $token;
+        }
+
+        self::assertSame([], array_values(array_unique($declared)), "A module declares no token of its own; these belong in the shell's sheet:\n".implode("\n", array_unique($declared)));
+
+        $literals = [];
+        // A hex, an rgb()/hsl() call, or a bare colour keyword used as a
+        // value. `transparent` and `currentColor` are not colours a module
+        // chose — they are relationships — so they stay.
+        preg_match_all('/#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|:\s*(?:white|black|red|green|blue|grey|gray|orange|yellow)\b/', $body, $found);
+        foreach ($found[0] as $literal) {
+            $literals[] = trim($literal);
+        }
+
+        self::assertSame([], array_values(array_unique($literals)), "A module names no colour of its own; use a shell token:\n".implode("\n", array_unique($literals)));
+    }
+
+    /**
      * THE DESIGN WORKSPACE'S OWN IDENTIFIERS ARE NOT PRODUCT. `RO·01`,
      * `RO·D2` and the rest are a referencing system for design discussion;
      * they were ported into a shipped template once and rendered live.

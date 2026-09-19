@@ -26,7 +26,7 @@
     {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
 
     <div class="c">
-        <span class="tab">The week plan<span class="src">&middot; <time datetime="{{ from.format('Y-m-d') }}" data-localtime-format="day">{{ from.format('D j')|lower }}</time> &mdash; <time datetime="{{ through.format('Y-m-d') }}" data-localtime-format="day">{{ through.format('D j M')|lower }}</time> &middot; generated from the standing pattern</span></span>
+        <span class="tab">The week plan<span class="src">&middot; <time datetime="{{ from.format('Y-m-d') }}" data-localtime-format="day">{{ from.format('D j')|lower }}</time> &mdash; <time datetime="{{ through.format('Y-m-d') }}" data-localtime-format="day">{{ through.format('D j M')|lower }}</time>{% for shift in shifts %} &middot; {{ shift.label|slice(0, 1)|upper }} {{ shift.label|lower }}{% endfor %}</span></span>
         <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid, from: next.format('Y-m-d')}) }}">Next week &rarr;</a>
 
         {% if rows is empty %}
@@ -65,10 +65,8 @@
                 {% endfor %}
             </table>
 
-            <div class="rfrag"><b>Key</b><em>
                 {%- for shift in shifts %}{{ loop.first ? '' : ' · ' }}{{ shift.label|slice(0, 1)|upper }} {{ shift.label|lower }} {{ shift.startsAt }}&ndash;{{ shift.endsAt }}{% endfor %}
                 &middot; the number is how many people</em></div>
-            <div class="rfrag"><b>A dashed red cell</b><em>a watch the pattern asked for and nobody filled &mdash; {{ gaps|length }} this week</em></div>
         {% endif %}
     </div>
 
@@ -98,5 +96,66 @@
         {% if gaps|length > 8 %}
             <div class="rfrag"><b>{{ gaps|length }} in total</b><em>the eight soonest are shown &mdash; a card never grows with its data</em></div>
         {% endif %}
+    </div>
+
+    <div style="height:12px"></div>
+
+    {# ============================================================
+       THE SWAP FLOW — two house cards, ruled 2026-09-20. The bordered
+       bar the archive drew is not the product: a trade is a card that
+       states the two cells and what they cost, and a register that
+       shows every state an offer can end in.
+       ============================================================ #}
+    <div class="grid g2">
+
+        <div class="c">
+            <span class="tab">Swap a watch<span class="src">&middot; two cells, and what the trade costs</span></span>
+
+            {% if offering %}
+                <div class="rln"><span class="fog">Give up</span><span><b>{{ offering.duty.person.fullName }}</b> <span class="mono">{{ offering.duty.onDay.format('D j')|lower }} &middot; {{ offering.duty.station.name }} {{ offering.duty.shiftKey }}</span></span></div>
+                <div class="rln"><span class="fog">Take it</span><span><b>{{ offering.taking.fullName }}</b> <span class="chip acc">picked</span></span></div>
+
+                {% for check in cost.checks %}
+                    <div class="rln"><span class="fog">{{ check.label }}</span><span class="mono {{ check.holds ? 'g' : 'w' }}">{{ check.detail }}</span></div>
+                {% endfor %}
+
+                {% if mayPlan %}
+                    <form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OFFER_SWAP_ROUTE'), {uuid: area.uuid}) }}">
+                        <input type="hidden" name="_token" value="{{ csrfToken }}">
+                        <input type="hidden" name="duty" value="{{ offering.duty.uuid }}">
+                        <input type="hidden" name="taking" value="{{ offering.taking.uuidString }}">
+                        <div class="save-row">
+                            <a class="btn sm" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid, from: from.format('Y-m-d')}) }}">Cancel</a>
+                            <button type="submit" class="cta">Send the offer</button>
+                        </div>
+                    </form>
+                {% endif %}
+            {% else %}
+                <div class="rln"><span class="fog">Give up</span><span class="fog">pick a watch from the grid above</span></div>
+                <div class="rln"><span class="fog">Take it</span><span class="fog">then the person to ask</span></div>
+                <div class="rfrag"><b>An offer moves nobody</b><em>until the handset accepts, both watches stand exactly as the rotation generated them</em></div>
+            {% endif %}
+        </div>
+
+        <div class="c">
+            <span class="tab">Swaps<span class="src">&middot; this week &middot; latest {{ recent|length }}</span></span>
+
+            {% for swap in recent %}
+                <div class="rln">
+                    <span><b>{{ swap.offeredTo.fullName }}</b> <span class="mono">
+                        {{- swap.state.value == 'accepted' ? 'took' : (swap.state.value == 'offered' ? 'takes' : 'asked for') }}
+                        {{ swap.duty.person.fullName }}&rsquo;s {{ swap.duty.onDay.format('D j')|lower }} {{ swap.duty.shiftKey }} at {{ swap.duty.station.name }}</span></span>
+                    <span style="display:flex;align-items:center;gap:9px">
+                        <span class="chip {{ {'offered': 'acc', 'accepted': 'ok', 'declined': 'fail', 'withdrawn': 'idle'}[swap.state.value] }}">{{ swap.state.label }}</span>
+                        {%- if swap.respondedAt %}
+                            <span class="mono d"><time datetime="{{ swap.respondedAt.format('c') }}" data-localtime-format="time">{{ swap.respondedAt.format('H:i') }}</time></span>
+                        {%- endif %}
+                    </span>
+                </div>
+            {% else %}
+                <div class="rfrag"><b>No swap this week</b><em>every watch is standing as the ring generated it</em></div>
+            {% endfor %}
+        </div>
+
     </div>
 {% endblock %}

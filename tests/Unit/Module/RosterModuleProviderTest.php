@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Uhifadhi\Roster\Tests\Unit\Module;
 
 use PHPUnit\Framework\TestCase;
+use Uhifadhi\Contracts\ModulePermission;
 use Uhifadhi\Contracts\ModuleProviderInterface;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
 use Uhifadhi\Roster\Controller\RosterController;
@@ -67,13 +68,23 @@ final class RosterModuleProviderTest extends TestCase
      * differ by one character is a screen nobody can open and an admin
      * checkbox that grants nothing, and neither failure says so anywhere.
      */
-    public function testItDeclaresTheOnePermissionItsWritesActuallyCheck(): void
+    public function testItDeclaresTheTwoPermissionsItsWritesActuallyCheck(): void
     {
         $permissions = new RosterModuleProvider('operations')->permissions();
+        $values = array_map(static fn (ModulePermission $p): string => $p->value, $permissions);
 
-        self::assertCount(1, $permissions);
-        self::assertSame(RosterConfigureController::MANAGE_PERMISSION, $permissions[0]->value);
-        self::assertSame('Roster', $permissions[0]->umbrella);
-        self::assertNotSame('', trim($permissions[0]->description));
+        // TWO, AND THEY ARE DIFFERENT JOBS. Moving one watch between two
+        // people on one night is a duty officer's daily work; rewriting an
+        // area's rotations is not, and one permission for both would push
+        // every shift change up to whoever holds the second.
+        self::assertSame([
+            RosterConfigureController::MANAGE_PERMISSION,
+            RosterController::PLAN_PERMISSION,
+        ], $values);
+
+        foreach ($permissions as $permission) {
+            self::assertSame('Roster', $permission->umbrella);
+            self::assertNotSame('', trim($permission->description));
+        }
     }
 }

@@ -18,6 +18,7 @@ use Symfony\Component\Security\Core\Authorization\Voter\Vote;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
+use Uhifadhi\Roster\Controller\RosterController;
 
 /**
  * Test stand-in for the INSTALLATION's permission voter: this module only
@@ -32,7 +33,7 @@ use Uhifadhi\Roster\Controller\RosterConfigureController;
  */
 final class FixedManageVoter extends Voter
 {
-    /** Holds roster.manage: may change the rotations, the watches and the settings. */
+    /** Holds both: may change the rotations, and may offer a watch. */
     public const string MANAGER_EMAIL = 'manager@example.test';
 
     /** Holds nothing: reads the configure page and saves nothing. */
@@ -40,7 +41,10 @@ final class FixedManageVoter extends Voter
 
     protected function supports(string $attribute, mixed $subject): bool
     {
-        return RosterConfigureController::MANAGE_PERMISSION === $attribute;
+        return \in_array($attribute, [
+            RosterConfigureController::MANAGE_PERMISSION,
+            RosterController::PLAN_PERMISSION,
+        ], true);
     }
 
     protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token, ?Vote $vote = null): bool

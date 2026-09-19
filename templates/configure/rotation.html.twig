@@ -21,6 +21,142 @@
 {% extends '@UhifadhiRoster/configure/_frame.html.twig' %}
 
 {% block roster_section %}
+
+{% if chosen %}
+    {# ============================================================
+       THE CYCLE EDITOR — FULL ROW, ruled 2026-09-20. A cycle, a pool of
+       five and a month cannot be configured in half a column, so the
+       editor spans the row and the month it generates sits BELOW it.
+
+       NOTHING IS WRITTEN UNTIL SAVE. Every control below mutates a draft
+       held in the page and the form's one submit sends the whole thing —
+       which is why the server validates it as one object and refuses a
+       malformed ring whole, with a sentence.
+       ============================================================ #}
+    <form method="post" data-controller="roster--rotation"
+          data-roster--rotation-draft-value="{{ draft|json_encode }}"
+          data-roster--rotation-shifts-value="{{ shifts|map(s => {key: s.key, label: s.label})|json_encode }}"
+          data-roster--rotation-candidates-value="{{ candidates|json_encode }}"
+          action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SAVE_ROTATION_ROUTE'), {uuid: area.uuid, rotation: chosen.uuid}) }}">
+        <input type="hidden" name="_token" value="{{ csrfToken }}">
+        <input type="hidden" name="draft" data-roster--rotation-target="draft">
+
+        <div class="c rband">
+            <div class="rb-hd">
+                <span class="tab">The rotation</span>
+                <span class="rb-ttl">
+                    <b>{{ chosen.station ? chosen.station.name : chosen.teamName }}</b>
+                    {%- if chosen.station and chosen.station.code %} <span class="mono">{{ chosen.station.code }}</span>{% endif %}
+                    &middot; <span data-roster--rotation-target="summary"></span>
+                </span>
+            </div>
+            <div class="rb-body">
+
+                <div class="r-rotrow top">
+                    <span class="fldlab">The cycle</span>
+                    <div style="min-width:0">
+                        <div class="r-cyc" data-roster--rotation-target="ring">
+                            {# Server-rendered so the ring reads without JS. #}
+                            {% for day in chosen.cycle.positions %}
+                                <button type="button" class="{{ day == 'off' ? 'o' : 'd' }}" disabled><b>{{ loop.index }}</b><em>{{ day }}</em></button>
+                            {% endfor %}
+                        </div>
+                        <div class="rfrag" style="border:0;padding:4px 0 0;margin:0">
+                            <b>repeats for ever</b><em>day 1 is <time datetime="{{ chosen.anchoredOn.format('Y-m-d') }}" data-localtime-format="day">{{ chosen.anchoredOn.format('D j M')|lower }}</time> &middot; each person enters the ring one day later than the last</em>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="r-rotrow">
+                    <span class="fldlab">Per day</span>
+                    <span class="r-pool" data-roster--rotation-target="counts"></span>
+                </div>
+
+                <div class="r-rotrow top">
+                    <span class="fldlab">Pool</span>
+                    <div class="r-pool" data-roster--rotation-target="pool"></div>
+                </div>
+
+                <div class="r-rotrow">
+                    <span class="fldlab">Day one</span>
+                    <input class="fld" type="date" style="max-width:170px" value="{{ chosen.anchoredOn.format('Y-m-d') }}"
+                           data-action="change->roster--rotation#field" data-roster--rotation-name-param="anchoredOn"
+                           aria-label="The date day one of the ring falls on">
+                    <span class="more">moving it re-plans the future</span>
+                </div>
+
+                <div class="r-rotrow">
+                    <span class="fldlab">Stood down</span>
+                    <span class="r-pool">
+                        {% for weekday, label in {1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun'} %}
+                            <button type="button" class="r-pill{{ weekday in chosen.standDownWeekdays ? ' on' : '' }}"
+                                    data-action="roster--rotation#toggleWeekday" data-roster--rotation-weekday-param="{{ weekday }}">{{ label }}</button>
+                        {% endfor %}
+                        <span class="more">a whole weekday the post stands down &mdash; not a hole</span>
+                    </span>
+                </div>
+
+                <div class="r-rotrow">
+                    <span class="fldlab">Rest rule</span>
+                    <select class="fld" style="max-width:250px" aria-label="Rest rule"
+                            data-action="change->roster--rotation#field" data-roster--rotation-name-param="restRule">
+                        {% for rule in restRules %}
+                            <option value="{{ rule.value }}" {{ rule == chosen.restRule ? 'selected' : '' }}>{{ rule.label }}</option>
+                        {% endfor %}
+                    </select>
+                    <span class="more">a ring that breaks the rule generates a hole, never an illegal watch</span>
+                </div>
+
+                <div class="r-rotrow">
+                    <span class="fldlab">Generate to</span>
+                    <select class="fld" style="max-width:190px" aria-label="Horizon"
+                            data-action="change->roster--rotation#field" data-roster--rotation-name-param="horizonDays">
+                        {% for label, days in horizons %}
+                            <option value="{{ days }}" {{ days == chosen.horizonDays ? 'selected' : '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <span class="more">an edited day is never overwritten by a later run</span>
+                </div>
+
+                <div class="rfrag"><b>Nothing here is presence</b><em>a rotation says who is DUE &middot; who was actually there is the handset&rsquo;s check-in, and this page never writes one</em></div>
+
+                {% if mayManage %}
+                    <div class="save-row"><button type="submit" class="cta">Save the rotation</button></div>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+
+    <div style="height:12px"></div>
+
+    {# THE MONTH IT GENERATES — the house calendar, below the editor and
+       full width. A PREVIEW WRITES NOTHING: it is the same pure planner
+       the generator runs, producing values rather than rows, so it cannot
+       disagree with the result. #}
+    <div class="c">
+        <span class="tab">What it generates<span class="src">&middot; a preview &mdash; nothing is written</span></span>
+        {{ atlas_calendar(previewFeed, previewMonth, previewScope) }}
+
+        <div class="r-hz">
+            {%- if chosen.generatedThrough %}
+                <b>Generated to <time datetime="{{ chosen.generatedThrough.format('Y-m-d') }}" data-localtime-format="day">{{ chosen.generatedThrough.format('D j M')|lower }}</time></b>
+            {%- else %}
+                <b>Never generated</b><span>the ring has produced no duty yet</span>
+            {%- endif %}
+            <span class="sp"></span>
+            {% if mayManage %}
+                <form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::GENERATE_ROTATION_ROUTE'), {uuid: area.uuid, rotation: chosen.uuid}) }}">
+                    <input type="hidden" name="_token" value="{{ csrfToken }}">
+                    <button type="submit" class="btn sm">Generate from tomorrow</button>
+                </form>
+            {% endif %}
+        </div>
+        <div class="rfrag"><b>Today is left alone</b><em>people are already standing today&rsquo;s watches, and regenerating the day underneath them would move somebody who is at a post</em></div>
+    </div>
+
+    <div style="height:12px"></div>
+{% endif %}
+
 <div class="c rband">
     <div class="rb-hd">
         <span class="tab">Every rotation in this area</span>

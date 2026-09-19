@@ -15,25 +15,25 @@
  * cycle ring. Each is genuinely this module's: nothing else in the platform
  * draws a shift.
  *
- * THE BRIDGE BELOW is the only place this sheet DEFINES a token. Everything
- * else it spends is the shell's (--tx --fog --dim --ln --ln2 --raised --cv
- * --acc --accT --ok --warn --fail), and a token spent but defined by nobody
- * falls back to the inherited colour — which looks fine in a standalone test
- * and broken in a real installation.
+ * THIS SHEET DEFINES NO TOKEN AT ALL. Everything it spends is the shell's
+ * (--tx --fog --dim --ln --ln2 --raised --cv --acc --ok --warn
+ * --fail), because a token spent but defined by nobody falls back to the
+ * inherited colour — which looks fine in a standalone test and broken in a
+ * real installation.
  * ========================================================================== */
 
-:root {
-    /* The roster's accent, derived from the shell's so a theme change carries.
-       Named rather than inlined because the chip, the ring and the pill all
-       spend it and a palette change has to sweep them together. */
-    --r-acc: var(--acc);
-    --r-accT: var(--accT);
-
-    /* The banded card's own two surfaces: a header/footer tint and the rule
-       that separates them from the body. */
-    --rb-band: color-mix(in srgb, var(--raised) 55%, transparent);
-    --rb-rule: var(--ln2);
-}
+/* ---- NO TOKENS ARE DECLARED HERE, AND THAT IS THE RULE -------------------
+ * MODULES HAVE NO HUE. Ruled 2026-09-20: a module is not a colour. This sheet
+ * declared `--r-acc` and `--r-accT` (an invented blue) and two banded-card
+ * surfaces; all four are gone. Selected and on states wear the HOUSE on-state,
+ * plates use the shell's plate palette, and the sidebar's module dot is the
+ * accent — one accent, owned by the shell, meaning the same thing everywhere.
+ *
+ * So every colour below is `var(--…)` against a token the SHELL defines, and
+ * there is not one literal in the file. `StylesheetVocabularyTest` fails the
+ * build on either — a module token or a hex — because both are how a module
+ * quietly acquires a palette of its own.
+ * ========================================================================== */
 
 /* ---- THE BANDED CARD, AND ONLY ON A CONFIGURE PAGE ------------------------
  * SCOPE NARROWED 2026-09-20. This is NOT the dashboard card. A dashboard card
@@ -56,8 +56,8 @@
 
 .rb-hd {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding: 17px 15px 10px; border-bottom: 1px solid var(--rb-rule);
-    background: var(--rb-band); border-radius: 13px 13px 0 0;
+    padding: 17px 15px 10px; border-bottom: 1px solid var(--ln2);
+    background: color-mix(in srgb, var(--raised) 55%, transparent); border-radius: 13px 13px 0 0;
 }
 
 .rb-ttl {
@@ -105,8 +105,8 @@
 
 .r-sh:focus-within { outline: 2px solid var(--acc); outline-offset: 2px; }
 
-.r-sh.on { color: var(--r-acc); border-color: color-mix(in srgb, var(--r-acc) 45%, transparent); }
-.r-sh.on i { background: var(--r-acc); }
+.r-sh.on { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 45%, transparent); }
+.r-sh.on i { background: var(--acc); }
 
 /* A closed shift is dimmed, never hidden: a past month keeps the words that
    describe it, so the list has to be able to show one. */
@@ -144,7 +144,9 @@
  * Two mutually exclusive answers shown side by side, because the point of
  * these settings is that BOTH answers are legitimate for some organisation
  * and the page should not hide the one it did not default to. Real radios
- * underneath: keyboard and screen readers come free. */
+ * underneath: keyboard and screen readers come free.
+ *
+ * ON is the house on-state — outlined in the accent, never filled. */
 .rsw { display: inline-flex; border: 1px solid var(--ln2); border-radius: 8px; overflow: hidden; }
 
 .rsw label {
@@ -153,7 +155,7 @@
 }
 
 .rsw label:last-child { border-right: 0; }
-.rsw label.on { background: var(--r-acc); color: var(--r-accT); font-weight: 700; }
+.rsw label.on { border-color: var(--acc); color: var(--acc); font-weight: 700; }
 .rsw label:focus-within { outline: 2px solid var(--acc); outline-offset: -2px; }
 
 .rsw input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -285,7 +287,7 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.r-cell span.d { color: var(--r-acc); background: color-mix(in srgb, var(--r-acc) 15%, transparent); }
+.r-cell span.d { color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, transparent); }
 .r-cell span.n { color: var(--fog); background: color-mix(in srgb, var(--fog) 12%, transparent); }
 
 /* A HOLE IS DRAWN AS A HOLE — the dashed red edge is the one mark on this
@@ -406,12 +408,12 @@
     display: flex; align-items: center; gap: 5px; overflow: hidden;
     padding: 0 7px; border-radius: 5px;
     font: 600 9.5px ui-monospace, monospace; white-space: nowrap; text-overflow: ellipsis;
-    color: var(--r-acc); background: color-mix(in srgb, var(--r-acc) 17%, transparent);
+    color: var(--acc); background: color-mix(in srgb, var(--acc) 17%, transparent);
 }
 
 .r-blk .n {
     font-weight: 700; padding: 1px 5px; border-radius: 4px;
-    background: color-mix(in srgb, #000 16%, transparent);
+    background: color-mix(in srgb, var(--tx) 16%, transparent);
 }
 
 .r-blk.night { color: var(--fog); background: color-mix(in srgb, var(--fog) 14%, transparent); }
@@ -435,3 +437,101 @@
     .r-dayrow .lbl { flex-basis: 96px; }
     .r-now { margin-left: 106px; }
 }
+
+/* ---- THE CYCLE EDITOR ----------------------------------------------------
+ * RULED 2026-09-20: the rotation editor is a FULL-WIDTH row and the month it
+ * generates is a full-width card BELOW it — a cycle, a pool of five and a
+ * month cannot be configured in half a column. There is no two-column split
+ * here, and no month grid: the preview draws the HOUSE calendar, the same one
+ * the Calendar tab and every other month in the product use. */
+.r-rotrow {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 0; border-bottom: 1px dashed var(--ln);
+}
+
+.r-rotrow:last-of-type { border-bottom: 0; }
+.r-rotrow.top { align-items: flex-start; }
+
+.r-rotrow > .fldlab {
+    flex: 0 0 136px;
+    font: 600 8.5px ui-monospace, monospace; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--dim);
+}
+
+/* THE RING ITSELF — an ordered ring of days, each a named shift or a rest,
+   repeating for ever. Every day is a real <button>: Stimulus binds no event
+   to a <b>, so a design-ported control kept as one looks perfect and does
+   nothing. */
+.r-cyc { display: flex; gap: 4px; flex-wrap: wrap; min-width: 0; }
+
+.r-cyc button {
+    width: 38px; height: 40px; border-radius: 8px;
+    border: 1px solid var(--ln2); background: var(--raised);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    cursor: pointer; font-family: inherit; color: var(--fog); padding: 0;
+}
+
+.r-cyc button:disabled { cursor: default; opacity: .75; }
+.r-cyc button b { font: 700 8px ui-monospace, monospace; letter-spacing: .06em; }
+.r-cyc button em { font: 500 7.5px ui-monospace, monospace; font-style: normal; color: var(--dim); }
+
+.r-cyc button.d {
+    background: color-mix(in srgb, var(--acc) 20%, transparent);
+    color: var(--acc); border-color: color-mix(in srgb, var(--acc) 50%, transparent);
+}
+
+.r-cyc button.n {
+    background: color-mix(in srgb, var(--fog) 16%, transparent); color: var(--fog);
+}
+
+/* A stood-down day. Dashed, because nothing is expected rather than something
+   being wrong. */
+.r-cyc button.o { background: none; border-style: dashed; color: var(--dim); }
+
+.r-cyc button.add { border-style: dashed; color: var(--dim); }
+.r-cyc button.add:hover { color: var(--acc); border-color: var(--acc); }
+
+/* HOW MANY THE POST ASKS FOR on a watch — the number the shortfall is
+   measured against, which is what makes a hole a hole. */
+.r-cnt { display: inline-flex; align-items: center; gap: 2px; }
+
+.r-cnt button {
+    width: 22px; height: 22px; border-radius: 6px;
+    border: 1px solid var(--ln2); background: none; color: var(--fog);
+    cursor: pointer; font-family: inherit; line-height: 1;
+}
+
+.r-cnt button:hover { color: var(--acc); border-color: var(--acc); }
+.r-cnt b { min-width: 28px; text-align: center; font: 700 12px ui-monospace, monospace; color: var(--tx); }
+
+.r-pool { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
+.r-pool .more { font: 500 10px ui-monospace, monospace; color: var(--dim); }
+
+/* A PERSON IN THE RING. The order is the plan — each enters one day later
+   than the last — so a pill carries its position and the two controls that
+   change it. */
+.r-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--ln2); border-radius: 99px; padding: 4px 10px;
+    font-size: 11px; color: var(--fog); background: none; cursor: pointer; font-family: inherit;
+}
+
+.r-pill:hover { color: var(--tx); border-color: var(--fog); }
+.r-pill.on { color: var(--acc); border-color: var(--acc); font-weight: 700; }
+
+.r-pill button {
+    background: none; border: 0; padding: 0 2px; cursor: pointer;
+    color: inherit; font-family: inherit; font-size: 10px; line-height: 1; opacity: .75;
+}
+
+.r-pill button:hover { opacity: 1; }
+
+/* HOW FAR THE GENERATOR HAS RUN, under the month it produced. */
+.r-hz {
+    display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+    margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--ln);
+    font: 500 10px ui-monospace, monospace; color: var(--dim);
+}
+
+.r-hz b { color: var(--fog); font-weight: 700; }
+.r-hz .sp { flex: 1 1 auto; }

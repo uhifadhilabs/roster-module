@@ -14,18 +14,29 @@ declare(strict_types=1);
 namespace Uhifadhi\Roster\Controller;
 
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Requirement\Requirement;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
+use Symfony\Component\Security\Csrf\CsrfToken;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
+use Uhifadhi\Contracts\Entity\UserInterface;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Service\DayBoardService;
 use Uhifadhi\Roster\Service\PresenceReader;
 use Uhifadhi\Roster\Service\RosterCalendar;
 use Uhifadhi\Roster\Service\RosteredPeople;
 use Uhifadhi\Roster\Service\RosterIdentityService;
+use Uhifadhi\Roster\Service\SwapCostService;
+use Uhifadhi\Roster\Service\SwapService;
 use Uhifadhi\Roster\Service\WeekGridService;
 
 /**
@@ -63,6 +74,25 @@ final class RosterController
     /** The planner's tab: posts down, days across, every hole drawn as a hole. */
     public const string WEEK_ROUTE = 'roster_week';
 
+    /** Offering a watch to somebody, answered on the handset. */
+    public const string OFFER_SWAP_ROUTE = 'roster_swap_offer';
+
+    /** Taking an offer back, before it has been answered. */
+    public const string WITHDRAW_SWAP_ROUTE = 'roster_swap_withdraw';
+
+    /**
+     * WHAT A PERSON MUST HOLD TO OFFER A WATCH TO SOMEBODY ELSE.
+     *
+     * Its own permission and not `roster.manage`: moving one watch between
+     * two people on one night is a duty officer's daily work, and making it
+     * need the permission that rewrites the area's rotations would push
+     * every shift change up to whoever holds that.
+     */
+    public const string PLAN_PERMISSION = 'roster.plan';
+
+    /** One token id for the writes this controller makes. */
+    public const string CSRF_TOKEN_ID = 'roster_week';
+
     /** The agenda: who is due today, post by post, with how each day reads. */
     public const string TODAY_ROUTE = 'roster_today';
 
@@ -83,7 +113,57 @@ final class RosterController
         private readonly DayBoardService $board,
         private readonly RosteredPeople $people,
         private readonly RosterCalendar $calendar,
+        private readonly SwapService $swaps,
+        private readonly SwapCostService $cost,
+        private readonly UrlGeneratorInterface $router,
+        /*
+         * NULL WHERE THE INSTALLATION RUNS NO SECURITY. There the week tab
+         * offers no swap — there is nobody to attribute an offer to and
+         * nothing to refuse one with — and the page reads as a plan rather
+         * than a form that cannot post.
+         */
+        private readonly ?AuthorizationCheckerInterface $authorization = null,
+        private readonly ?TokenStorageInterface $tokens = null,
+        private readonly ?CsrfTokenManagerInterface $csrfTokenManager = null,
     ) {
+    }
+
+    /**
+     * THE TWO THINGS EVERY SWAP WRITE ASKS: does this person hold
+     * `roster.plan`, and did the request come from the page.
+     */
+    private function guardPlan(AreaOfInterest $area, Request $request): void
+    {
+        if (null === $this->authorization || !$this->authorization->isGranted(self::PLAN_PERMISSION, $area)) {
+            throw new AccessDeniedHttpException('Offering a watch to somebody needs the "roster.plan" permission.');
+        }
+
+        $token = $request->request->get('_token');
+        if (null === $this->csrfTokenManager || !\is_string($token) || !$this->csrfTokenManager->isTokenValid(new CsrfToken(self::CSRF_TOKEN_ID, $token))) {
+            throw new AccessDeniedHttpException('That form did not come from this page.');
+        }
+    }
+
+    /** Who is offering. Null where the installation runs no security. */
+    private function viewer(): ?UserInterface
+    {
+        $user = $this->tokens?->getToken()?->getUser();
+
+        return $user instanceof UserInterface ? $user : null;
+    }
+
+    /**
+     * Say it in the frame's own flashes, where the session carries a bag —
+     * `SessionInterface` does not promise one, and losing a sentence is a
+     * smaller failure than a 500.
+     */
+    private function flash(Request $request, string $type, string $message): void
+    {
+        $session = $request->hasSession() ? $request->getSession() : null;
+
+        if ($session instanceof FlashBagAwareSessionInterface) {
+            $session->getFlashBag()->add($type, $message);
+        }
     }
 
     /**
@@ -139,7 +219,61 @@ final class RosterController
             'shifts' => $this->week->shiftsOf($area),
             'previous' => $from->modify('-7 days'),
             'next' => $from->modify('+7 days'),
+            // THE SWAP FLOW: the register of offers over this window, and
+            // the trade being put together, if one is.
+            'swaps' => $this->swaps->openBetween($area, $from, $through),
+            'recent' => $this->swaps->recentBetween($area, $from, $through, 5),
+            'offering' => $offering = $this->swaps->offering($area, $request->query->get('give'), $request->query->get('take')),
+            'cost' => null === $offering ? null : $this->cost->of($offering['duty'], $offering['taking']),
+            'candidates' => $this->people->rosteredIn($area),
+            // NULL WHERE THE INSTALLATION RUNS NO SECURITY: no checker, so
+            // nobody may plan, and the card reads as a plan rather than a
+            // form that cannot post.
+            'mayPlan' => null !== $this->authorization && $this->authorization->isGranted(self::PLAN_PERMISSION, $area),
+            'csrfToken' => $this->csrfTokenManager?->getToken(self::CSRF_TOKEN_ID)->getValue() ?? '',
         ]));
+    }
+
+    /**
+     * OFFER A WATCH. It moves nobody: until the handset accepts, both duties
+     * stand exactly as the rotation generated them.
+     */
+    #[Route('/areas/{uuid}/modules/roster/week/offer', name: self::OFFER_SWAP_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function offerSwap(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardPlan($area, $request);
+
+        try {
+            $this->swaps->offerFromRequest(
+                $area,
+                (string) $request->request->get('duty'),
+                (string) $request->request->get('taking'),
+                $this->viewer(),
+            );
+        } catch (\LogicException|\InvalidArgumentException $refused) {
+            $this->flash($request, 'error', $refused->getMessage());
+        }
+
+        return new RedirectResponse($this->router->generate(self::WEEK_ROUTE, ['uuid' => (string) $area->getUuidString()]));
+    }
+
+    /** Take an offer back, before it has been answered. */
+    #[Route('/areas/{uuid}/modules/roster/week/withdraw', name: self::WITHDRAW_SWAP_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function withdrawSwap(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardPlan($area, $request);
+
+        try {
+            $this->swaps->withdrawFromRequest($area, (string) $request->request->get('swap'), new \DateTimeImmutable());
+        } catch (\LogicException|\InvalidArgumentException $refused) {
+            $this->flash($request, 'error', $refused->getMessage());
+        }
+
+        return new RedirectResponse($this->router->generate(self::WEEK_ROUTE, ['uuid' => (string) $area->getUuidString()]));
     }
 
     /**
