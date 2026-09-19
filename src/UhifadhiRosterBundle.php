@@ -44,6 +44,7 @@ use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
+use Uhifadhi\Roster\Service\AgendaService;
 use Uhifadhi\Roster\Service\RosterFiguresService;
 use Uhifadhi\Roster\Shell\RosterConfigurationSections;
 use Uhifadhi\Roster\Shell\RosterModuleTabs;
@@ -146,6 +147,22 @@ final class UhifadhiRosterBundle extends AbstractBundle
                     'Uhifadhi\\Roster\\Migrations' => __DIR__.'/../migrations',
                 ],
             ], prepend: true);
+        }
+
+        /*
+         * THE MODULE'S OWN ICON SET. Icons are `ux_icon`, never an inline
+         * <svg> in a template (the static designs keep theirs — they have no
+         * Symfony runtime). The set is VENDORED here rather than pulled from
+         * a remote lucide at render time: an installation behind a firewall
+         * still draws its buttons, and a missing icon fails loudly at build
+         * rather than silently at a customer's.
+         */
+        if ($builder->hasExtension('ux_icons')) {
+            $container->extension('ux_icons', [
+                'icon_sets' => [
+                    'roster' => ['path' => __DIR__.'/../assets/icons/roster'],
+                ],
+            ]);
         }
 
         // Zero-config persistence: the bundle maps its own entities, so
@@ -262,6 +279,17 @@ final class UhifadhiRosterBundle extends AbstractBundle
             ])
             ->tag(WatchProviderInterface::TAG);
 
+        // THE AGENDA — which posts and people a filtered day shows, and the
+        // five figures over the whole of it.
+        $services->set('roster.agenda', AgendaService::class)
+            ->args([
+                service('roster.presence'),
+                service('roster.week_grid'),
+                service(ShiftRepository::class),
+                service(DutyRepository::class),
+                service(StationRepository::class),
+            ]);
+
         // THE DAY'S FIGURES — one read, folded once, so five cards on one
         // screen can never disagree about the same day.
         $services->set('roster.figures', RosterFiguresService::class)
@@ -354,6 +382,8 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service('roster.swaps'),
                 service('roster.swap_cost'),
                 service('roster.figures'),
+                service('roster.agenda'),
+                service(ShiftRepository::class),
                 service(WidgetService::class),
                 service('router'),
                 // Null where the installation runs no security: the week tab

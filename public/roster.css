@@ -365,6 +365,12 @@
  * beside the watch this module rostered. THE TWO ARE NEVER MERGED: the gap
  * between a plan and a measurement is the point of the module, and one
  * column showing a single verdict would throw it away. */
+/* THE AGENDA'S BODY — post blocks and the lines under them. It exists so the
+   first block does not open with the gap that separates the others, and so a
+   card can hold an agenda without the two running together. */
+.r-ag { display: block; }
+.r-ag > .r-ag-post:first-child { margin-top: 2px; }
+
 .r-ag-post {
     display: flex; align-items: baseline; gap: 9px;
     margin-top: 12px; padding-bottom: 5px; border-bottom: 1px solid var(--ln2);
@@ -393,6 +399,37 @@
    absence the eye has to notice. */
 .r-ag-line.hole > .nm { color: var(--fail); }
 .r-ag-line.hole > .why { color: var(--fail); }
+
+/* THE INITIALS, as the design draws them — a person's own mark at the head
+   of their line, so a reader finds a name down a column of forty rather
+   than reading each one. Initials and not a photograph: the product holds
+   no portrait of anybody and is not going to start for a roster. */
+.r-ag-line > .av {
+    flex: none; width: 22px; height: 22px; border-radius: 99px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font: 700 9px ui-monospace, monospace; letter-spacing: .04em;
+    color: var(--fog); background: var(--p2); border: 1px solid var(--ln2);
+}
+
+.r-ag-line.hole > .av { color: var(--fail); border-color: color-mix(in srgb, var(--fail) 45%, transparent); }
+
+/* HOW OLD THE LAST POSITION IS — the design's right-hand chip, and the one
+   figure on the line that is about the DEVICE rather than the person. Age,
+   not a coordinate: where somebody is belongs on the plate. */
+.r-ping {
+    display: inline-flex; align-items: center; gap: 5px; flex: none;
+    font: 500 10px ui-monospace, monospace; color: var(--fog);
+}
+
+.r-ping i { width: 5px; height: 5px; border-radius: 99px; font-style: normal; flex: none; background: var(--fog); }
+.r-ping.on i { background: var(--ok); }
+.r-ping.off { color: var(--dim); }
+.r-ping.off i { background: none; border: 1px solid var(--dim); }
+
+/* A WATCH THAT HAS NOT BEGUN. Not a failure and never drawn as one: a
+   ranger due at 18:00 has failed at nothing at 11:42. */
+.r-ci.due { color: var(--fog); border-style: dashed; }
+.r-ci.due i { background: none; border: 1px solid var(--fog); }
 
 /* ---- THE DAY BOARD -------------------------------------------------------
  * Twenty-four hours across, one post per row. Every block is positioned as a

@@ -1,16 +1,14 @@
 {# ============================================================================
    TODAY — the agenda, ported from the design's modules/roster/today.html.
 
-   THE PLAN AND THE MEASUREMENT SIDE BY SIDE AND NEVER MERGED. Each line
-   carries the watch this module rostered AND the state the AREA derived from
-   that person's own check-in and pings. The gap between the two is the point
-   of the module; collapsing them into one verdict would throw it away.
+   THE PAGE IS: the band, the filter row, the five figures, TODAY, then
+   TOMORROW. Two days and no more — the agenda's whole trade-off is that it
+   answers "what is happening" completely and says nothing about the week,
+   which is the next tab's job and its door is on the second card.
 
-   A HOLE IS ITS OWN LINE, not a missing one. A watch the pattern asked for
-   and nobody is on is the thing somebody has to act on, so it is drawn
-   rather than left as an absence the eye has to notice.
-
-   The house card: `.c`, a `.tab`, a body, one quiet door.
+   THE FIGURES ARE OF THE WHOLE DAY, NOT OF THE FILTER. Narrowing to one post
+   must not quietly change "2 need an answer" into "2 of the ones you are
+   looking at".
    ========================================================================== #}
 {% extends '@UhifadhiRoster/base.html.twig' %}
 
@@ -25,77 +23,53 @@
 {% block roster_page %}
     {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
 
+    {{ include('@UhifadhiRoster/today/_filters.html.twig') }}
+
+    <div class="grid kstrip">
+        <div class="c kpi hot" data-kpi="on-the-watch">
+            <span class="tab">On the watch</span>
+            <b class="disp">{{ figures.onTheWatchNow }}<em>now</em></b>
+            <span class="sub">+{{ figures.onTheWatchTomorrow }} tomorrow &middot; {{ figures.dueLaterToday }} later today</span>
+        </div>
+        <div class="c kpi" data-kpi="check-ins-in">
+            <span class="tab">Check-ins in</span>
+            <b class="disp">{{ figures.day.checkedIn }}<em>of {{ figures.day.expected }} expected</em></b>
+            <span class="sub">{{ figures.dueLaterToday }} are not due until their watch begins</span>
+        </div>
+        <div class="c kpi" data-kpi="verified">
+            <span class="tab">Verified at a post</span>
+            <b class="disp">{{ figures.day.verified }}</b>
+            <span class="sub">the pings agreed with the claim</span>
+        </div>
+        <div class="c kpi{{ figures.needingAnAnswer > 0 ? ' bad' : '' }}" data-kpi="needs-an-answer">
+            <span class="tab">Needs an answer</span>
+            <b class="disp">{{ figures.needingAnAnswer }}</b>
+            <span class="sub">{% if figures.needingAnAnswer > 0 %}<span class="r">{{ figures.day.flagged }} unverified &middot; {{ figures.day.noCheckIn }} no check-in</span>{% else %}nothing is waiting on anybody{% endif %}</span>
+        </div>
+        <div class="c kpi" data-kpi="holes">
+            <span class="tab">Holes</span>
+            <b class="disp">{{ figures.holesNextTwoDays }}<em>next {{ constant('Uhifadhi\\Roster\\Service\\AgendaService::HOLE_DAYS') }} days</em></b>
+            <span class="sub">{% if figures.holesNextTwoDays > 0 %}<span class="r">a watch the pattern asked for and nobody is on</span>{% else %}every watch the pattern asked for is filled{% endif %}</span>
+        </div>
+    </div>
+
+    <h2 class="zone">{{ isToday ? 'Today' : 'The day' }}</h2>
     <div class="c">
-        <span class="tab">{{ isToday ? 'Today' : 'The day' }}<span class="src">&middot; <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j M')|lower }}</time> &middot; {{ posts|length }} post{{ posts|length == 1 ? '' : 's' }} on the books</span></span>
-        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid}) }}">The week &rarr;</a>
+        <span class="tab">{{ isToday ? 'Today' : 'The day' }}<span class="src">&middot; <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j M')|lower }}</time> &middot; {{ figures.onTheWatchNow }} on the watch &middot; {{ figures.day.checkedIn }} check-ins in</span></span>
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::BOARD_ROUTE'), {uuid: area.uuid}) }}">The day board &rarr;</a>
 
-        {% for post in posts %}
-            <div class="r-ag-post">
-                <b>{{ post.stationName }}</b>
-                <span class="sp"></span>
-                <span class="r-st-state {{ post.state.value }}"><i></i>{{ post.state.label }}</span>
-                {%- if post.expected %}<span class="unit">{{ post.rostered|length }} of {{ post.expected }}</span>{% endif %}
-            </div>
-
-            {% for person in post.rostered %}
-                {# A DAY HOLDS ANY NUMBER OF WATCHES (ruled). Each one is its
-                   own row and the name carries the day's total, because a
-                   morning at the gate and an afternoon on an escort are two
-                   facts and one row showing the latest would hide the first. #}
-                {% for watch in person.watches %}
-                    <div class="r-ag-line">
-                        <span class="nm">
-                            {{- loop.first ? person.personName : '' -}}
-                            <em>
-                                {{- person.shiftLabel|lower }}
-                                {%- if person.watchCount > 1 %} &middot; watch {{ loop.index }} of {{ person.watchCount }}{% endif -%}
-                                {%- if loop.first and person.watchCount > 1 %} &middot; {{ (person.minutesOnDuty // 60) }}h{% if person.minutesOnDuty % 60 %}{{ person.minutesOnDuty % 60 }}m{% endif %}{% if person.isStillOut %}, still out{% endif %}{% endif -%}
-                            </em>
-                        </span>
-                        <span class="why">
-                            {%- if watch.state.value == 'at_post_unverified' %}
-                                {{ watch.unverifiedReason ? watch.unverifiedReason.label : 'unverified' }}
-                                {%- if watch.distanceM is not null %} &mdash; {{ (watch.distanceM / 1000)|number_format(1) }} km from the post claimed{% endif %}
-                            {%- elseif watch.statusLabel %}
-                                {{ watch.statusLabel }}{% if watch.note %} &mdash; {{ watch.note }}{% endif %}
-                            {%- else %}
-                                {{ watch.pings }} position{{ watch.pings == 1 ? '' : 's' }} since the check-in
-                            {%- endif %}
-                            {%- if watch.notCheckedOut %} &middot; <b>not checked out</b>{% endif %}
-                        </span>
-                        <span class="r-ci {{ watch.state.value }}"><i></i>{{ watch.state.label }}</span>
-                        {%- if watch.lastPingAt %}
-                            <span class="unit"><time datetime="{{ watch.lastPingAt.format('c') }}" data-localtime-format="time">{{ watch.lastPingAt.format('H:i') }}</time></span>
-                        {%- endif %}
-                    </div>
-                {% else %}
-                    <div class="r-ag-line">
-                        <span class="nm">{{ person.personName }}<em>{{ person.shiftLabel|lower }}</em></span>
-                        <span class="why">nothing has arrived for this day</span>
-                        <span class="r-ci no_check_in"><i></i>no check-in</span>
-                    </div>
-                {% endfor %}
-            {% endfor %}
-
-            {% if post.shortfall %}
-                <div class="r-ag-line hole">
-                    <span class="nm">{{ post.shortfall }} unfilled<em>{{ post.rostered|length }} of {{ post.expected }}</em></span>
-                    <span class="why">the pattern asked for {{ post.expected }} and nobody is on the rest</span>
-                    <span class="r-ci no_check_in"><i></i>hole</span>
-                </div>
-            {% endif %}
-
-            {% if post.rostered is empty and not post.shortfall %}
-                <div class="r-ag-line">
-                    <span class="nm"><span class="fog">nobody rostered</span></span>
-                    <span class="why">this post asks for nobody today &mdash; reporting and unstaffed are different facts</span>
-                </div>
-            {% endif %}
-        {% else %}
-            <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed</em></div>
-        {% endfor %}
-
-        {% if not isToday %}
+        {% if not filter.isEverything %}
+            <div class="rfrag"><b>{{ posts|length }} post{{ posts|length == 1 ? '' : 's' }} match</b><em>the figures above are the whole day&rsquo;s, not this selection&rsquo;s</em></div>
         {% endif %}
+
+        {{ include('@UhifadhiRoster/today/_agenda.html.twig', {posts: posts, reported: true, empty: filter.isEverything ? 'No post is on the roster’s books' : 'Nothing matches that', emptyWhy: filter.isEverything ? 'a watch is given to a post deliberately, so none is assumed' : 'no watch on this day is both at these posts and in that state'}) }}
+    </div>
+
+    <h2 class="zone">Tomorrow</h2>
+    <div class="c">
+        <span class="tab">Tomorrow<span class="src">&middot; <time datetime="{{ tomorrow.format('Y-m-d') }}" data-localtime-format="day">{{ tomorrow.format('D j M')|lower }}</time> &middot; {{ figures.onTheWatchTomorrow }} on the watch</span></span>
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid}) }}">The fortnight &rarr;</a>
+
+        {{ include('@UhifadhiRoster/today/_agenda.html.twig', {posts: tomorrowPosts, reported: false, empty: 'Nothing is rostered for tomorrow', emptyWhy: 'the pattern has not been generated this far, or every post is off'}) }}
     </div>
 {% endblock %}

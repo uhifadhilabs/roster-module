@@ -29,8 +29,13 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetService;
+use Uhifadhi\Contracts\Area\DayState;
 use Uhifadhi\Contracts\Entity\UserInterface;
+use Uhifadhi\Roster\Model\AgendaFilter;
+use Uhifadhi\Roster\Model\PostPresence;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
+use Uhifadhi\Roster\Repository\ShiftRepository;
+use Uhifadhi\Roster\Service\AgendaService;
 use Uhifadhi\Roster\Service\DayBoardService;
 use Uhifadhi\Roster\Service\PresenceReader;
 use Uhifadhi\Roster\Service\RosterCalendar;
@@ -130,6 +135,8 @@ final class RosterController
         private readonly SwapService $swaps,
         private readonly SwapCostService $cost,
         private readonly RosterFiguresService $figures,
+        private readonly AgendaService $agenda,
+        private readonly ShiftRepository $shifts,
         private readonly WidgetService $widgetService,
         private readonly UrlGeneratorInterface $router,
         /*
@@ -326,13 +333,36 @@ final class RosterController
         Request $request,
     ): Response {
         $day = $this->askedFor($request) ?? new \DateTimeImmutable('today');
+        $now = new \DateTimeImmutable();
+
+        $filter = AgendaFilter::fromQuery(
+            $request->query->get('post'),
+            $request->query->get('state'),
+            $request->query->get('shift'),
+            $request->query->get('q'),
+        );
+
+        // ONE READ OF THE DAY. The figures are folded over the WHOLE of it
+        // and the rows are the narrowed copy, so narrowing to one post never
+        // quietly rewrites the strip above it.
+        $whole = $this->presence->postsOn($area, $day, $now);
+        $windows = $this->shifts->windowsFor($area);
 
         return new Response($this->twig->render('@UhifadhiRoster/today/show.html.twig', [
             'area' => $area,
             'band' => $this->identity->bandFor($area),
             'day' => $day,
-            'isToday' => $day->format('Y-m-d') === new \DateTimeImmutable('today')->format('Y-m-d'),
-            'posts' => $this->presence->postsOn($area, $day),
+            'tomorrow' => $day->modify('+1 day'),
+            'isToday' => $day->format('Y-m-d') === $now->format('Y-m-d'),
+            'filter' => $filter,
+            'posts' => $this->agenda->narrow($whole, $filter, $now, $windows),
+            'tomorrowPosts' => $this->agenda->tomorrow($area, $day),
+            'figures' => $this->agenda->figuresFor($area, $whole, $day, $now),
+            'chosenPost' => $this->chosenPost($whole, $filter),
+            'stateLabels' => self::stateLabels(),
+            'stateCounts' => self::stateCounts($whole),
+            'shiftLabels' => $this->shiftLabels($area),
+            'shiftCounts' => self::shiftCounts($whole),
         ]));
     }
 
@@ -409,6 +439,103 @@ final class RosterController
             'now' => new \DateTimeImmutable(),
             'posts' => $this->presence->postsOn($area, $day),
         ]));
+    }
+
+    /**
+     * THE POST THE FILTER NAMES, so the chip can wear its name rather than
+     * a uuid. A uuid nothing matches reads as "all posts", which is what the
+     * page is in fact showing.
+     *
+     * @param list<PostPresence> $posts
+     */
+    private function chosenPost(array $posts, AgendaFilter $filter): ?PostPresence
+    {
+        foreach ($posts as $post) {
+            if ($post->stationUuid === $filter->post) {
+                return $post;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * THE STATES THE FILTER OFFERS. The area's own day states, plus the one
+     * non-state the design names: DUE, a watch that has not begun. A ranger
+     * who has not checked in at 11:42 for an 18:00 watch has failed at
+     * nothing, and offering them under "no check-in" would say they had.
+     *
+     * @return array<string, string>
+     */
+    private static function stateLabels(): array
+    {
+        $labels = [];
+        foreach (DayState::cases() as $state) {
+            $labels[$state->value] = $state->label();
+        }
+
+        $labels[AgendaService::DUE] = 'Due later today';
+
+        return $labels;
+    }
+
+    /**
+     * HOW MANY PEOPLE ARE IN EACH STATE, counted from the same reading the
+     * rows came from — never a second query, which is how an option and a
+     * list come to disagree.
+     *
+     * @param list<PostPresence> $posts
+     *
+     * @return array<string, int>
+     */
+    private static function stateCounts(array $posts): array
+    {
+        $counts = ['all' => 0];
+        foreach ($posts as $post) {
+            foreach ($post->rostered as $person) {
+                ++$counts['all'];
+                $key = $person->state()->value;
+                $counts[$key] = ($counts[$key] ?? 0) + 1;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @param list<PostPresence> $posts
+     *
+     * @return array<string, int>
+     */
+    private static function shiftCounts(array $posts): array
+    {
+        $counts = [];
+        foreach ($posts as $post) {
+            foreach ($post->rostered as $person) {
+                $counts[$person->shiftKey] = ($counts[$person->shiftKey] ?? 0) + 1;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * THE AREA'S OWN SHIFT VOCABULARY, which is the only list a shift filter
+     * may offer: a hard-coded day/night pair would be wrong in any park that
+     * named its shifts differently, and every one of them does.
+     *
+     * @return array<string, string>
+     */
+    private function shiftLabels(AreaOfInterest $area): array
+    {
+        $labels = [];
+        foreach ($this->shifts->findByArea($area) as $shift) {
+            if ($shift->isOpen()) {
+                $labels[$shift->getKey()] = $shift->getLabel().' '.$shift->getStartsAt().'–'.$shift->getEndsAt();
+            }
+        }
+
+        return $labels;
     }
 
     /**

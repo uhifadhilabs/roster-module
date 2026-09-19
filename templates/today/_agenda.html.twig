@@ -1,0 +1,83 @@
+{# ============================================================================
+   THE AGENDA ITSELF — one block per post, one line per watch.
+
+   THE PLAN AND THE MEASUREMENT SIDE BY SIDE AND NEVER MERGED. Each line
+   carries the watch this module rostered AND the state the AREA derived from
+   that person's own check-in and pings. The gap between the two is the point
+   of the module; one verdict in their place would throw it away.
+
+   A HOLE IS ITS OWN LINE, not a missing one — a watch the pattern asked for
+   and nobody is on is the thing somebody has to act on, so it is drawn rather
+   than left as an absence the eye has to notice.
+
+   A DAY THAT HAS NOT HAPPENED HAS NO STATE. `reported` is false for tomorrow,
+   and the lines then say when a check-in is due rather than inventing one.
+   ========================================================================== #}
+{% set reported = reported|default(false) %}
+<div class="r-ag">
+    {% for post in posts %}
+        <div class="r-ag-post">
+            <b>{{ post.stationName }}</b>
+            <span class="sp"></span>
+            {% if reported %}<span class="r-st-state {{ post.state.value }}"><i></i>{{ post.state.label }}</span>{% endif %}
+            <span class="unit">{{ post.rostered|length }} on the watch{% if post.expected %} of {{ post.expected }}{% endif %}</span>
+        </div>
+
+        {% for person in post.rostered %}
+            {% for watch in person.watches %}
+                <div class="r-ag-line">
+                    <span class="av">{{ person.personName|split(' ')|map(w => w|first)|join|slice(0, 2)|upper }}</span>
+                    <span class="nm">{{ person.personName }}<em>{{ person.shiftLabel|lower }}{% if person.watchCount > 1 %} &middot; watch {{ loop.index }} of {{ person.watchCount }}{% endif %}</em></span>
+                    <span class="r-sh"><i></i>{{ person.shiftLabel|lower }}</span>
+                    <span class="why">
+                        {%- if watch.state.value == 'at_post_unverified' %}
+                            {{ watch.unverifiedReason ? watch.unverifiedReason.label : 'unverified' }}
+                            {%- if watch.distanceM is not null %} &mdash; the nearest ping is {{ watch.distanceM >= 1000 ? (watch.distanceM / 1000)|number_format(1) ~ ' km' : watch.distanceM|round ~ ' m' }} away{% endif %}
+                        {%- elseif watch.statusLabel %}
+                            {{ watch.statusLabel }}{% if watch.note %} &mdash; {{ watch.note }}{% endif %}
+                        {%- else %}
+                            {{ watch.pings }} position{{ watch.pings == 1 ? '' : 's' }} since the check-in
+                        {%- endif %}
+                        {%- if watch.notCheckedOut %} &middot; <b>nobody closed this watch</b>{% endif %}
+                    </span>
+                    <span class="r-ci {{ watch.state.value }}"><i></i>{{ watch.state.label }}</span>
+                    <span class="r-ping {{ watch.lastPingAt ? 'on' : 'off' }}"><i></i>
+                        {%- if watch.lastPingAt %}<time datetime="{{ watch.lastPingAt.format('c') }}" data-localtime-format="time">{{ watch.lastPingAt.format('H:i') }}</time>{% else %}no ping{% endif -%}
+                    </span>
+                </div>
+            {% else %}
+                <div class="r-ag-line">
+                    <span class="av">{{ person.personName|split(' ')|map(w => w|first)|join|slice(0, 2)|upper }}</span>
+                    <span class="nm">{{ person.personName }}<em>{{ person.shiftLabel|lower }}</em></span>
+                    <span class="r-sh"><i></i>{{ person.shiftLabel|lower }}</span>
+                    <span class="why">
+                        {%- if reported %}nothing has arrived for this day{% else %}the check-in is not expected until the watch begins{% endif -%}
+                    </span>
+                    <span class="r-ci {{ reported ? 'no_check_in' : 'due' }}"><i></i>{{ reported ? 'no check-in' : 'due' }}</span>
+                    <span class="r-ping off"><i></i>no ping</span>
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        {% if post.shortfall %}
+            <div class="r-ag-line hole">
+                <span class="av">!</span>
+                <span class="nm">{{ post.shortfall }} unfilled<em>{{ post.rostered|length }} of {{ post.expected }}</em></span>
+                <span class="r-sh"><i></i>hole</span>
+                <span class="why">the pattern asked for {{ post.expected }} and nobody is on the rest</span>
+                <span class="r-ci no_check_in"><i></i>hole</span>
+                <a class="btn sm" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid}) }}">Fill it</a>
+            </div>
+        {% endif %}
+
+        {% if post.rostered is empty and not post.shortfall %}
+            <div class="r-ag-line">
+                <span class="av">&mdash;</span>
+                <span class="nm">nobody rostered</span>
+                <span class="why">this post asks for nobody on this day &mdash; reporting and unstaffed are different facts</span>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="rfrag"><b>{{ empty|default('No post is on the roster’s books') }}</b><em>{{ emptyWhy|default('a watch is given to a post deliberately, so none is assumed') }}</em></div>
+    {% endfor %}
+</div>
