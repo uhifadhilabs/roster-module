@@ -209,7 +209,19 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         // WHO IS ALREADY IN SOMEBODY ELSE'S RING. A person may be posted
         // at several posts, so without this two rings both draw them and
         // the same ranger stands two watches on one morning.
+        //
+        // THE RINGS ALREADY STANDING COUNT, and reading them here rather
+        // than as the walk passes them is the whole of it: a post whose
+        // ring an earlier run had made was returned from early, so its
+        // people were never marked, and the next post to be rung drew
+        // them straight back — a park that had merely been seeded twice
+        // had rangers standing two watches on one morning.
         $ringed = [];
+        foreach ($this->rings->findByArea($area) as $standing) {
+            foreach ($standing->getPool() as $member) {
+                $ringed[(string) $member->getPerson()->getUuidString()] = true;
+            }
+        }
 
         foreach ($posts as $index => $post) {
             $rotation = $this->putOnTheRoster($post, $index, $ringed);

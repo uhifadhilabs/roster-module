@@ -500,4 +500,45 @@ final class RosterContentProviderTest extends IntegrationTestCase
 
         self::assertGreaterThan(0, $protected);
     }
+
+    /**
+     * A POST ADDED AFTER THE FIRST RUN DOES NOT DRAW PEOPLE WHO ARE
+     * ALREADY IN A RING.
+     *
+     * The rings of earlier runs are returned from early, so the people in
+     * them were never counted as spoken for and the next post to be rung
+     * drew them again — two watches on one morning, at two posts, on a
+     * park that had merely been seeded twice. Every ring already standing
+     * in the area is read before the walk starts.
+     */
+    public function testAPostRungOnALaterRunDoesNotDrawPeopleAlreadyInARing(): void
+    {
+        $this->provider()->load();
+
+        $postings = $this->service(PostingService::class);
+        self::assertInstanceOf(PostingService::class, $postings);
+
+        $later = $this->aStation($this->area, 'late post', 'ST-09');
+        $this->em->flush();
+
+        foreach ($this->repository(RotationRepository::class)->findByArea($this->area)[0]->getPool() as $member) {
+            $postings->post($later, $member->getPerson(), PostingSource::WrittenHere);
+        }
+
+        $this->provider()->load();
+
+        $seen = [];
+        foreach ($this->repository(DutyRepository::class)->findByAreaBetween($this->area, $this->monthStart(), $this->monthEnd()) as $duty) {
+            $key = $duty->getOnDay()->format('Y-m-d').'/'.$duty->getPerson()->getUuidString();
+            $station = (string) $duty->getStation()->getUuidString();
+
+            if (isset($seen[$key]) && $seen[$key] !== $station) {
+                self::fail(\sprintf('%s is due at two posts on %s.', $duty->getPerson()->getFullName(), $duty->getOnDay()->format('Y-m-d')));
+            }
+
+            $seen[$key] = $station;
+        }
+
+        self::assertNotEmpty($seen);
+    }
 }
