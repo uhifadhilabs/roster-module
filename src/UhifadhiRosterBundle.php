@@ -20,15 +20,22 @@ use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigura
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
+use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
+use Uhifadhi\Contracts\Area\StationSectionsInterface;
+use Uhifadhi\Contracts\Roster\WatchProviderInterface;
 use Uhifadhi\Contracts\Shell\ConfigurationSectionsInterface;
 use Uhifadhi\Contracts\Shell\ModuleTabsInterface;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
 use Uhifadhi\Roster\Controller\RosterController;
 use Uhifadhi\Roster\DependencyInjection\RosterConfiguration;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
+use Uhifadhi\Roster\Module\RosterWatches;
+use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
+use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Shell\RosterConfigurationSections;
 use Uhifadhi\Roster\Shell\RosterModuleTabs;
+use Uhifadhi\Roster\Shell\RosterStationSections;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
@@ -206,6 +213,42 @@ final class UhifadhiRosterBundle extends AbstractBundle
             ->args([service('request_stack'), service(AreaOfInterestRepository::class)])
             ->tag(ConfigurationSectionsInterface::TAG);
 
+        /*
+         * WHAT THIS MODULE PUTS ON A POST — the watch-and-presence band on
+         * the station's record, and the Roster block on its configure card.
+         * Ruled 18 sep: the station is the area's and the watch is the
+         * roster's, so the watch is CONTRIBUTED into the area's own pages
+         * rather than drawn on a page of this module's.
+         *
+         * Tagged by hand at this end too. An attribute on the contract
+         * interface would be silently dead — Symfony reads autoconfigure
+         * attributes off the definition's own class and PHP does not inherit
+         * them from an interface — and the only symptom would be every band
+         * quietly disappearing.
+         */
+        $services->set('roster.station_sections', RosterStationSections::class)
+            ->args([
+                service(StationRepository::class),
+                service('roster.station_watches'),
+                service('roster.shift_vocabulary'),
+                service('roster.presence'),
+                service('router'),
+            ])
+            ->tag(StationSectionsInterface::TAG);
+
+        /*
+         * THE ONE QUESTION THE AREA ASKS THE ROSTER, on behalf of a handset
+         * reading its month. Read-only and per person; a day with no watch
+         * is a rest day and is answered by saying nothing.
+         */
+        $services->set('roster.watches', RosterWatches::class)
+            ->args([
+                service(AreaOfInterestRepository::class),
+                service(DutyRepository::class),
+                service(ShiftRepository::class),
+            ])
+            ->tag(WatchProviderInterface::TAG);
+
         // THE OVERVIEW TAB. A read, so it is registered unconditionally: an
         // installation with no firewall still has a roster to look at.
         $services->set('roster.controller.overview', RosterController::class)
@@ -247,6 +290,7 @@ final class UhifadhiRosterBundle extends AbstractBundle
                     service('roster.shift_vocabulary'),
                     service('roster.station_watches'),
                     service(StationRepository::class),
+                    service(CheckInStatusService::class),
                     service(RotationRepository::class),
                     service('security.authorization_checker'),
                     service('security.csrf.token_manager'),

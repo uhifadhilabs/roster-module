@@ -192,6 +192,13 @@ final class TestKernel extends Kernel
             \Uhifadhi\Roster\Service\RosterIdentityService::class => 'roster.identity',
             \Uhifadhi\Roster\Shell\RosterModuleTabs::class => 'roster.module_tabs',
             \Uhifadhi\Roster\Shell\RosterConfigurationSections::class => 'roster.configuration_sections',
+            \Uhifadhi\Roster\Shell\RosterStationSections::class => 'roster.station_sections',
+            \Uhifadhi\Roster\Module\RosterWatches::class => 'roster.watches',
+            \Uhifadhi\Roster\Service\PresenceReader::class => 'roster.presence',
+            // The AREA's own derivation, so a test can assert this module
+            // READS it rather than computing a second answer beside it.
+            \Uhifadhi\Contracts\Area\PresenceProviderInterface::class => 'area.presence',
+            \Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService::class => 'area.checkin_statuses',
             // The registry's own two, so a functional fixture can do what an
             // installation does: reconcile the catalogue, then switch this
             // module on for the area.

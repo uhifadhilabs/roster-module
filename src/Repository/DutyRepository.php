@@ -19,6 +19,7 @@ use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Roster\Entity\Duty;
 use Uhifadhi\Roster\Entity\Rotation;
+use Uhifadhi\Roster\Enum\DutyState;
 
 /**
  * The duties of one area. Every read is area-scoped or station-scoped, and a
@@ -108,6 +109,41 @@ final class DutyRepository extends ServiceEntityRepository
             ->setParameter('through', $through->setTime(0, 0))
             ->orderBy('d.onDay', 'ASC')
             ->addOrderBy('d.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $duties;
+    }
+
+    /**
+     * ONE PERSON'S STANDING WATCHES IN ONE AREA, between two days.
+     *
+     * STANDING, so a CANCELLED duty is not in it: the handset must not
+     * remind somebody to stand a watch that was called off, and the row
+     * stays in the database because the cancellation is itself a fact.
+     *
+     * The person arrives as a UUID because the contract is addressed that
+     * way — the area asks on behalf of a phone, and neither of them has
+     * this installation's account class in hand.
+     *
+     * @return list<Duty>
+     */
+    public function findStandingForPersonBetween(AreaOfInterest $area, string $personUuid, \DateTimeImmutable $from, \DateTimeImmutable $through): array
+    {
+        /** @var list<Duty> $duties */
+        $duties = $this->createQueryBuilder('d')
+            ->join('d.person', 'p')
+            ->andWhere('d.area = :area')
+            ->andWhere('p.uuid = :person')
+            ->andWhere('d.onDay BETWEEN :from AND :through')
+            ->andWhere('d.state != :cancelled')
+            ->setParameter('area', $area)
+            ->setParameter('person', $personUuid)
+            ->setParameter('from', $from->setTime(0, 0))
+            ->setParameter('through', $through->setTime(0, 0))
+            ->setParameter('cancelled', DutyState::Cancelled)
+            ->orderBy('d.onDay', 'ASC')
+            ->addOrderBy('d.shiftKey', 'ASC')
             ->getQuery()
             ->getResult();
 

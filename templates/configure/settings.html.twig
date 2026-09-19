@@ -103,13 +103,9 @@
    carry. The design puts them on this page because this is where somebody
    configuring the roster looks for them — read here, written there.
 
-   NOT DRAWN YET, AND NOT FAKED. The area's CheckInStatus record is in the
-   core's working tree and not in its published main, so there is nothing to
-   read. The card states that rather than rendering four invented rows: a list
-   of statuses the handset does not actually offer would be worse than a card
-   that says it is waiting.
-   → when the core's commit lands: read the area's list, ordered, closed rows
-     dimmed, each with the kind it derives a state from. #}
+   READ, ORDERED, RETIRED ROWS DIMMED AND KEPT. Each one carries the KIND the
+   platform reasons about, which is what says why "at post" is the only
+   status a verified/unverified reading can come from. #}
 <div style="height:12px"></div>
 <div class="c rband">
     <div class="rb-hd">
@@ -117,8 +113,24 @@
         <span class="rb-ttl">what a ranger is offered on the handset &mdash; the <b>area&rsquo;s</b> list, read here and written there</span>
     </div>
     <div class="rb-body">
+        {% for status in checkInStatuses %}
+            <div class="rstat {{ status.isActive ? '' : 'off' }}">
+                <span class="ord">{{ status.isActive ? loop.index : '—' }}</span>
+                <span class="nm"><b>{{ status.label }}</b><span class="key">{{ status.key }}</span></span>
+                <span class="kind">{{ status.kind.label }}</span>
+                <span class="st">
+                    {%- if status.isActive %}
+                        offered on the handset
+                        {%- if status.kind.value == 'at_post' %} · verified / unverified derive from this one{% endif %}
+                    {%- else %}
+                        retired &mdash; kept, because a past day has to keep the word that described it
+                    {%- endif %}
+                </span>
+            </div>
+        {% else %}
+            <div class="rfrag"><b>This area offers no check-in status</b><em>a ranger with nothing to declare cannot check in, so presence cannot be derived at all &mdash; the area&rsquo;s own configure page is where the list is written</em></div>
+        {% endfor %}
         <div class="rfrag"><b>Not this module&rsquo;s to write</b><em>a check-in belongs to the area, and so do the statuses it can carry &mdash; the roster reads them and derives presence from them</em></div>
-        <div class="rfrag"><b>Waiting on the area</b><em>the statuses are not in the core this installation runs yet, so there is nothing to list &mdash; and four invented rows would be worse than none</em></div>
     </div>
 </div>
 {% endblock %}

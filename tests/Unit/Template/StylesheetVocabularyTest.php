@@ -127,7 +127,7 @@ final class StylesheetVocabularyTest extends TestCase
     {
         return str_starts_with($class, 'r-')
             || str_starts_with($class, 'rb-')
-            || \in_array($class, ['rband', 'rset', 'rsw', 'rfrag'], true);
+            || \in_array($class, ['rband', 'rset', 'rsw', 'rfrag', 'rstat'], true);
     }
 
     /**

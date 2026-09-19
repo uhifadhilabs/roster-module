@@ -84,15 +84,25 @@ installation writes no doctrine block and no asset path for it.
 ```bash
 composer require uhifadhi/roster-module
 php bin/console doctrine:migrations:migrate
+php bin/console doctrine:migrations:diff     # must say "No changes detected"
 php bin/console registry:sync
 php bin/console asset-map:compile
 php bin/console cache:clear
 ```
 
-The bundle registers via Flex (`"type": "symfony-bundle"`), which adds
-`Uhifadhi\Roster\UhifadhiRosterBundle` to `config/bundles.php`. Entity mapping
-and the migrations path are prepended by the bundle; the module reaches the
-catalogue through the `uhifadhi.module` tag.
+The **Flex recipe** (`uhifadhi/roster-module/0.1` in `uhifadhilabs/recipes`)
+adds `Uhifadhi\Roster\UhifadhiRosterBundle` to `config/bundles.php`, mounts
+`config/routes/roster.yaml` and writes `config/packages/roster.yaml` with the
+vocabulary below. Entity mapping and the migrations path are prepended by the
+bundle itself, so there is nothing else to wire.
+
+Then **switch it on per area** — a module is installed but parked, and every
+page answers 404 in an area that has not taken it — and grant `roster.manage`
+to whoever changes how the area runs its roster. Reading needs nothing.
+
+> **A heavy console run goes with `--no-debug`.** A warm-up that walks the
+> registry collects every query of every request while the debug kernel is on,
+> and on a small box that is how `cache:warmup` meets the memory limit.
 
 ## Configuration
 

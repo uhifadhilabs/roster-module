@@ -29,6 +29,7 @@ use Twig\Environment;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
+use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
 use Uhifadhi\Roster\Entity\StationWatch;
 use Uhifadhi\Roster\Enum\LateThreshold;
 use Uhifadhi\Roster\Enum\VacancyAnnounce;
@@ -96,6 +97,7 @@ final class RosterConfigureController
         private readonly ShiftVocabularyService $shifts,
         private readonly StationWatchService $watches,
         private readonly StationRepository $stations,
+        private readonly CheckInStatusService $checkInStatuses,
         private readonly RotationRepository $rotations,
         private readonly AuthorizationCheckerInterface $authorization,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
@@ -148,6 +150,11 @@ final class RosterConfigureController
             'area' => $area,
             'band' => $this->identity->bandFor($area),
             'settings' => $this->settings->forArea($area),
+            // THE AREA'S LIST, READ AND NEVER WRITTEN. A check-in belongs to
+            // the area and so do the statuses it can carry; this section
+            // shows them because this is where somebody configuring the
+            // roster looks for them, and links to where they are edited.
+            'checkInStatuses' => $this->checkInStatuses->offeredBy($area),
             'shifts' => $this->shifts->forArea($area),
             'lateThresholds' => LateThreshold::cases(),
             'vacancyAnnouncements' => VacancyAnnounce::cases(),

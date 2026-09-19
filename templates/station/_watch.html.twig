@@ -1,0 +1,71 @@
+{# THE ROSTER'S BAND ON A POST'S RECORD — rows, and nothing around them.
+
+   The card, the heading, the contributor tag and the summary line are the
+   AREA's chrome, written once by the bundle that owns the page. A section
+   that drew its own would be a second copy of a card idiom that then drifts
+   from the one beside it, so there is no `.c`, no `.tab` and no heading in
+   here.
+
+   NOTHING HERE IS COMPUTED BY THIS MODULE. Every person's state is the
+   area's reading of their own check-in and the pings that followed it; the
+   post's state is the one thing the roster derives, because it is measured
+   against thresholds the roster owns on the post. #}
+
+<div class="rset">
+    <span class="lb"><b>Expects</b><em>the named watches this post runs</em></span>
+    <span class="ct">
+        {%- for key in watch.expects %}
+            <span class="r-sh on"><i></i>{{ (shifts[key]|default(key))|lower }}</span>
+        {%- else %}
+            <span class="r-sh">no watch</span>
+        {%- endfor %}
+    </span>
+    <span class="why">
+        <span class="unit">silence</span> {{ watch.silenceWindowMinutes }} min ·
+        <span class="unit">offline after</span> {{ watch.offlineAfterMinutes }} min ·
+        <span class="unit">catchment</span> {{ watch.catchmentMetres }} m
+    </span>
+</div>
+
+{% if presence %}
+    <div class="rset">
+        <span class="lb"><b>On it today</b><em><time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('j M')|lower }}</time></em></span>
+        <span class="ct">
+            <span class="r-st-state {{ presence.state.value }}"><i></i>{{ presence.state.label }}</span>
+            {%- if presence.silentFor is not null %}<span class="unit">silent {{ presence.silentFor }} min</span>{% endif %}
+        </span>
+        <span class="why">
+            {{ presence.verified }} of {{ presence.expected }} verified
+            {%- if presence.flagged %} · <b>{{ presence.flagged }} flagged</b>{% endif %}
+            {%- if presence.shortfall %} · {{ presence.shortfall }} short{% endif %}
+        </span>
+    </div>
+
+    {% for person in presence.rostered %}
+        <div class="rset">
+            <span class="lb"><b>{{ person.personName }}</b><em>{{ person.shiftLabel|lower }}</em></span>
+            <span class="ct">
+                <span class="r-ci {{ person.state.value }}"><i></i>{{ person.state.label }}</span>
+                {%- if person.day and person.day.lastPingAt %}
+                    <span class="unit"><time datetime="{{ person.day.lastPingAt.format('c') }}" data-localtime-format="time">{{ person.day.lastPingAt.format('H:i') }}</time></span>
+                {%- endif %}
+            </span>
+            <span class="why">
+                {%- if person.isFlagged and person.day %}
+                    {{ person.day.unverifiedReason ? person.day.unverifiedReason.label : 'unverified' }}
+                    {%- if person.day.distanceM is not null %} — {{ (person.day.distanceM / 1000)|number_format(1) }} km from the post{% endif %}
+                {%- elseif person.day and person.day.statusLabel %}
+                    {{ person.day.statusLabel }}
+                {%- else %}
+                    <span class="fog">nothing has arrived for this day</span>
+                {%- endif %}
+            </span>
+        </div>
+    {% endfor %}
+
+    {% if presence.rostered is empty %}
+        <div class="rfrag"><b>Nobody is rostered here today</b><em>the post may still be reporting &mdash; reporting and unstaffed are different facts, and collapsing them would send somebody to fix a radio that works</em></div>
+    {% endif %}
+{% else %}
+    <div class="rfrag"><b>No reading for today</b><em>this post is on the roster&rsquo;s books and nothing has been derived for it yet</em></div>
+{% endif %}

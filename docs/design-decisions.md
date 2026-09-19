@@ -177,6 +177,25 @@ spend a config key on a code path nothing ships.
 **Reopens if** Team grows an approval workflow. This module then gains a
 read-only state chip on the absence card and still owns no state machine.
 
+## The post's state is the only thing this module derives
+
+**Decision.** `PresenceReader` reads every fact about a PERSON from the area's
+`PresenceProviderInterface` unchanged. The one thing it computes is the POST's
+state — reporting / late / offline / no-watch — and the join between who
+reported and who was rostered.
+
+**Why.** Presence is the area's, ruled, and one derivation read by everybody is
+the whole point: if the roster, the overview and a department page each
+computed "at post, verified" for themselves there would be three answers, and
+the one that disagreed would be the one somebody acted on. But the post's state
+is measured against thresholds this module owns on the post, and the area
+states plainly that it does not hold who was *supposed* to be on — so the join
+is a fact only a caller holding both sides can see, and it is exactly the "no
+check-in against a rostered watch" a board draws.
+
+**Reopens if** the area grows post-level state of its own. Then this module
+reads that too and keeps only the join.
+
 ## What the design asks for that nothing can answer yet
 
 These are named here rather than invented, because the honest empty state is
@@ -184,7 +203,9 @@ the right port until the seam lands.
 
 | The design draws | What it needs | Status |
 |---|---|---|
-| Presence: verified / unverified / late / offline, the presence card, the Live tab | `Uhifadhi\Contracts\Area\PresenceProviderInterface` | **not in the core yet** — the roster reads it, never computes it |
-| The area asking the roster for a person's watches (`/me/roster`) | `Uhifadhi\Contracts\Roster\WatchProviderInterface` | **not in the core yet** — this module implements it the day it lands |
-| The *Watch and presence* section on the area's station record, and the *Roster* block on its Stations configure card | a station-record sections seam in the area | **not in the core yet**; `Uhifadhi\Contracts\Shell\AreaSectionsInterface` covers the area's configure page but not the station record |
-| The check-in statuses list on this module's Settings section | the area's `CheckInStatus` read model | present in `AreaBundle`; the roster reads it and edits nothing |
+| Presence: verified / unverified / late / offline | `Uhifadhi\Contracts\Area\PresenceProviderInterface` | **landed** — read by `PresenceReader`, never computed |
+| The area asking the roster for a person's watches (`/me/roster`) | `Uhifadhi\Contracts\Roster\WatchProviderInterface` | **landed** — `RosterWatches` |
+| The *Watch and presence* section on the station record, and the *Roster* block on its configure card | `Uhifadhi\Contracts\Area\StationSectionsInterface` | **landed** — `RosterStationSections` |
+| The check-in statuses list on this module's Settings section | the area's `CheckInStatus` read model | **landed** — read through `CheckInStatusService`, written nowhere here |
+| The presence card, the attention items and the on-duty tile on the AREA's overview | the area's overview contribution seams | not built yet — step 7 |
+| The Live tab's ranger markers and ping ages | the area's position feed | not built yet — step 6 |

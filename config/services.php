@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
+use Uhifadhi\Contracts\Area\PresenceProviderInterface;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\AreaRosterSettingsRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
@@ -22,6 +23,7 @@ use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
 use Uhifadhi\Roster\Service\CyclePlanner;
+use Uhifadhi\Roster\Service\PresenceReader;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\RosterSettingsService;
 use Uhifadhi\Roster\Service\RotationGenerator;
@@ -121,6 +123,24 @@ return static function (ContainerConfigurator $container): void {
             service('roster.settings'),
             param('roster.default_silence_window_minutes'),
             param('roster.default_offline_after_minutes'),
+        ]);
+
+    /*
+     * WHO IS ACTUALLY ON — read from the AREA, never computed here.
+     *
+     * PresenceProviderInterface is not a seam this module implements: the
+     * area publishes exactly one implementation and a module type-hints the
+     * interface and is wired to it by name. Asking for it by the INTERFACE
+     * is what keeps that true — a module reaching for `area.presence`
+     * directly would be a module that had learned the area's service ids.
+     */
+    $services->set('roster.presence', PresenceReader::class)
+        ->args([
+            service(PresenceProviderInterface::class),
+            service(DutyRepository::class),
+            service(ShiftRepository::class),
+            service(StationWatchRepository::class),
+            service(RotationRepository::class),
         ]);
 
     // `roster_url()` — the URL of a screen, or null where the installation did

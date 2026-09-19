@@ -1,0 +1,33 @@
+{# THE ROSTER'S BLOCK ON A POST'S CONFIGURE CARD — the four columns this
+   module owns, read-only.
+
+   ONE PLACE IT IS EDITED, TWO DOORS ONTO IT. The editor is the module's own
+   Watches section; this is the other door, and it links there rather than
+   growing a second form. A second editor would be a second validation and
+   eventually a second answer.
+
+   Rows only: the card and its heading are the area's. #}
+
+<div class="rset">
+    <span class="lb"><b>Expects</b><em>named watches</em></span>
+    <span class="ct">
+        {%- for key in watch.expects %}
+            <span class="r-sh on"><i></i>{{ (shifts[key]|default(key))|lower }}</span>
+        {%- else %}
+            <span class="r-sh">no watch</span>
+        {%- endfor %}
+    </span>
+    <span class="why">A post that declares none is never counted, never late and never a hole &mdash; only offline.</span>
+</div>
+
+<div class="rset">
+    <span class="lb"><b>Silence</b><em>late, then offline</em></span>
+    <span class="ct"><span class="unit">{{ watch.silenceWindowMinutes }} min / {{ watch.offlineAfterMinutes }} min</span></span>
+    <span class="why">A gate that never closes and a rim post reached once a fortnight cannot share one window.</span>
+</div>
+
+<div class="rset">
+    <span class="lb"><b>Catchment</b><em>what makes a claim verified</em></span>
+    <span class="ct"><span class="unit">{{ watch.catchmentMetres }} m</span><span class="unit">pool {{ pool }}</span></span>
+    <span class="why">Changing it re-derives every past day, because a state is never stored.</span>
+</div>
