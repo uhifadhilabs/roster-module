@@ -16,14 +16,17 @@
    queried again: an option that says "1 unverified" and a list that shows
    none is the one way a filter bar loses its reader.
    ========================================================================== #}
-<form class="lfilt" method="get" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::TODAY_ROUTE'), {uuid: area.uuid}) }}">
+{# THE PAGE THIS ROW RE-QUERIES. The agenda and the day board are two
+   readings of one day and wear the same filter, so the row is one file and
+   the caller says which page it belongs to. #}
+{% set here = here|default(constant('Uhifadhi\\Roster\\Controller\\RosterController::TODAY_ROUTE')) %}
+<form class="lfilt" method="get" action="{{ path(here, {uuid: area.uuid}) }}">
     {% if not isToday %}<input type="hidden" name="from" value="{{ day.format('Y-m-d') }}">{% endif %}
     {% if filter.post %}<input type="hidden" name="post" value="{{ filter.post }}">{% endif %}
     {% if filter.state %}<input type="hidden" name="state" value="{{ filter.state }}">{% endif %}
     {% if filter.shift %}<input type="hidden" name="shift" value="{{ filter.shift }}">{% endif %}
 
     {% set base = {uuid: area.uuid}|merge(isToday ? {} : {from: day.format('Y-m-d')}) %}
-    {% set here = constant('Uhifadhi\\Roster\\Controller\\RosterController::TODAY_ROUTE') %}
 
     <details class="i-dd">
         <summary class="mchip i-ddt">

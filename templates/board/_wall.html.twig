@@ -32,7 +32,18 @@
                     </span>
                 </div>
             {% endfor %}
-            {% if nowPercent is not null %}
-                <div class="r-now" style="left:{{ nowPercent }}%"></div>
-            {% endif %}
+            {# WHERE NOW IS, PLACED BY THE VIEWER'S OWN CLOCK.
+
+               The server renders the DAY and nothing else. It cannot place
+               this line: the ruling is that the viewer's clock is the
+               authority for every instant, a server-rendered percent is in
+               the server's timezone, and — the defect somebody actually
+               reported — it is frozen at render, so on the office-wall
+               screen this board is built for it stops moving the moment the
+               page loads. The controller places it from the browser's clock
+               and again on every minute boundary, and hides it outright on
+               a day that is not the viewer's today. #}
+            <div class="r-now" hidden
+                 data-controller="roster--now-line"
+                 data-roster--now-line-day-value="{{ day.format('Y-m-d') }}"></div>
         </div>

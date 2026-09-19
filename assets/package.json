@@ -9,6 +9,12 @@
                 "name": "roster--rotation",
                 "fetch": "eager",
                 "enabled": true
+            },
+            "now-line": {
+                "main": "controllers/now_line_controller.js",
+                "name": "roster--now-line",
+                "fetch": "eager",
+                "enabled": true
             }
         },
         "importmap": {

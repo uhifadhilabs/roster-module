@@ -63,8 +63,6 @@ final readonly class RosterDashboard
         public array $load,
         public array $checkIns,
         public array $shiftLabels,
-        /** Where "now" falls across the day, as a percentage — null on a day that is not today. */
-        public ?float $nowPercent,
     ) {
     }
 

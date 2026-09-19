@@ -12,9 +12,15 @@
 
    NULL AND ZERO ARE DIFFERENT FACTS. "No rotation has generated yet" is not
    "generated to today", so the last field says so in words rather than
-   printing a date nobody set. #}
+   printing a date nobody set.
+
+   EVERY SUB-LINE IS A WHOLE FRAGMENT, and that is not a style note. The
+   rangers line read "posted at the 1" — a sentence with the noun missing,
+   which is what happens when a count is dropped into copy written for the
+   plural. Each of these now reads as a phrase at every count it can hold,
+   nought and one included. #}
 <div class="factband">
-    <span class="f"><span class="k">Rangers</span><span class="v">{{ band.rangers }}<em>posted at the {{ band.postsWithAWatch }}</em></span></span>
+    <span class="f"><span class="k">Rangers</span><span class="v">{{ band.rangers }}<em>{% if band.postsWithAWatch %}posted at {{ band.postsWithAWatch }} post{{ band.postsWithAWatch == 1 ? '' : 's' }}{% else %}no post runs a watch{% endif %}</em></span></span>
     <span class="f"><span class="k">Posts with a watch</span><span class="v">{{ band.postsWithAWatch }}<em>of the area&rsquo;s {{ band.stationsInArea }}</em></span></span>
     <span class="f"><span class="k">Rotations</span><span class="v">{{ band.rotations }}<em>{{ band.rotationsPerPost }} per post &middot; {{ band.rotationsPerTeam }} per team</em></span></span>
     <span class="f"><span class="k">Named shifts</span><span class="v">{{ band.namedShifts }}<em>{{ band.shiftLabels }}</em></span></span>

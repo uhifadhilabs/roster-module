@@ -80,9 +80,6 @@ final readonly class RosterDashboardService
             load: $this->loadThisMonth($area, $day),
             checkIns: self::checkInsNewestFirst($posts),
             shiftLabels: $shiftLabels,
-            // A DAY THAT IS NOT TODAY HAS NO "NOW" ON IT. Drawing the line
-            // anyway would put this minute on a day nobody is standing.
-            nowPercent: $day->format('Y-m-d') === $now->format('Y-m-d') ? $this->board->percentOfDay($now) : null,
         );
     }
 

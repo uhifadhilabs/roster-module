@@ -33,6 +33,15 @@ use Uhifadhi\Roster\Repository\ShiftRepository;
  * THE GEOMETRY IS A PERCENTAGE OF THE DAY because the row is a proportion
  * of whatever width the screen gives it. Minutes since midnight over the
  * day's minutes — nothing about it depends on a pixel.
+ *
+ * THE LINE AT "NOW" IS NOT HERE, and its absence is deliberate. A block sits
+ * at a WALL-CLOCK time the area named — 18:00 is 18:00 wherever the reader
+ * is — but "now" is an instant, and the ruling is that the viewer's clock is
+ * the authority for every instant in the product. A percent computed here
+ * would be in the SERVER's timezone and frozen at render; the board's own
+ * Stimulus controller places the line from the browser's clock and moves it
+ * every minute. The two percentages have to agree, and a seam test asserts
+ * the formulae are the same.
  */
 final readonly class DayBoardService
 {
@@ -143,12 +152,6 @@ final readonly class DayBoardService
                 self::percent($window->startsAtMinuteOfDay()),
                 self::percent(self::MINUTES_IN_A_DAY - $window->startsAtMinuteOfDay()),
             ]];
-    }
-
-    /** How far through the day an instant is, as a percentage. */
-    public function percentOfDay(\DateTimeImmutable $at): float
-    {
-        return self::percent(((int) $at->format('G') * 60) + (int) $at->format('i'));
     }
 
     private static function percent(int $minutes): float

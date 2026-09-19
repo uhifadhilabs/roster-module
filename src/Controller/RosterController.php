@@ -33,6 +33,7 @@ use Uhifadhi\Contracts\Area\DayState;
 use Uhifadhi\Contracts\Entity\UserInterface;
 use Uhifadhi\Roster\Model\AgendaFilter;
 use Uhifadhi\Roster\Model\PostPresence;
+use Uhifadhi\Roster\Model\PostState;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Service\AgendaService;
@@ -377,13 +378,35 @@ final class RosterController
         $day = $this->askedFor($request) ?? new \DateTimeImmutable('today');
         $now = new \DateTimeImmutable();
 
+        $filter = AgendaFilter::fromQuery(
+            $request->query->get('post'),
+            $request->query->get('state'),
+            $request->query->get('shift'),
+            $request->query->get('q'),
+        );
+
+        // THE SAME ONE READ THE AGENDA USES, and the same filter over it: the
+        // two tabs are two readings of one day, so a day board filtered to a
+        // post must show the post the agenda would have shown.
+        $whole = $this->presence->postsOn($area, $day, $now);
+        $windows = $this->shifts->windowsFor($area);
+        $narrowed = $this->agenda->narrow($whole, $filter, $now, $windows);
+
         return new Response($this->twig->render('@UhifadhiRoster/board/show.html.twig', [
             'area' => $area,
             'band' => $this->identity->bandFor($area),
             'day' => $day,
-            'posts' => $this->presence->postsOn($area, $day, $now),
+            'isToday' => $day->format('Y-m-d') === $now->format('Y-m-d'),
+            'filter' => $filter,
+            'posts' => $narrowed,
             'blocks' => $this->board->blocksFor($area, $day),
-            'nowPercent' => $day->format('Y-m-d') === $now->format('Y-m-d') ? $this->board->percentOfDay($now) : null,
+            'figures' => $this->agenda->figuresFor($area, $whole, $day, $now),
+            'quiet' => self::quiet($whole),
+            'chosenPost' => $this->chosenPost($whole, $filter),
+            'stateLabels' => self::stateLabels(),
+            'stateCounts' => self::stateCounts($whole),
+            'shiftLabels' => $this->shiftLabels($area),
+            'shiftCounts' => self::shiftCounts($whole),
         ]));
     }
 
@@ -434,6 +457,22 @@ final class RosterController
             'now' => new \DateTimeImmutable(),
             'posts' => $this->presence->postsOn($area, $day),
         ]));
+    }
+
+    /**
+     * THE POSTS THAT ARE NOT TALKING TO US. Late is a warning and not a
+     * fault — it clears itself the moment something lands.
+     *
+     * @param list<PostPresence> $posts
+     *
+     * @return list<PostPresence>
+     */
+    private static function quiet(array $posts): array
+    {
+        return array_values(array_filter(
+            $posts,
+            static fn (PostPresence $post): bool => PostState::Late === $post->state || PostState::Offline === $post->state,
+        ));
     }
 
     /**
