@@ -12,7 +12,7 @@ Each deliberate modelling choice, **why**, and **the trigger that reopens it**
 - [A hole is a shortfall, not a duty with nobody on it](#a-hole-is-a-shortfall-not-a-duty-with-nobody-on-it)
 - [The pool is ordered, so it is a join entity](#the-pool-is-ordered-so-it-is-a-join-entity)
 - [A horizon is stored as days, not as the preset that chose them](#a-horizon-is-stored-as-days-not-as-the-preset-that-chose-them)
-- [A per-team rotation cannot generate yet](#a-per-team-rotation-cannot-generate-yet)
+- [A per-team rotation is filed at its base post](#a-per-team-rotation-is-filed-at-its-base-post)
 - [Thresholds are starting values, not settings](#thresholds-are-starting-values-not-settings)
 - [Leave has no approval in v1](#leave-has-no-approval-in-v1)
 - [What the design asks for that nothing can answer yet](#what-the-design-asks-for-that-nothing-can-answer-yet)
@@ -136,28 +136,33 @@ the fact.
 than a length ("always to the end of the quarter"). That is a second field, not
 a different type for this one.
 
-## A per-team rotation cannot generate yet
+## A per-team rotation is filed at its base post
 
-**Decision.** `RotationGenerator` refuses a per-team rotation with a named
-exception (`RotationCannotGenerate`) rather than writing its duties against
-some station.
+**RULED 2026-09-20.** A per-team rotation names a BASE POST at creation
+(`Rotation.baseStation`, required whenever the scope is team). Its duties are
+filed against that post and `Duty.station` stays non-null. **A squad away on
+tour is counted at its base.**
 
-**NEEDS A VERDICT.** The design draws a per-team rotation — "a team's cycle
-travels with them", *Crater response team · per team · 10 on, 4 off · generated
-to 28 oct* — and shows it generating. But a duty is "one watch, one station,
-one day" by ruling, and nothing says where a roving squad's watch stands. The
-two candidate answers:
+**Why.** The design draws a per-team rotation — *Crater response team · per
+team · 10 on, 4 off · generated to 28 oct* — and shows it generating, but a
+duty is "one watch, one station, one day" and nothing said where a roving
+squad's watch stands. The rejected alternative was a station-less duty: honest
+about a tour, but it makes `Duty.station` nullable, so every count keyed by
+station carries an exception and the unique constraint needs paired partial
+indexes (Postgres treats NULLs as distinct). The cycle still travels with the
+team; only the filing stands still, and the surfaces say so.
 
-1. **A base post**, chosen when the rotation is created. Keeps `Duty.station`
-   non-null and every station-keyed count intact; slightly untrue for a squad
-   that is somewhere else all fortnight.
-2. **A station-less duty.** Honest about a roving tour; makes `Duty.station`
-   nullable, which means every count keyed by station has to exclude it, and
-   the unique constraint needs paired partial indexes because Postgres treats
-   NULLs as distinct.
+**Consequence.** `Rotation::carriedBy()` takes the base post as a required
+argument rather than leaving it settable afterwards — a team rotation saved
+without one would generate nothing, which looks exactly like a pool that is
+all away. `RotationCannotGenerate` is therefore **unreachable from the
+product**: both ways of setting a scope take a station. It is kept for the row
+written around them (a fixture, a direct insert, a half-finished import), and
+tested as such.
 
-Refusing loudly is the interim, because a silent "nothing written" looks exactly
-like a rotation whose pool is all away.
+**Reopens if** a deployment needs a squad's watches to appear at *nobody's*
+post — a marine unit, an aerial wing. Then it is the nullable-station model,
+with the partial-index work that implies.
 
 ## Leave has no approval in v1
 

@@ -27,21 +27,20 @@ use Uhifadhi\Roster\Entity\Rotation;
 final class RotationCannotGenerate extends \RuntimeException
 {
     /**
-     * A PER-TEAM ROTATION HAS NO POST, and a duty is "one watch, one station,
-     * one day" by ruling — so there is no honest station to file a squad's
-     * tour against.
+     * THE ROTATION NAMES NO POST AT ALL — neither a station of its own nor,
+     * for a squad, a base post to file its tour against.
      *
-     * OPEN, AND NAMED HERE RATHER THAN GUESSED AT. The design draws a
-     * per-team rotation ("a squad's cycle travels with them") and shows it
-     * generating, but never says where a team's watch stands. The two answers
-     * are a base post chosen when the rotation is created, or a duty whose
-     * station is genuinely empty — and that is a domain verdict, not a
-     * modelling preference.
+     * UNREACHABLE FROM THE PRODUCT, and kept anyway. Both ways of setting a
+     * rotation's scope take a station, so a rotation saved through this
+     * module always has one; what this catches is a row written around them —
+     * a hand-built fixture, a direct SQL insert, a half-finished import. A
+     * silent "nothing written" there would look exactly like a rotation whose
+     * pool is all away, which is a very different problem.
      */
     public static function becauseItStandsAtNoPost(Rotation $rotation): self
     {
         return new self(\sprintf(
-            'The "%s" rotation carries a cycle for a team rather than a post, and a duty is one watch at one station on one day — so there is nowhere to write its watches. Give the rotation a post, or wait on the verdict for where a team\'s watch stands.',
+            'The "%s" rotation names no post, so there is nowhere to write its watches: a duty is one watch at one station on one day. A per-post rotation stands at its station; a per-team one is filed at its base post.',
             $rotation->getTeamName() ?? $rotation->getUuid()->toRfc4122(),
         ));
     }

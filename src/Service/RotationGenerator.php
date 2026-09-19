@@ -17,7 +17,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Roster\Entity\Duty;
 use Uhifadhi\Roster\Entity\Rotation;
-use Uhifadhi\Roster\Enum\RotationScope;
 use Uhifadhi\Roster\Exception\RotationCannotGenerate;
 use Uhifadhi\Roster\Model\GenerationRun;
 use Uhifadhi\Roster\Model\RotationPlan;
@@ -151,25 +150,24 @@ final readonly class RotationGenerator
     }
 
     /**
-     * WHERE THE WATCHES STAND.
+     * WHERE THE WATCHES STAND — the post for a per-post ring, the BASE POST
+     * for a squad's (ruled 2026-09-20: a squad away on tour is counted at its
+     * base).
      *
-     * A per-team rotation has no post, and this module cannot invent one: a
-     * duty is "one watch, one station, one day" by ruling, so a squad that
-     * carries its cycle wherever it is sent has no answer yet to the question
-     * this line asks. It is refused loudly rather than quietly filed against
-     * whichever station happened to be handy.
+     * A WELL-FORMED ROTATION ALWAYS HAS ONE, so this refusal is unreachable
+     * from the product: {@see Rotation::standAt()} and
+     * {@see Rotation::carriedBy()} each require a station, and there is no
+     * third way to set the scope. It stands for the half-built row — a
+     * hand-written fixture, a direct SQL insert — because a silent "nothing
+     * written" there would look exactly like a pool that is all away.
      *
      * @throws RotationCannotGenerate
      */
     private function stationFor(Rotation $rotation): Station
     {
-        $station = $rotation->getStation();
+        $station = $rotation->watchStation();
 
         if (null === $station) {
-            throw RotationCannotGenerate::becauseItStandsAtNoPost($rotation);
-        }
-
-        if (RotationScope::Post !== $rotation->getScope()) {
             throw RotationCannotGenerate::becauseItStandsAtNoPost($rotation);
         }
 

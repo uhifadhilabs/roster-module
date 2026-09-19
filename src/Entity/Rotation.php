@@ -96,6 +96,22 @@ class Rotation
     private ?string $teamName = null;
 
     /**
+     * THE POST A SQUAD IS BASED AT — required for a per-team rotation, null for
+     * a per-post one (which has a station outright).
+     *
+     * RULED 2026-09-20. A duty is one watch, one station, one day, so a team's
+     * watches have to be filed somewhere, and this is where: a squad away on
+     * tour is COUNTED AT ITS BASE. That is not quite true of where the people
+     * are, and it is chosen over the alternative — a station-less duty —
+     * because every count in the product is keyed by station and a null there
+     * would make each one carry an exception. The cycle still travels with the
+     * team; only the filing stands still.
+     */
+    #[ORM\ManyToOne(targetEntity: Station::class)]
+    #[ORM\JoinColumn(name: 'base_station_id', nullable: true, onDelete: 'CASCADE')]
+    private ?Station $baseStation = null;
+
+    /**
      * The ring, one entry per day: a shift key from the area's own list, or
      * {@see Cycle::OFF}. Stored as JSON because nothing ever asks the database
      * a question about a single ring position.
@@ -230,6 +246,7 @@ class Rotation
         $this->station = $station;
         $this->scope = RotationScope::Post;
         $this->teamName = null;
+        $this->baseStation = null;
 
         return $this;
     }
@@ -239,14 +256,42 @@ class Rotation
         return $this->teamName;
     }
 
-    /** Give the ring to a squad instead. A team's cycle travels with them. */
-    public function carriedBy(string $teamName): static
+    public function getBaseStation(): ?Station
+    {
+        return $this->baseStation;
+    }
+
+    /**
+     * GIVE THE RING TO A SQUAD INSTEAD. A team's cycle travels with them —
+     * but its duties are filed at the base post, because a duty is one watch
+     * at one station on one day and a count keyed by station cannot have a
+     * hole in it.
+     *
+     * The base is REQUIRED here rather than settable afterwards: a team
+     * rotation without one could be saved and would then generate nothing,
+     * which looks exactly like a pool that is all away.
+     */
+    public function carriedBy(string $teamName, Station $baseStation): static
     {
         $this->teamName = $teamName;
+        $this->baseStation = $baseStation;
         $this->scope = RotationScope::Team;
         $this->station = null;
 
         return $this;
+    }
+
+    /**
+     * WHERE THIS ROTATION'S WATCHES STAND — the post for a per-post ring, the
+     * base post for a squad's. Null only for a rotation that is half-built,
+     * which the generator refuses rather than files somewhere convenient.
+     */
+    public function watchStation(): ?Station
+    {
+        return match ($this->scope) {
+            RotationScope::Post => $this->station,
+            RotationScope::Team => $this->baseStation,
+        };
     }
 
     public function getCycle(): Cycle

@@ -317,13 +317,14 @@ final class RotationGeneratorTest extends IntegrationTestCase
     }
 
     /**
-     * A PER-TEAM ROTATION IS REFUSED LOUDLY. A duty is one watch at one
-     * station on one day, and the design never says where a squad's watch
-     * stands — so this is an open verdict, not a modelling preference, and a
-     * silent "nothing written" would look exactly like a pool that is away.
+     * A SQUAD AWAY ON TOUR IS COUNTED AT ITS BASE — ruled 2026-09-20. The
+     * cycle travels with the team; the filing stands still, because a duty is
+     * one watch at one station on one day and every count in the product is
+     * keyed by station.
      */
-    public function testAPerTeamRotationIsRefusedRatherThanFiledAgainstSomePost(): void
+    public function testAPerTeamRotationFilesItsWatchesAtItsBasePost(): void
     {
+        $base = $this->aStation($this->area, 'headquarters', 'ST-05');
         $squad = new Rotation(
             $this->area,
             RotationScope::Team,
@@ -331,14 +332,47 @@ final class RotationGeneratorTest extends IntegrationTestCase
             new \DateTimeImmutable('2026-09-14'),
             ['day' => 2],
             42,
-        )->carriedBy('rapid response team');
+        )->carriedBy('rapid response team', $base);
         $this->em->persist($squad);
         $this->em->persist(new RotationPoolMember($squad, $this->pool[0], 0));
         $this->em->flush();
 
-        $this->expectException(RotationCannotGenerate::class);
-        $this->expectExceptionMessageMatches('/rapid response team/');
+        $run = $this->generator()->generate($squad, new \DateTimeImmutable('2026-09-14'), new \DateTimeImmutable('2026-09-20'));
 
-        $this->generator()->generate($squad, new \DateTimeImmutable('2026-09-14'), new \DateTimeImmutable('2026-09-20'));
+        self::assertSame(5, $run->created);
+
+        $duties = $this->duties()->findByStationBetween($base, new \DateTimeImmutable('2026-09-14'), new \DateTimeImmutable('2026-09-20'));
+        self::assertCount(5, $duties);
+        foreach ($duties as $duty) {
+            self::assertSame($base->getId(), $duty->getStation()->getId());
+        }
+
+        // And nothing landed at the gate the squad has nothing to do with.
+        self::assertSame([], $this->countsOn('2026-09-14'));
+    }
+
+    /**
+     * A ROTATION WITH NO POST AT ALL IS REFUSED LOUDLY. Unreachable through
+     * the module — both ways of setting a scope take a station — so this is
+     * about the row written around them: a silent "nothing written" would look
+     * exactly like a pool that is all away.
+     */
+    public function testARotationNamingNoPostAtAllIsRefused(): void
+    {
+        $orphan = new Rotation(
+            $this->area,
+            RotationScope::Team,
+            Cycle::of(['day']),
+            new \DateTimeImmutable('2026-09-14'),
+            ['day' => 1],
+            7,
+        );
+        $this->em->persist($orphan);
+        $this->em->persist(new RotationPoolMember($orphan, $this->pool[0], 0));
+        $this->em->flush();
+
+        $this->expectException(RotationCannotGenerate::class);
+
+        $this->generator()->generate($orphan, new \DateTimeImmutable('2026-09-14'), new \DateTimeImmutable('2026-09-20'));
     }
 }

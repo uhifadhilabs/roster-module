@@ -36,7 +36,7 @@ post is read from the area's check-ins and the pings that followed them.
 |---|---|
 | Station, posting, check-in, position | **the area** |
 | Person, position, department | **team** |
-| Rotation — cycle, slots per shift, pool, horizon | **roster** |
+| Rotation — cycle, slots per shift, pool, horizon, base post | **roster** |
 | Duty — one watch, one station, one day | **roster** |
 | Swap — two cells, accepted on the handset | **roster** |
 | Absence — person, from, to, kind, recorded by | **roster** |
