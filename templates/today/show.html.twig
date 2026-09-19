@@ -1,0 +1,85 @@
+{# ============================================================================
+   TODAY — the agenda, ported from the design's modules/roster/today.html.
+
+   THE PLAN AND THE MEASUREMENT SIDE BY SIDE AND NEVER MERGED. Each line
+   carries the watch this module rostered AND the state the AREA derived from
+   that person's own check-in and pings. The gap between the two is the point
+   of the module; collapsing them into one verdict would throw it away.
+
+   A HOLE IS ITS OWN LINE, not a missing one. A watch the pattern asked for
+   and nobody is on is the thing somebody has to act on, so it is drawn
+   rather than left as an absence the eye has to notice.
+
+   The house card: `.c`, a `.tab`, a body, one quiet door.
+   ========================================================================== #}
+{% extends '@UhifadhiRoster/base.html.twig' %}
+
+{% block title %}{{ area.name }} · Roster · today{% endblock %}
+
+{% block shell_page_title %}Roster{% endblock %}
+
+{% block shell_page_subtitle %}Who is due, and what the positions say about them. The watch is the roster&rsquo;s; the state beside it is the area&rsquo;s reading of a ranger&rsquo;s own check-in.{% endblock %}
+
+{% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / today{% endblock %}
+
+{% block roster_page %}
+    {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
+
+    <div class="c">
+        <span class="tab">{{ isToday ? 'Today' : 'The day' }}<span class="src">&middot; <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j M')|lower }}</time> &middot; {{ posts|length }} post{{ posts|length == 1 ? '' : 's' }} on the books</span></span>
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid}) }}">The week &rarr;</a>
+
+        {% for post in posts %}
+            <div class="r-ag-post">
+                <b>{{ post.stationName }}</b>
+                <span class="sp"></span>
+                <span class="r-st-state {{ post.state.value }}"><i></i>{{ post.state.label }}</span>
+                {%- if post.expected %}<span class="unit">{{ post.rostered|length }} of {{ post.expected }}</span>{% endif %}
+            </div>
+
+            {% for person in post.rostered %}
+                <div class="r-ag-line">
+                    <span class="nm">{{ person.personName }}<em>{{ person.shiftLabel|lower }}</em></span>
+                    <span class="why">
+                        {%- if person.day is null %}
+                            nothing has arrived for this day
+                        {%- elseif person.isFlagged %}
+                            {{ person.day.unverifiedReason ? person.day.unverifiedReason.label : 'unverified' }}
+                            {%- if person.day.distanceM is not null %} &mdash; {{ (person.day.distanceM / 1000)|number_format(1) }} km from the post claimed{% endif %}
+                        {%- elseif person.day.statusLabel %}
+                            {{ person.day.statusLabel }}
+                            {%- if person.day.note %} &mdash; {{ person.day.note }}{% endif %}
+                        {%- else %}
+                            {{ person.day.pings }} position{{ person.day.pings == 1 ? '' : 's' }} since the check-in
+                        {%- endif %}
+                    </span>
+                    <span class="r-ci {{ person.state.value }}"><i></i>{{ person.state.label }}</span>
+                    {%- if person.day and person.day.lastPingAt %}
+                        <span class="unit"><time datetime="{{ person.day.lastPingAt.format('c') }}" data-localtime-format="time">{{ person.day.lastPingAt.format('H:i') }}</time></span>
+                    {%- endif %}
+                </div>
+            {% endfor %}
+
+            {% if post.shortfall %}
+                <div class="r-ag-line hole">
+                    <span class="nm">{{ post.shortfall }} unfilled<em>{{ post.rostered|length }} of {{ post.expected }}</em></span>
+                    <span class="why">the pattern asked for {{ post.expected }} and nobody is on the rest</span>
+                    <span class="r-ci no_check_in"><i></i>hole</span>
+                </div>
+            {% endif %}
+
+            {% if post.rostered is empty and not post.shortfall %}
+                <div class="r-ag-line">
+                    <span class="nm"><span class="fog">nobody rostered</span></span>
+                    <span class="why">this post asks for nobody today &mdash; reporting and unstaffed are different facts</span>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed</em></div>
+        {% endfor %}
+
+        {% if not isToday %}
+            <div class="rfrag"><b>This day carries no state</b><em>every line is DUE &mdash; nothing has been measured, and the tab never pretends otherwise</em></div>
+        {% endif %}
+    </div>
+{% endblock %}

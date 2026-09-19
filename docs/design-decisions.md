@@ -239,6 +239,37 @@ hole gets filled.
 **Reopens if** a swap ever needs to be approved by a third person. It is an
 agreement between two today, and the handset is the only thing that accepts.
 
+## The month is the atlas's, not this module's
+
+**Decision.** The Calendar tab renders `atlas_calendar()` with a
+`CalendarFeedInterface` this module implements. It ships no month grid.
+
+**Why.** The component exists to keep one rule a module cannot keep for
+itself: a cell is one height whatever it holds, so a busy week does not make
+the month taller than a quiet one. The design's own 09-20 commit deleted the
+roster's bespoke `.r-mon` grid for exactly this. This module says what
+happened on which day; the grid, the day head, the cell, the "+N more" and
+the stepper are the atlas's.
+
+**The scope is `<area uuid>:<person uuid>`** because the feed needs both and
+the contract's scope is one opaque string by design. `RosterCalendar::scopeFor()`
+is the single spelling, so the controller and the feed cannot disagree.
+
+**Past and future never wear the same mark.** A stood watch is `closed` — a
+hollow mark — and carries the hue of what the day turned out to be; a future
+watch is open and plain. Colouring a plan green would let it read as a record.
+
+## A night watch is two blocks on the day board
+
+**Decision.** `DayBoardService` reads **two** days — the one being drawn and
+the one before — and a midnight-crossing watch produces a block on each.
+
+**Why.** A watch running 18:00–06:00 occupies the last quarter of the day it
+begins and the first quarter of the next. A board reading only today would
+leave every morning before six looking unmanned, and drawing the watch as one
+block would be a lie about the day it belongs to. Positions are percentages of
+the day, so nothing depends on a pixel.
+
 ## What the design asks for that nothing can answer yet
 
 These are named here rather than invented, because the honest empty state is
@@ -251,4 +282,5 @@ the right port until the seam lands.
 | The *Watch and presence* section on the station record, and the *Roster* block on its configure card | `Uhifadhi\Contracts\Area\StationSectionsInterface` | **landed** — `RosterStationSections` |
 | The check-in statuses list on this module's Settings section | the area's `CheckInStatus` read model | **landed** — read through `CheckInStatusService`, written nowhere here |
 | The presence card, the attention items and the on-duty tile on the AREA's overview | the area's overview contribution seams | not built yet — step 7 |
-| The Live tab's ranger markers and ping ages | the area's position feed | not built yet — step 6 |
+| The Live tab's plate, its ranger markers and their ping ages | the area's position feed over its stations layer | **not built** — the roster stores no position and draws no plate; the tab ships the roster underneath and names whose the positions are |
+| The swap picker, the cost bar and the offer states on the Week tab | a drawn frame — being graduated from `variants-format/a.html` | **not built**; the swap DOMAIN is complete and tested |

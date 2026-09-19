@@ -1,0 +1,70 @@
+{# ============================================================================
+   THE CALENDAR — one ranger's month, drawn in the HOUSE calendar.
+
+   THE ATLAS OWNS THE MONTH. The grid, the day head, the cell, its fixed
+   height, the day number, the "+N more" and the stepper all come from
+   `atlas_calendar()`; this module ships no month grid of its own and says
+   only what happened on which day. That is the whole bargain of the
+   component, and the reason a busy week cannot make the month taller than a
+   quiet one.
+
+   A PAST DAY CARRIES WHAT THE CHECK-IN RECORDED AND A FUTURE DAY WHAT THE
+   ROTATION PLANS. The two never wear the same mark: a stood watch is
+   hollow — finished — and one still to come is open.
+   ========================================================================== #}
+{% extends '@UhifadhiRoster/base.html.twig' %}
+
+{% block title %}{{ area.name }} · Roster · calendar{% endblock %}
+
+{% block shell_page_title %}Roster{% endblock %}
+
+{% block shell_page_subtitle %}One ranger&rsquo;s month &mdash; the same format the handset draws.{% endblock %}
+
+{% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / calendar{% endblock %}
+
+{% block roster_page %}
+    {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
+
+    <div class="c">
+        <span class="tab">The month{% if chosen %}<span class="src">&middot; {{ chosen.name }} &middot; {{ month.label|lower }}</span>{% endif %}</span>
+
+        {% if chosen is null %}
+            <div class="rfrag"><b>No rotation in this area draws from anybody yet</b><em>a month is one ranger&rsquo;s watches, and there is nobody in a pool to show one for</em></div>
+        {% else %}
+            {# THE RANGER PICKER, as a grouped dropdown in the house's own
+                 `.cal-nav` — ruled 2026-09-20. The month's own stepper is the
+                 atlas's and is drawn by the component below. #}
+            <div class="cal-nav">
+                <span class="i-dd" data-dd>
+                    <button type="button" class="mchip i-ddt" data-dd-trigger aria-haspopup="listbox" aria-expanded="false">
+                        <span class="i-ddval">{{ chosen.name|lower }}</span><span class="i-ddcaret">&#9662;</span>
+                    </button>
+                    <div class="i-ddmenu" data-dd-menu role="listbox" aria-label="ranger">
+                        <span class="i-ddhead">ranger</span>
+                        {% for person in people %}
+                            <a class="i-ddopt{{ person.uuid == chosen.uuid ? ' on' : '' }}" role="option"
+                               aria-selected="{{ person.uuid == chosen.uuid ? 'true' : 'false' }}"
+                               href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::CALENDAR_ROUTE'), {uuid: area.uuid, ranger: person.uuid, month: month.year ~ '-' ~ '%02d'|format(month.month)}) }}">
+                                <span class="i-dot"></span><span class="i-ddopt-l">{{ person.name }}</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </span>
+            </div>
+
+            {# The feed is handed over by the controller rather than reached
+               for as a global: a template that resolved a service would be a
+               template with a container in it. #}
+            {{ atlas_calendar(
+                feed,
+                month,
+                scope,
+                previousUrl: path(constant('Uhifadhi\\Roster\\Controller\\RosterController::CALENDAR_ROUTE'), {uuid: area.uuid, ranger: chosen.uuid, month: month.previous.year ~ '-' ~ '%02d'|format(month.previous.month)}),
+                nextUrl: path(constant('Uhifadhi\\Roster\\Controller\\RosterController::CALENDAR_ROUTE'), {uuid: area.uuid, ranger: chosen.uuid, month: month.next.year ~ '-' ~ '%02d'|format(month.next.month)})
+            ) }}
+
+            <div class="rfrag"><b>A hollow mark is a watch that was stood</b><em>a past day carries what the check-in recorded; a future day carries what the rotation plans, and the two never wear the same mark</em></div>
+            <div class="rfrag"><b>An empty day is a rest day</b><em>the ring stood them down, so there is nothing to draw and nothing has failed</em></div>
+        {% endif %}
+    </div>
+{% endblock %}

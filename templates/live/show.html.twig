@@ -1,0 +1,60 @@
+{# ============================================================================
+   LIVE — what is true this minute, and the roster underneath it.
+
+   THE POSITIONS ARE THE AREA'S, RULED. This module stores no position and
+   draws no plate of its own: live location is an area feature the roster
+   READS. What the roster contributes over the area's stations layer is the
+   presence states and their legend group, and that contribution belongs on
+   the area's own plate rather than on a second map drawn here.
+
+   SO THIS TAB SHIPS THE HALF IT OWNS — the roster underneath: every post on
+   the books, what its watch asks for, who is on it, how many are verified,
+   and the state of the post. The plate lands when the area publishes the
+   position feed this module would read; it is named in the notes below
+   rather than sketched, because a map with invented markers on it is worse
+   than no map.
+   ========================================================================== #}
+{% extends '@UhifadhiRoster/base.html.twig' %}
+
+{% block title %}{{ area.name }} · Roster · live{% endblock %}
+
+{% block shell_page_title %}Roster{% endblock %}
+
+{% block shell_page_subtitle %}What is true this minute. The positions are the <a href="{{ roster_url(constant('Uhifadhi\\Bundle\\AreaBundle\\Controller\\StationsController::ROUTE'), {uuid: area.uuid}) ?: '#' }}">area&rsquo;s</a>; the roster reads the states over them.{% endblock %}
+
+{% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / live{% endblock %}
+
+{% block roster_page %}
+    {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
+
+    <div class="c">
+        <span class="tab">The roster, underneath<span class="src">&middot; <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j M')|lower }}</time> &middot; {{ posts|length }} post{{ posts|length == 1 ? '' : 's' }} on the books</span></span>
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::TODAY_ROUTE'), {uuid: area.uuid}) }}">The agenda &rarr;</a>
+
+        {% if posts is empty %}
+            <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed</em></div>
+        {% else %}
+            <table class="tbl">
+                <tr><th>post</th><th>the watch</th><th>on it now</th><th>verified</th><th>the state of the post</th></tr>
+                {% for post in posts %}
+                    <tr>
+                        <td><b>{{ post.stationName }}</b></td>
+                        <td>{{ post.expected ? post.expected ~ ' asked for' : 'no watch' }}</td>
+                        <td>{{ post.rostered|length }}</td>
+                        <td class="{{ post.expected and post.verified < post.expected ? 'w' : (post.expected ? 'g' : '') }}">
+                            {{- post.expected ? post.verified ~ ' of ' ~ post.expected : '—' -}}
+                        </td>
+                        <td class="{{ post.state.value == 'offline' ? 'r' : (post.state.value == 'late' ? 'w' : '') }}">
+                            {{- post.state.label -}}
+                            {%- if post.silentFor is not null %} &middot; silent {{ post.silentFor }} min{% endif %}
+                            {%- if post.flagged %} &middot; <span class="w">{{ post.flagged }} flagged</span>{% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </table>
+
+            <div class="rfrag"><b>A square is a post, a circle is a person</b><em>the two shapes never blur &mdash; &ldquo;is this post alive&rdquo; and &ldquo;where is this ranger&rdquo; are different questions</em></div>
+            <div class="rfrag"><b>Every position carries the age of its last ping</b><em>a position with no age is a rumour; the age is what makes it arguable</em></div>
+        {% endif %}
+    </div>
+{% endblock %}

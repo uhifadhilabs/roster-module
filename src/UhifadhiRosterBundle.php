@@ -252,7 +252,15 @@ final class UhifadhiRosterBundle extends AbstractBundle
         // THE OVERVIEW TAB. A read, so it is registered unconditionally: an
         // installation with no firewall still has a roster to look at.
         $services->set('roster.controller.overview', RosterController::class)
-            ->args([service('twig'), service('roster.identity'), service('roster.week_grid')])
+            ->args([
+                service('twig'),
+                service('roster.identity'),
+                service('roster.week_grid'),
+                service('roster.presence'),
+                service('roster.day_board'),
+                service('roster.rostered_people'),
+                service('roster.calendar'),
+            ])
             ->public();
         $services->alias(RosterController::class, 'roster.controller.overview')->public();
 

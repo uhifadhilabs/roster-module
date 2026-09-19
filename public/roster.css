@@ -333,3 +333,105 @@
 .r-pres > .cnt.w { color: var(--warn); }
 .r-pres > .cnt.r { color: var(--fail); }
 .r-pres > .cnt.g { color: var(--ok); }
+
+/* ---- THE AGENDA ----------------------------------------------------------
+ * A post, then the people due at it, each with the state the AREA derived
+ * beside the watch this module rostered. THE TWO ARE NEVER MERGED: the gap
+ * between a plan and a measurement is the point of the module, and one
+ * column showing a single verdict would throw it away. */
+.r-ag-post {
+    display: flex; align-items: baseline; gap: 9px;
+    margin-top: 12px; padding-bottom: 5px; border-bottom: 1px solid var(--ln2);
+}
+
+.r-ag-post b { font-size: 12.5px; color: var(--tx); }
+.r-ag-post .sp { flex: 1 1 auto; }
+
+.r-ag-line {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    padding: 6px 0; border-bottom: 1px dashed var(--ln);
+}
+
+.r-ag-line:last-child { border-bottom: 0; }
+
+.r-ag-line > .nm { font-size: 12px; font-weight: 600; color: var(--tx); flex: 0 0 auto; min-width: 150px; }
+.r-ag-line > .nm em {
+    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    font-style: normal; text-transform: uppercase; letter-spacing: .07em;
+}
+
+.r-ag-line > .why { font-size: 11px; color: var(--fog); flex: 1 1 auto; min-width: 0; }
+
+/* A HOLE IS ITS OWN LINE, not a missing one: the watch nobody is on is the
+   thing somebody has to act on, so it is drawn rather than left as an
+   absence the eye has to notice. */
+.r-ag-line.hole > .nm { color: var(--fail); }
+.r-ag-line.hole > .why { color: var(--fail); }
+
+/* ---- THE DAY BOARD -------------------------------------------------------
+ * Twenty-four hours across, one post per row. Every block is positioned as a
+ * PERCENTAGE of the day, so the row is a proportion of whatever width the
+ * screen gives it and nothing depends on a pixel. */
+.r-day { margin-top: 8px; }
+
+.r-ruler { display: flex; gap: 10px; align-items: center; padding-bottom: 4px; }
+.r-ruler > span:first-child { flex: 0 0 150px; }
+.r-ruler .hrs {
+    flex: 1 1 auto; display: flex; justify-content: space-between;
+    font: 600 8px ui-monospace, monospace; color: var(--dim);
+    letter-spacing: .09em;
+}
+
+.r-daywrap { position: relative; display: flex; flex-direction: column; gap: 5px; }
+
+.r-dayrow { display: flex; gap: 10px; align-items: stretch; }
+
+.r-dayrow .lbl {
+    flex: 0 0 150px; font-size: 11.5px; font-weight: 600; color: var(--tx);
+    overflow: hidden; text-overflow: ellipsis;
+}
+
+.r-dayrow .lbl em {
+    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    font-style: normal; text-transform: uppercase; letter-spacing: .07em;
+}
+
+.r-track {
+    position: relative; flex: 1 1 auto; min-height: 30px;
+    border: 1px solid var(--ln); border-radius: 7px; background: var(--p2);
+}
+
+.r-blk {
+    position: absolute; top: 3px; bottom: 3px;
+    display: flex; align-items: center; gap: 5px; overflow: hidden;
+    padding: 0 7px; border-radius: 5px;
+    font: 600 9.5px ui-monospace, monospace; white-space: nowrap; text-overflow: ellipsis;
+    color: var(--r-acc); background: color-mix(in srgb, var(--r-acc) 17%, transparent);
+}
+
+.r-blk .n {
+    font-weight: 700; padding: 1px 5px; border-radius: 4px;
+    background: color-mix(in srgb, #000 16%, transparent);
+}
+
+.r-blk.night { color: var(--fog); background: color-mix(in srgb, var(--fog) 14%, transparent); }
+
+/* Nothing rostered, or a post that declares no watch. Stated, never blank:
+   an empty row reads as "not loaded yet". */
+.r-blk.gap {
+    color: var(--dim); background: none;
+    border: 1px dashed var(--ln2); font-weight: 500;
+}
+
+/* WHERE NOW IS — the one mark on the board that moves. */
+.r-now {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: var(--acc); pointer-events: none;
+    margin-left: 160px;
+}
+
+@media (max-width: 860px) {
+    .r-ruler > span:first-child,
+    .r-dayrow .lbl { flex-basis: 96px; }
+    .r-now { margin-left: 106px; }
+}

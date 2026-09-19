@@ -68,13 +68,16 @@ fortnight without the org chart quietly rewriting itself.
 | The four columns the roster owns on a station | `src/Entity/StationWatch.php` |
 | The answers this module cannot guess | `src/Entity/AreaRosterSettings.php` |
 | The tabs and the configure sections | `src/Shell/` |
-| The Overview and Week tabs | `src/Controller/RosterController.php` |
+| All six tabs | `src/Controller/RosterController.php` |
+| One ranger's month, fed to the house calendar | `src/Service/RosterCalendar.php` |
+| The day as a wall | `src/Service/DayBoardService.php` |
 | Rotation · Watches · Settings | `src/Controller/RosterConfigureController.php` |
 | The module's own vocabulary | `public/roster.css` |
 | Static service wiring | `config/services.php` |
 | Test installation | `tests/Integration/TestKernel.php` |
 
-Still to come: the four remaining tabs (Today, Day board, Calendar, Live),
+Still to come: the swap flow on the Week tab (the picker, the cost bar and
+the offer states, being graduated from the archive), the Live tab's plate,
 the cycle editor, the widget surface and its presets, the overview
 contributions, the `WatchProviderInterface` implementation the area's
 `/me/roster` answers the handset through, and the presence reads behind all

@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
+use Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository;
 use Uhifadhi\Contracts\Area\PresenceProviderInterface;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\AreaRosterSettingsRepository;
@@ -24,7 +25,10 @@ use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
 use Uhifadhi\Roster\Repository\SwapRepository;
 use Uhifadhi\Roster\Service\CyclePlanner;
+use Uhifadhi\Roster\Service\DayBoardService;
 use Uhifadhi\Roster\Service\PresenceReader;
+use Uhifadhi\Roster\Service\RosterCalendar;
+use Uhifadhi\Roster\Service\RosteredPeople;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\RosterSettingsService;
 use Uhifadhi\Roster\Service\RotationGenerator;
@@ -172,6 +176,35 @@ return static function (ContainerConfigurator $container): void {
             service(RotationRepository::class),
             service(ShiftRepository::class),
         ]);
+
+    /*
+     * THE DAY AS A WALL. It reads two days, not one: a night watch that
+     * began yesterday is still standing at 05:00 this morning, and a board
+     * that only read today would draw an empty gate for the hours somebody
+     * was actually on it.
+     */
+    $services->set('roster.day_board', DayBoardService::class)
+        ->args([service(DutyRepository::class), service(ShiftRepository::class)]);
+
+    /*
+     * ONE RANGER'S MONTH, fed to the HOUSE calendar. No tag and no
+     * collection: a surface NAMES the feed it wants, exactly as it names a
+     * plate's subject, because a month of watches and a month of patrols are
+     * different pages and not one page that merged them.
+     */
+    $services->set('roster.calendar', RosterCalendar::class)
+        ->args([
+            service(DutyRepository::class),
+            service(ShiftRepository::class),
+            service(PresenceProviderInterface::class),
+            service(AreaOfInterestRepository::class),
+        ]);
+
+    // Who the calendar's ranger picker offers: the people this area's
+    // rotations actually draw from, which is not the payroll and not the
+    // postings.
+    $services->set('roster.rostered_people', RosteredPeople::class)
+        ->args([service(RotationRepository::class), service(RotationPoolMemberRepository::class)]);
 
     // `roster_url()` — the URL of a screen, or null where the installation did
     // not mount it. Twig's own path() THROWS on an unregistered route, so a

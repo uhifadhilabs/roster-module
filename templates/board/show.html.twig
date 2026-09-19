@@ -1,0 +1,69 @@
+{# ============================================================================
+   THE DAY BOARD — the design's modules/roster/board.html, ported.
+
+   TODAY AS A WALL: twenty-four hours across, one post per row, a block for
+   every watch and a line where "now" is. The direction's own trade-off,
+   stated in the design and true of this port: it is the best surface for a
+   shift handover and for a screen on an office wall, and it knows nothing
+   about tomorrow.
+
+   A NIGHT WATCH IS TWO BLOCKS. It crosses midnight, so the morning before
+   06:00 belongs to the watch that began yesterday — drawing it as one block
+   would be a lie about the day it belongs to, and drawing only the evening
+   would leave every morning looking unmanned.
+   ========================================================================== #}
+{% extends '@UhifadhiRoster/base.html.twig' %}
+
+{% block title %}{{ area.name }} · Roster · day board{% endblock %}
+
+{% block shell_page_title %}Roster{% endblock %}
+
+{% block shell_page_subtitle %}The day as a wall &mdash; twenty-four hours across, one post per row, and a line where now is.{% endblock %}
+
+{% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / day board{% endblock %}
+
+{% block roster_page %}
+    {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
+
+    <div class="c">
+        <span class="tab">The day board<span class="src">&middot; <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j M')|lower }}</time></span></span>
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::TODAY_ROUTE'), {uuid: area.uuid}) }}">The agenda &rarr;</a>
+
+        {% if posts is empty %}
+            <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed</em></div>
+        {% else %}
+            <div class="r-day">
+                <div class="r-ruler">
+                    <span></span>
+                    <span class="hrs">{% for hour in [0, 3, 6, 9, 12, 15, 18, 21] %}<span>{{ '%02d'|format(hour) }}</span>{% endfor %}</span>
+                </div>
+                <div class="r-daywrap">
+                    {% for post in posts %}
+                        <div class="r-dayrow">
+                            <span class="lbl">{{ post.stationName }}<em>{{ post.state.label }}</em></span>
+                            <span class="r-track">
+                                {%- for block in blocks[post.stationUuid]|default([]) %}
+                                    <span class="r-blk{{ block.crossesMidnight ? ' night' : '' }}"
+                                          style="left:{{ block.leftPercent }}%;width:{{ block.widthPercent }}%"
+                                          title="{{ block.label }}{{ block.fromYesterday ? ' — began yesterday' : '' }}: {{ block.people|join(' · ') }}">
+                                        <span class="n">{{ block.count }}</span> {{ block.people|join(' · ') }}
+                                    </span>
+                                {%- else %}
+                                    <span class="r-blk gap" style="left:0;width:100%">
+                                        {{ post.state.value == 'no_watch' ? 'no watch declared — never counted, never late, never a hole' : 'nothing rostered on this day' }}
+                                    </span>
+                                {%- endfor %}
+                            </span>
+                        </div>
+                    {% endfor %}
+                    {% if nowPercent is not null %}
+                        <div class="r-now" style="left:{{ nowPercent }}%"></div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="rfrag"><b>A night watch is two blocks</b><em>it crosses midnight, so the hours before six belong to the watch that began the day before</em></div>
+            <div class="rfrag"><b>Rostered is a plan, the state is a measurement</b><em>drawn side by side and never merged &mdash; the gap between them is the point of the module</em></div>
+        {% endif %}
+    </div>
+{% endblock %}

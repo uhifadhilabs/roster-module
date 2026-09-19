@@ -197,6 +197,9 @@ final class TestKernel extends Kernel
             \Uhifadhi\Roster\Service\PresenceReader::class => 'roster.presence',
             \Uhifadhi\Roster\Service\SwapService::class => 'roster.swaps',
             \Uhifadhi\Roster\Service\WeekGridService::class => 'roster.week_grid',
+            \Uhifadhi\Roster\Service\DayBoardService::class => 'roster.day_board',
+            \Uhifadhi\Roster\Service\RosterCalendar::class => 'roster.calendar',
+            \Uhifadhi\Roster\Service\RosteredPeople::class => 'roster.rostered_people',
             \Uhifadhi\Roster\Repository\SwapRepository::class => \Uhifadhi\Roster\Repository\SwapRepository::class,
             // The AREA's own derivation, so a test can assert this module
             // READS it rather than computing a second answer beside it.

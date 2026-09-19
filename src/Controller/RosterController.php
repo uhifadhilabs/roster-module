@@ -21,6 +21,10 @@ use Symfony\Component\Routing\Requirement\Requirement;
 use Twig\Environment;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
+use Uhifadhi\Roster\Service\DayBoardService;
+use Uhifadhi\Roster\Service\PresenceReader;
+use Uhifadhi\Roster\Service\RosterCalendar;
+use Uhifadhi\Roster\Service\RosteredPeople;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\WeekGridService;
 
@@ -59,10 +63,26 @@ final class RosterController
     /** The planner's tab: posts down, days across, every hole drawn as a hole. */
     public const string WEEK_ROUTE = 'roster_week';
 
+    /** The agenda: who is due today, post by post, with how each day reads. */
+    public const string TODAY_ROUTE = 'roster_today';
+
+    /** The day as a wall: twenty-four hours across, one post per row. */
+    public const string BOARD_ROUTE = 'roster_board';
+
+    /** One ranger's month, in the house calendar. */
+    public const string CALENDAR_ROUTE = 'roster_calendar';
+
+    /** What is true this minute. */
+    public const string LIVE_ROUTE = 'roster_live';
+
     public function __construct(
         private readonly Environment $twig,
         private readonly RosterIdentityService $identity,
         private readonly WeekGridService $week,
+        private readonly PresenceReader $presence,
+        private readonly DayBoardService $board,
+        private readonly RosteredPeople $people,
+        private readonly RosterCalendar $calendar,
     ) {
     }
 
@@ -119,6 +139,107 @@ final class RosterController
             'shifts' => $this->week->shiftsOf($area),
             'previous' => $from->modify('-7 days'),
             'next' => $from->modify('+7 days'),
+        ]));
+    }
+
+    /**
+     * TODAY — the agenda, post by post: who is due, and how each of their
+     * days actually reads.
+     *
+     * THE PLAN AND THE MEASUREMENT SIDE BY SIDE AND NEVER MERGED. The watch
+     * is this module's; the state beside it is the area's reading of that
+     * person's own check-in and pings. The gap between the two is the point
+     * of the module, and collapsing them into one verdict would throw it
+     * away.
+     */
+    #[Route('/areas/{uuid}/modules/roster/today', name: self::TODAY_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['GET'])]
+    public function today(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $day = $this->askedFor($request) ?? new \DateTimeImmutable('today');
+
+        return new Response($this->twig->render('@UhifadhiRoster/today/show.html.twig', [
+            'area' => $area,
+            'band' => $this->identity->bandFor($area),
+            'day' => $day,
+            'isToday' => $day->format('Y-m-d') === new \DateTimeImmutable('today')->format('Y-m-d'),
+            'posts' => $this->presence->postsOn($area, $day),
+        ]));
+    }
+
+    /**
+     * THE DAY BOARD — the day as a wall: twenty-four hours across, one post
+     * per row, a block for every watch and a line where "now" is.
+     *
+     * A NIGHT WATCH IS TWO BLOCKS. It crosses midnight, and drawing it as
+     * one would be a lie about the day it belongs to: the part before 06:00
+     * belongs to the watch that began yesterday.
+     */
+    #[Route('/areas/{uuid}/modules/roster/board', name: self::BOARD_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['GET'])]
+    public function board(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $day = $this->askedFor($request) ?? new \DateTimeImmutable('today');
+        $now = new \DateTimeImmutable();
+
+        return new Response($this->twig->render('@UhifadhiRoster/board/show.html.twig', [
+            'area' => $area,
+            'band' => $this->identity->bandFor($area),
+            'day' => $day,
+            'posts' => $this->presence->postsOn($area, $day, $now),
+            'blocks' => $this->board->blocksFor($area, $day),
+            'nowPercent' => $day->format('Y-m-d') === $now->format('Y-m-d') ? $this->board->percentOfDay($now) : null,
+        ]));
+    }
+
+    /**
+     * THE CALENDAR — one ranger's month, drawn in the HOUSE calendar.
+     *
+     * The grid, the cell, its fixed height and the stepper are the atlas's;
+     * this module says only what happened on which day. It ships no month
+     * grid of its own, which is the whole reason the component exists.
+     */
+    #[Route('/areas/{uuid}/modules/roster/calendar', name: self::CALENDAR_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['GET'])]
+    public function calendar(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $people = $this->people->rosteredIn($area);
+        $chosen = $this->people->choose($people, $request->query->get('ranger'));
+        $month = $this->people->monthOf($request->query->get('month'));
+
+        return new Response($this->twig->render('@UhifadhiRoster/calendar/show.html.twig', [
+            'area' => $area,
+            'band' => $this->identity->bandFor($area),
+            'people' => $people,
+            'chosen' => $chosen,
+            'month' => $month,
+            'scope' => null === $chosen ? null : RosterCalendar::scopeFor((string) $area->getUuidString(), $chosen['uuid']),
+            'feed' => $this->calendar,
+        ]));
+    }
+
+    /**
+     * LIVE — what is true this minute, and the roster underneath it.
+     *
+     * THE POSITIONS ARE THE AREA'S. This module stores none and draws none
+     * of its own: the plate and its markers belong to whoever owns the
+     * ground, and the roster reads the states over them.
+     */
+    #[Route('/areas/{uuid}/modules/roster/live', name: self::LIVE_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['GET'])]
+    public function live(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+    ): Response {
+        $day = new \DateTimeImmutable('today');
+
+        return new Response($this->twig->render('@UhifadhiRoster/live/show.html.twig', [
+            'area' => $area,
+            'band' => $this->identity->bandFor($area),
+            'day' => $day,
+            'now' => new \DateTimeImmutable(),
+            'posts' => $this->presence->postsOn($area, $day),
         ]));
     }
 
