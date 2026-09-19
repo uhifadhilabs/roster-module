@@ -1,0 +1,45 @@
+{# Bundle base: the SHELL's page frame plus the sheet a roster screen needs.
+
+   Every roster screen extends this rather than the shell directly, so the
+   module's vocabulary loads only where the module renders.
+
+   THE FRAME IS THE CORE'S. The trail, the page head, the module's tab strip
+   and the flashes are the frame's sockets; a module that types its own copies
+   is a module that drifts from every other screen in the installation. There
+   is no `<div class="page">` here and no flash loop, deliberately.
+
+   THE TAB STRIP IS LEFT AT ITS DEFAULT. Roster is an AREA-SCOPED module —
+   every route under this base sits at /areas/{uuid}/modules/roster — so the
+   strip the shell draws from RosterModuleTabs is exactly right above it.
+
+   Symfony docs — https://symfony.com/doc/current/frontend/asset_mapper.html :
+   "All bundles that have a Resources/public/ or public/ directory will
+   automatically have that directory added as an asset path, using the
+   namespace: bundles/<BundleName>" — and under AssetMapper those assets are
+   automatically content-versioned. So public/roster.css is served as
+   bundles/uhifadhiroster/roster.css with a digest, and no assets:install. #}
+{% extends '@Shell/page.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {# The path is the bundle's own constant and not a literal: the area
+       overview will link this same sheet when it renders this module's
+       presence card, and a path typed twice is a path that eventually
+       differs. #}
+    <link rel="stylesheet" href="{{ asset(constant('Uhifadhi\\Roster\\UhifadhiRosterBundle::STYLESHEET')) }}">
+{% endblock %}
+
+{# THE TRAIL'S SHARED PREFIX, said once. Every roster screen sits under the
+   same steps — the areas, this area, its modules — and only the tail differs,
+   so screens fill `roster_trail_tail` and never retype the prefix. #}
+{% block shell_breadcrumbs %}
+    {%- set areas = roster_url('area_index') -%}
+    {%- set here = roster_url('area_show', {uuid: area.uuid}) -%}
+    {%- set modules = roster_url('area_modules', {uuid: area.uuid}) -%}
+    {%- if areas %}<a href="{{ areas }}">areas</a>{% else %}areas{% endif %} /
+    {%- if here %} <a href="{{ here }}">{{ area.name|lower }}</a>{% else %} {{ area.name|lower }}{% endif %} /
+    {%- if modules %} <a href="{{ modules }}">modules</a>{% else %} modules{% endif %} /
+    {%- block roster_trail_tail %} roster{% endblock %}
+{% endblock %}
+
+{% block shell_page %}{% block roster_page %}{% endblock %}{% endblock %}

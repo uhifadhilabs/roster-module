@@ -1,0 +1,28 @@
+{# THE CONFIGURE FRAME A ROSTER SECTION WEARS.
+
+   Each of this module's three sections keeps an address of its own — it draws
+   families the shell's sheet does not ship, and the shell's configure page
+   links no module stylesheet — so each renders itself. What it must NOT do is
+   look like a different page: it wears the configure page's heading, the
+   configure page's section strip and the lit Configure action, all three drawn
+   by the shell, and it draws no navigation and no way back of its own. The
+   strip, the lit Configure and the crumb are the three ways back; there is no
+   fourth.
+
+   The heading and the summary are the ones RosterConfigurationSections
+   declares, said here in the same words rather than a second wording of the
+   same page. #}
+{% extends '@UhifadhiRoster/base.html.twig' %}
+
+{% block title %}{{ area.name }} · Roster · configure{% endblock %}
+
+{% block shell_page_title %}{{ area.name }} — Roster · configure{% endblock %}
+
+{% block shell_page_subtitle %}The rotation, what each post&rsquo;s watch expects, and the module&rsquo;s own settings. Configuration only &mdash; the figures live on the tabs.{% endblock %}
+
+{% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / configure{% endblock %}
+
+{% block roster_page %}
+    {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
+    {% block roster_section %}{% endblock %}
+{% endblock %}

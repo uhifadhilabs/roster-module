@@ -1,0 +1,30 @@
+{# ============================================================================
+   THE ROSTER'S OVERVIEW TAB — the design's modules/roster/index.html, ported
+   as far as it can honestly go today.
+
+   WHAT IS HERE: the header, the six-tab strip (drawn by the shell from
+   RosterModuleTabs), the Configure action, and the identity band.
+
+   WHAT IS NOT, AND WHY IT IS NOT A PLACEHOLDER: the shipped composition under
+   the band is `kpis · decisions · stations · map`, and every one of those four
+   is a reading of PRESENCE — who checked in, whose claim the device disagrees
+   with, which posts are reporting, where the pings put people. Presence is
+   ruled to be the AREA's, read through a seam that has not landed. Drawing any
+   of it today would mean inventing the one thing this module is ruled never to
+   invent, so the band is where the page honestly stops.
+   ========================================================================== #}
+{% extends '@UhifadhiRoster/base.html.twig' %}
+
+{% block title %}{{ area.name }} · Roster{% endblock %}
+
+{% block shell_page_title %}Roster{% endblock %}
+
+{% block shell_page_subtitle %}
+    {%- set stations = roster_url(constant('Uhifadhi\\Bundle\\AreaBundle\\Controller\\StationsController::ROUTE'), {uuid: area.uuid}) -%}
+    Who is due, who checked in, and where their handset says they actually are. The stations and the live positions are the
+    {%- if stations %} <a href="{{ stations }}">area&rsquo;s</a>{% else %} area&rsquo;s{% endif %}.
+{% endblock %}
+
+{% block roster_page %}
+    {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
+{% endblock %}

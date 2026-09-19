@@ -1,0 +1,167 @@
+/* ============================================================================
+ * THE ROSTER MODULE'S OWN VOCABULARY — and nothing that belongs to anybody
+ * else.
+ *
+ * WHAT IS NOT HERE, ON PURPOSE. `.page`, `.pghead`, `.atabs`, `.factband`,
+ * `.c`, `.tab`, `.tbl`, `.fld`, `.btn`, `.cta`, `.chip`, `.mono`, `.fog` and
+ * the two theme palettes are the SHELL's, and restating one of them here
+ * would mean two copies loaded in some order, rendering differently — which
+ * is exactly what "the same thing renders identically everywhere" forbids. If
+ * something this module needs is missing from the shell's sheet, it is added
+ * THERE.
+ *
+ * WHAT IS HERE is the banded card the module draws every surface in, the
+ * shift chip, the watch row, the toggle switch, the fragment line and the
+ * cycle ring. Each is genuinely this module's: nothing else in the platform
+ * draws a shift.
+ *
+ * THE BRIDGE BELOW is the only place this sheet DEFINES a token. Everything
+ * else it spends is the shell's (--tx --fog --dim --ln --ln2 --raised --cv
+ * --acc --accT --ok --warn --fail), and a token spent but defined by nobody
+ * falls back to the inherited colour — which looks fine in a standalone test
+ * and broken in a real installation.
+ * ========================================================================== */
+
+:root {
+    /* The roster's accent, derived from the shell's so a theme change carries.
+       Named rather than inlined because the chip, the ring and the pill all
+       spend it and a palette change has to sweep them together. */
+    --r-acc: var(--acc);
+    --r-accT: var(--accT);
+
+    /* The banded card's own two surfaces: a header/footer tint and the rule
+       that separates them from the body. */
+    --rb-band: color-mix(in srgb, var(--raised) 55%, transparent);
+    --rb-rule: var(--ln2);
+}
+
+/* ---- THE BANDED CARD ------------------------------------------------------
+ * RULED 2026-09-18: a card has three legible regions, and a separate
+ * OPERATION lives in a visually distinct footer strip rather than as one more
+ * row of the body. The title stays the shell's `.tab` pill straddling the top
+ * border, so the header band starts below it. */
+.c.rband { padding: 0; overflow: visible; border-color: var(--ln2); }
+
+.rb-hd {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 17px 15px 10px; border-bottom: 1px solid var(--rb-rule);
+    background: var(--rb-band); border-radius: 13px 13px 0 0;
+}
+
+.rb-ttl {
+    font: 600 11px ui-monospace, monospace; color: var(--fog);
+    flex: 1 1 auto; min-width: 0; letter-spacing: .02em;
+}
+
+.rb-ttl b { color: var(--tx); font-weight: 700; }
+
+.rb-hd .rb-act { margin-left: auto; display: flex; align-items: center; gap: 7px; flex: none; }
+
+.rb-body { padding: 12px 15px 13px; }
+
+.rb-foot {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 9px 15px 10px; border-top: 1px solid var(--rb-rule);
+    background: var(--rb-band); border-radius: 0 0 13px 13px;
+}
+
+.rb-foot .k {
+    font: 600 10px ui-monospace, monospace; color: var(--dim);
+    letter-spacing: .06em; white-space: nowrap;
+}
+
+.rb-foot .sp { flex: 1 1 auto; }
+
+/* ---- FRAGMENTS, NOT ESSAYS ------------------------------------------------
+ * RULED 2026-09-18. A screen states facts. Where a card has to say one thing
+ * that is not in its rows, it says it as a fragment line — a label and a
+ * value — never as a paragraph. */
+.rfrag {
+    display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
+    font: 500 11px ui-monospace, monospace; color: var(--dim);
+    padding-top: 8px; margin-top: 8px; border-top: 1px dashed var(--ln);
+}
+
+.rfrag b { font-weight: 700; color: var(--fog); }
+.rfrag em { font-style: normal; color: var(--fog); }
+
+/* ---- THE SHIFT CHIP -------------------------------------------------------
+ * ONE vocabulary for a shift, everywhere the module draws one. A shift is a
+ * NAMED WINDOW; it is never a free pair of times typed twice.
+ *
+ * It is a <label> wrapping a checkbox on the Watches section and a plain
+ * <span> everywhere else, so the rules dress both and the input itself is
+ * visually hidden rather than removed — a checkbox that is display:none is a
+ * checkbox nothing can tab to. */
+.r-sh {
+    display: inline-flex; align-items: center; gap: 5px;
+    font: 600 9px ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase;
+    border: 1px solid var(--ln2); border-radius: 99px; padding: 3px 8px 2px;
+    color: var(--fog); white-space: nowrap; cursor: pointer;
+}
+
+.r-sh i { width: 6px; height: 6px; border-radius: 2px; font-style: normal; flex: none; background: var(--fog); }
+
+.r-sh input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.r-sh:focus-within { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+.r-sh.on { color: var(--r-acc); border-color: color-mix(in srgb, var(--r-acc) 45%, transparent); }
+.r-sh.on i { background: var(--r-acc); }
+
+/* A closed shift is dimmed, never hidden: a past month keeps the words that
+   describe it, so the list has to be able to show one. */
+.r-sh.closed { color: var(--dim); border-style: dashed; }
+.r-sh.closed i { background: none; border: 1px solid var(--dim); }
+
+/* ---- THE WATCH / SETTING ROW ----------------------------------------------
+ * A label, the controls, and the CONSEQUENCE of choosing wrong. The third
+ * column is what makes a setting answerable by somebody who did not design
+ * it, so it is part of the component and not an optional extra. */
+.rset {
+    display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: 12px; align-items: start;
+    padding: 10px 0; border-bottom: 1px dashed var(--ln);
+}
+
+.rset:last-of-type { border-bottom: 0; }
+
+.rset > .lb { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rset > .lb b { font-size: 12px; color: var(--tx); font-weight: 700; }
+.rset > .lb em { font-style: normal; font-size: 10.5px; color: var(--dim); }
+
+.rset > .ct { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.rset > .ct .fld { max-width: 96px; }
+
+.rset > .why { font-size: 11px; line-height: 1.5; color: var(--dim); min-width: 0; }
+.rset > .why b { color: var(--fog); }
+
+.rset .unit {
+    font: 600 9px ui-monospace, monospace; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--dim); white-space: nowrap;
+}
+
+/* ---- THE TWO-STATE SWITCH -------------------------------------------------
+ * Two mutually exclusive answers shown side by side, because the point of
+ * these settings is that BOTH answers are legitimate for some organisation
+ * and the page should not hide the one it did not default to. Real radios
+ * underneath: keyboard and screen readers come free. */
+.rsw { display: inline-flex; border: 1px solid var(--ln2); border-radius: 8px; overflow: hidden; }
+
+.rsw label {
+    padding: 5px 11px; font-size: 11px; color: var(--fog); cursor: pointer;
+    border-right: 1px solid var(--ln2); white-space: nowrap;
+}
+
+.rsw label:last-child { border-right: 0; }
+.rsw label.on { background: var(--r-acc); color: var(--r-accT); font-weight: 700; }
+.rsw label:focus-within { outline: 2px solid var(--acc); outline-offset: -2px; }
+
+.rsw input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- NARROW ---------------------------------------------------------------
+ * The three-column row is the first thing to go: a consequence sentence
+ * squeezed into a third of a phone is a sentence nobody reads. */
+@media (max-width: 860px) {
+    .rset { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+}

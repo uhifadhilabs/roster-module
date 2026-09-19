@@ -61,12 +61,20 @@ fortnight without the org chart quietly rewriting itself.
 | What the ring says — pure, no database | `src/Service/CyclePlanner.php` |
 | What becomes a row | `src/Service/RotationGenerator.php` |
 | The SQL that creates it all | `migrations/` |
+| The four columns the roster owns on a station | `src/Entity/StationWatch.php` |
+| The answers this module cannot guess | `src/Entity/AreaRosterSettings.php` |
+| The tabs and the configure sections | `src/Shell/` |
+| The Overview tab | `src/Controller/RosterController.php` |
+| Rotation · Watches · Settings | `src/Controller/RosterConfigureController.php` |
+| The module's own vocabulary | `public/roster.css` |
 | Static service wiring | `config/services.php` |
 | Test installation | `tests/Integration/TestKernel.php` |
 
-Still to come: the Configure page, the six tabs, the widget surface and its
-presets, the overview contributions, and the `WatchProviderInterface`
-implementation the area's `/me/roster` answers the handset through.
+Still to come: the five remaining tabs (Today, Week, Day board, Calendar,
+Live), the cycle editor, the widget surface and its presets, the overview
+contributions, the `WatchProviderInterface` implementation the area's
+`/me/roster` answers the handset through, and the presence reads behind all
+of them.
 
 The bundle maps its own entity directory and serves its own assets, so an
 installation writes no doctrine block and no asset path for it.

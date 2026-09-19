@@ -115,6 +115,31 @@ final class DutyRepository extends ServiceEntityRepository
     }
 
     /**
+     * HAS THIS SHIFT EVER BEEN STOOD IN THIS AREA?
+     *
+     * Asked with a limit rather than a COUNT, because the only caller wants a
+     * yes or a no — whether a shift may be deleted or only closed — and
+     * counting every duty of a five-year-old vocabulary row to learn that it
+     * is not zero is a scan nobody needs.
+     *
+     * @return list<Duty>
+     */
+    public function findByAreaAndShift(AreaOfInterest $area, string $shiftKey, int $limit): array
+    {
+        /** @var list<Duty> $duties */
+        $duties = $this->createQueryBuilder('d')
+            ->andWhere('d.area = :area')
+            ->andWhere('d.shiftKey = :shiftKey')
+            ->setParameter('area', $area)
+            ->setParameter('shiftKey', $shiftKey)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        return $duties;
+    }
+
+    /**
      * WHAT THE WATCH ALREADY HOLDS — used before writing, so a generated duty
      * never collides with one a duty officer put there by hand for the same
      * person, post, shift and day.

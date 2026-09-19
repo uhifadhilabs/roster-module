@@ -13,8 +13,11 @@ declare(strict_types=1);
 
 namespace Uhifadhi\Roster\Module;
 
+use Uhifadhi\Contracts\ModulePermission;
 use Uhifadhi\Contracts\ModuleProviderInterface;
 use Uhifadhi\Contracts\ModuleProviderTrait;
+use Uhifadhi\Roster\Controller\RosterConfigureController;
+use Uhifadhi\Roster\Controller\RosterController;
 
 /**
  * DECLARES THE ONE MODULE THIS BUNDLE CONTRIBUTES — "Roster": who is due on
@@ -38,8 +41,7 @@ use Uhifadhi\Contracts\ModuleProviderTrait;
  */
 final class RosterModuleProvider implements ModuleProviderInterface
 {
-    // The defaults for status, pinned, base, position and permissions, and the
-    // null entryRoute this module keeps until it owns a route of its own.
+    // The defaults for status, pinned, base and position.
     use ModuleProviderTrait;
 
     /**
@@ -77,5 +79,36 @@ final class RosterModuleProvider implements ModuleProviderInterface
     public function icon(): string
     {
         return 'calendar-clock';
+    }
+
+    /**
+     * THE MODULE OWNS ITS PAGES, so the tile links straight to the Overview
+     * tab rather than through the platform's generic module page.
+     */
+    public function entryRoute(): string
+    {
+        return RosterController::OVERVIEW_ROUTE;
+    }
+
+    /**
+     * DECLARED, NEVER GRANTED. The module says the permission exists and what
+     * holding it lets a person do; Team folds it into the catalogue for
+     * admins to assign, and it vanishes with the module on uninstall. This
+     * module names no default holder and maps to no role.
+     *
+     * The value is the controller's own constant and not a retyped string: a
+     * permission whose declaration and whose check differ by one character is
+     * a screen nobody can open and a checkbox that grants nothing.
+     */
+    public function permissions(): array
+    {
+        return [
+            new ModulePermission(
+                RosterConfigureController::MANAGE_PERMISSION,
+                'Roster',
+                'Manage',
+                'Change how this area runs its roster: the rotations, what each post’s watch expects, and the module’s settings.',
+            ),
+        ];
     }
 }

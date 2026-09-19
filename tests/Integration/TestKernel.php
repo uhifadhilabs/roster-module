@@ -27,12 +27,15 @@ use Symfony\UX\Icons\UXIconsBundle;
 use Symfony\UX\Map\UXMapBundle;
 use Symfony\UX\StimulusBundle\StimulusBundle;
 use Uhifadhi\Bundle\AreaBundle\AreaBundle;
+use Uhifadhi\Bundle\AreaBundle\Controller\AreaController;
 use Uhifadhi\Bundle\AtlasBundle\AtlasBundle;
 use Uhifadhi\Bundle\RegistryBundle\RegistryBundle;
+use Uhifadhi\Bundle\ShellBundle\Frame\Controller\ConfigureController;
 use Uhifadhi\Bundle\ShellBundle\ShellBundle;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Bundle\TeamBundle\TeamBundle;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\CollectedModules;
+use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
 use Uhifadhi\Roster\UhifadhiRosterBundle;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
@@ -162,6 +165,12 @@ final class TestKernel extends Kernel
         // UX Map draws nothing at all until a renderer is named.
         $container->extension('ux_map', ['renderer' => 'leaflet://default']);
 
+        // THE INSTALLATION'S PERMISSION VOTER, played by a fixture: this
+        // module declares "roster.manage" and grants it to nobody, so
+        // something has to decide who holds it. Tagged by hand — a
+        // reusable-bundle test kernel does not autoconfigure.
+        $container->services()->set(FixedManageVoter::class)->tag('security.voter');
+
         // Public aliases so tests can hold the bundle's private services,
         // keyed by class name for readability (see IntegrationTestCase). They
         // exist only because a bundle test kernel has no controllers yet:
@@ -175,6 +184,19 @@ final class TestKernel extends Kernel
             \Uhifadhi\Roster\Repository\DutyRepository::class => \Uhifadhi\Roster\Repository\DutyRepository::class,
             \Uhifadhi\Roster\Repository\EditedDayRepository::class => \Uhifadhi\Roster\Repository\EditedDayRepository::class,
             \Uhifadhi\Roster\Repository\AbsenceRepository::class => \Uhifadhi\Roster\Repository\AbsenceRepository::class,
+            \Uhifadhi\Roster\Repository\StationWatchRepository::class => \Uhifadhi\Roster\Repository\StationWatchRepository::class,
+            \Uhifadhi\Roster\Repository\AreaRosterSettingsRepository::class => \Uhifadhi\Roster\Repository\AreaRosterSettingsRepository::class,
+            \Uhifadhi\Roster\Service\RosterSettingsService::class => 'roster.settings',
+            \Uhifadhi\Roster\Service\ShiftVocabularyService::class => 'roster.shift_vocabulary',
+            \Uhifadhi\Roster\Service\StationWatchService::class => 'roster.station_watches',
+            \Uhifadhi\Roster\Service\RosterIdentityService::class => 'roster.identity',
+            \Uhifadhi\Roster\Shell\RosterModuleTabs::class => 'roster.module_tabs',
+            \Uhifadhi\Roster\Shell\RosterConfigurationSections::class => 'roster.configuration_sections',
+            // The registry's own two, so a functional fixture can do what an
+            // installation does: reconcile the catalogue, then switch this
+            // module on for the area.
+            \Uhifadhi\Bundle\RegistryBundle\Service\RegistrySyncService::class => 'registry.sync',
+            \Uhifadhi\Bundle\RegistryBundle\Service\AreaModuleService::class => 'registry.area_modules',
         ] as $class => $serviceId) {
             $container->services()->alias('test_public.'.$class, $serviceId)->public();
         }
@@ -195,6 +217,39 @@ final class TestKernel extends Kernel
         if (is_dir($controllers)) {
             $routes->import($controllers, 'attribute');
         }
+
+        /*
+         * THE SCREENS AN INSTALLATION MOUNTS AROUND THIS MODULE. The roster's
+         * breadcrumb names the area register, the area and its module grid,
+         * and the shell owns the configure page every section of this
+         * module's is a section OF — so a suite that renders a roster page
+         * without them is a suite testing a page no installation serves.
+         *
+         * `roster_url()` still exists and is still the right shape: it keeps
+         * a crumb a plain word rather than a 500 in an installation that
+         * mounted one screen fewer. Mounting them here tests the other side
+         * of that — the installation that mounted them all.
+         */
+        $routes->import(\dirname((new \ReflectionClass(AreaController::class))->getFileName() ?: ''), 'attribute');
+
+        // The shell's configure page is a PHP route FILE, mounted by the
+        // recipe in a real installation — not an attribute on a controller.
+        $shell = \dirname((new \ReflectionClass(ConfigureController::class))->getFileName() ?: '', 3);
+        $routes->import($shell.'/config/routes/configure.php');
+    }
+
+    /**
+     * THE STAND-IN INSTALLATION'S PROJECT DIRECTORY — an application's asset
+     * side and nothing else. The shell's document renders the importmap of
+     * whatever application it is installed in, so a suite that renders any
+     * page through the page frame needs an application that has one. Pointing
+     * the kernel at a fixture is how it gets one without this bundle growing
+     * an importmap of its own, which a shipped bundle has no business
+     * carrying.
+     */
+    public function getProjectDir(): string
+    {
+        return __DIR__.'/Fixtures/app';
     }
 
     public function getCacheDir(): string

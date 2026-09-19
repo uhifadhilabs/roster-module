@@ -18,8 +18,19 @@ use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository;
+use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
+use Uhifadhi\Contracts\Shell\ConfigurationSectionsInterface;
+use Uhifadhi\Contracts\Shell\ModuleTabsInterface;
+use Uhifadhi\Roster\Controller\RosterConfigureController;
+use Uhifadhi\Roster\Controller\RosterController;
 use Uhifadhi\Roster\DependencyInjection\RosterConfiguration;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
+use Uhifadhi\Roster\Repository\RotationRepository;
+use Uhifadhi\Roster\Shell\RosterConfigurationSections;
+use Uhifadhi\Roster\Shell\RosterModuleTabs;
+
+use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 /**
  * ROSTER — who is due on watch, where and when.
@@ -180,6 +191,69 @@ final class UhifadhiRosterBundle extends AbstractBundle
         // way framework.test does, rather than an env() check buried in bundle
         // code. The recipe enables it via when@dev / when@test.
         $builder->setParameter('roster.dev_tools', true === ($config['dev_tools'] ?? false));
+
+        /*
+         * THE MODULE'S TWO DECLARATIONS TO THE FRAME — where its data lives
+         * and what is on its configure page. Tagged BY HAND: a reusable
+         * bundle is not autoconfigured, and a declaration that forgot its tag
+         * gets a module with no tab strip, no children in the sidebar tree
+         * and no Configure page, with nothing anywhere saying why.
+         */
+        $services->set('roster.module_tabs', RosterModuleTabs::class)
+            ->tag(ModuleTabsInterface::TAG);
+
+        $services->set('roster.configuration_sections', RosterConfigurationSections::class)
+            ->args([service('request_stack'), service(AreaOfInterestRepository::class)])
+            ->tag(ConfigurationSectionsInterface::TAG);
+
+        // THE OVERVIEW TAB. A read, so it is registered unconditionally: an
+        // installation with no firewall still has a roster to look at.
+        $services->set('roster.controller.overview', RosterController::class)
+            ->args([service('twig'), service('roster.identity')])
+            ->public();
+        $services->alias(RosterController::class, 'roster.controller.overview')->public();
+
+        /*
+         * THE CONFIGURE SECTIONS ARE REGISTERED ONLY WHERE SECURITYBUNDLE IS
+         * ACTUALLY IN THE KERNEL. Every write on that page changes how an area
+         * runs its roster and rides on "roster.manage"; without an
+         * authorization checker there is nothing to enforce it, so an
+         * installation in that state gets NO configure routes (they fail
+         * loudly) rather than three open write endpoints.
+         *
+         * The guard reads kernel.bundles, as FrameworkExtension does. Two
+         * other checks look right and are not: hasExtension('security')
+         * cannot be used while an extension is loading, because the builder is
+         * then a restricted MergeExtensionConfigurationContainerBuilder that
+         * does not expose other extensions; and interface_exists() only proves
+         * a class is autoloadable — security-core is one of this bundle's DEV
+         * dependencies, so it autoloads in our own test runs even when
+         * SecurityBundle is absent, and the services would then reference
+         * security.* ids that do not exist.
+         */
+        $bundles = $builder->hasParameter('kernel.bundles') ? $builder->getParameter('kernel.bundles') : [];
+        $hasSecurity = \is_array($bundles) && isset($bundles['SecurityBundle']);
+
+        // The templates hide the Configure action where the page cannot exist.
+        $builder->setParameter('roster.configure_screens', $hasSecurity);
+
+        if ($hasSecurity) {
+            $services->set('roster.controller.configure', RosterConfigureController::class)
+                ->args([
+                    service('twig'),
+                    service('router'),
+                    service('roster.identity'),
+                    service('roster.settings'),
+                    service('roster.shift_vocabulary'),
+                    service('roster.station_watches'),
+                    service(StationRepository::class),
+                    service(RotationRepository::class),
+                    service('security.authorization_checker'),
+                    service('security.csrf.token_manager'),
+                ])
+                ->public();
+            $services->alias(RosterConfigureController::class, 'roster.controller.configure')->public();
+        }
     }
 
     private static function intOr(mixed $value, int $fallback): int

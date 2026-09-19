@@ -1,0 +1,72 @@
+{# ============================================================================
+   WATCHES — the four columns the roster owns on a station, ported from the
+   design's configure.html#watches.
+
+   THE NAME, KIND, POINT AND CALL SIGN ARE THE AREA'S. This section edits only
+   what the roster owns: the shifts a post expects, how long its silence may
+   run, how long before that is offline, and how wide its catchment is. Ruled
+   18 sep, and it is why the rows here are read-only about everything else.
+
+   ONE PLACE IT IS EDITED, TWO DOORS ONTO IT. The same block renders on the
+   area's own Stations configure card; both call StationWatchService, and
+   neither screen owns the other.
+
+   A POST WITH NO WATCH IS NOT A FAULT. A post that declares none is never
+   counted, never late and never a hole — only offline. The posts the area
+   registers that are not on these books are named at the foot rather than
+   silently missing.
+   ========================================================================== #}
+{% extends '@UhifadhiRoster/configure/_frame.html.twig' %}
+
+{% block roster_section %}
+<form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SAVE_WATCHES_ROUTE'), {uuid: area.uuid}) }}">
+    <input type="hidden" name="_token" value="{{ csrfToken }}">
+    <div class="c rband">
+        <div class="rb-hd">
+            <span class="tab">Watches</span>
+            <span class="rb-ttl">what each post expects, how long its silence may run, and how wide its catchment is</span>
+        </div>
+        <div class="rb-body">
+            {% for watch in watches %}
+                {% set station = watch.station %}
+                {% set id = station.id %}
+                <div class="rset">
+                    <span class="lb"><b>{{ station.name }}</b><em>{{ station.code ?: '—' }}</em></span>
+                    <span class="ct">
+                        {% for shift in shifts %}
+                            <label class="r-sh {{ shift.key in watch.expects ? 'on' : '' }}">
+                                <input type="checkbox" name="expects_{{ id }}[]" value="{{ shift.key }}"
+                                       {{ shift.key in watch.expects ? 'checked' : '' }}
+                                       {{ mayManage ? '' : 'disabled' }}>
+                                <i></i>{{ shift.label|lower }}
+                            </label>
+                        {% else %}
+                            <span class="r-sh">no shift vocabulary</span>
+                        {% endfor %}
+                        {% if watch.expectsNothing %}<span class="r-sh">no watch</span>{% endif %}
+                    </span>
+                    <span class="why">
+                        <span class="unit">silence</span>
+                        <input class="fld" type="number" min="1" name="silence_{{ id }}" value="{{ watch.silenceWindowMinutes }}" aria-label="Silence window for {{ station.name }}, minutes" {{ mayManage ? '' : 'disabled' }}>
+                        <span class="unit">min, offline after</span>
+                        <input class="fld" type="number" min="1" name="offline_{{ id }}" value="{{ watch.offlineAfterMinutes }}" aria-label="Offline threshold for {{ station.name }}, minutes" {{ mayManage ? '' : 'disabled' }}>
+                        <span class="unit">min, catchment</span>
+                        <input class="fld" type="number" min="1" name="catchment_{{ id }}" value="{{ watch.catchmentMetres }}" aria-label="Catchment for {{ station.name }}, metres" {{ mayManage ? '' : 'disabled' }}>
+                        <span class="unit">m</span>
+                        <span class="unit">pool {{ pools[id]|default(0) }}</span>
+                    </span>
+                </div>
+            {% else %}
+                <div class="rfrag"><b>No post is on the roster&rsquo;s books yet</b><em>the area registers {{ band.stationsInArea }} station{{ band.stationsInArea == 1 ? '' : 's' }}; a watch is given to a post deliberately, so none is assumed</em></div>
+            {% endfor %}
+            <div class="rfrag"><b>The name, kind, point and call sign are the AREA&rsquo;s</b><em>this section edits only the four columns the roster owns, and it is the same block the area&rsquo;s Stations configure card renders</em></div>
+            <div class="rfrag"><b>A post with no watch is not a fault</b><em>a post that declares none is never counted, never late and never a hole &mdash; only offline</em></div>
+        </div>
+        <div class="rb-foot">
+            <span class="k">{{ postsOffTheBooks|length }} of the area&rsquo;s posts declare no watch and are not listed</span>
+            <span class="sp"></span>
+            {% if mayManage %}<button type="submit" class="cta">Save the watches</button>{% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}

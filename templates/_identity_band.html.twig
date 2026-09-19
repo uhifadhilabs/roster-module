@@ -1,0 +1,31 @@
+{# THE IDENTITY BAND — structural facts only, byte-identical on every tab and
+   on every configure section.
+
+   HOW THE PARK IS SET UP, never what is happening in it. How many rangers are
+   on the books, how many posts run a watch, how many rotations, how big the
+   shift vocabulary is, how often a handset pings, how far the generator has
+   run. A live figure here would read differently on each of six tabs showing
+   the same minute; live figures are the KPI row's job.
+
+   `.factband` is the SHELL's component and is not restated in this module's
+   sheet — one band, one set of rules, wherever a module draws one.
+
+   NULL AND ZERO ARE DIFFERENT FACTS. "No rotation has generated yet" is not
+   "generated to today", so the last field says so in words rather than
+   printing a date nobody set. #}
+<div class="factband">
+    <span class="f"><span class="k">Rangers</span><span class="v">{{ band.rangers }}<em>posted at the {{ band.postsWithAWatch }}</em></span></span>
+    <span class="f"><span class="k">Posts with a watch</span><span class="v">{{ band.postsWithAWatch }}<em>of the area&rsquo;s {{ band.stationsInArea }}</em></span></span>
+    <span class="f"><span class="k">Rotations</span><span class="v">{{ band.rotations }}<em>{{ band.rotationsPerPost }} per post &middot; {{ band.rotationsPerTeam }} per team</em></span></span>
+    <span class="f"><span class="k">Named shifts</span><span class="v">{{ band.namedShifts }}<em>{{ band.shiftLabels }}</em></span></span>
+    <span class="f"><span class="k">Ping interval</span><span class="v">{{ band.pingIntervalMinutes }}<em>min</em></span></span>
+    <span class="f"><span class="k">Generated to</span>
+        {%- if band.generatedThrough %}
+            <span class="v"><time datetime="{{ band.generatedThrough.format('Y-m-d') }}" data-localtime-format="day">{{ band.generatedThrough.format('j') }}</time><em>{{ band.generatedThrough.format('M')|lower }}</em></span>
+        {%- else %}
+            <span class="v">&mdash;<em>nothing generated yet</em></span>
+        {%- endif %}
+    </span>
+    <span class="sp"></span>
+    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SETTINGS_ROUTE'), {uuid: area.uuid}) }}">Roster settings &rarr;</a>
+</div>

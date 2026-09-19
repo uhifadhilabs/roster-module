@@ -1,0 +1,76 @@
+{# ============================================================================
+   ROTATION — the authoring surface, ported from the design's
+   configure.html#rotation.
+
+   A CYCLE PER POST, OR PER TEAM: the ring of days a watch repeats for ever,
+   and the month it generates. Exceptions are edited on the plan sheet and
+   never here — "a pattern generates, a day is edited" is the whole authoring
+   model, and this page is the first half of it.
+
+   WHAT IS HERE TODAY: the register of every rotation the area declares, what
+   each one's ring is, what it asks for per day, how big its pool is, how far
+   it has generated and which posts run none at all. That is the half of the
+   design that can be drawn from what is stored.
+
+   WHAT IS NOT: the cycle EDITOR — the ring of day buttons, the preset select,
+   the pool picker, the live generated month. It is a write surface with its
+   own Stimulus behaviour, and it lands with the plan sheet it shares its
+   vocabulary with. The register below is not a placeholder for it: it is the
+   design's own third card, whole.
+   ========================================================================== #}
+{% extends '@UhifadhiRoster/configure/_frame.html.twig' %}
+
+{% block roster_section %}
+<div class="c rband">
+    <div class="rb-hd">
+        <span class="tab">Every rotation in this area</span>
+        <span class="rb-ttl"><b>{{ rotations|length }}</b> declared &middot; the area&rsquo;s other {{ postsWithoutARotation|length }} post{{ postsWithoutARotation|length == 1 ? '' : 's' }} run none</span>
+        {%- set stations = roster_url(constant('Uhifadhi\\Bundle\\AreaBundle\\Controller\\StationsController::ROUTE'), {uuid: area.uuid}) -%}
+        {% if stations %}<span class="rb-act"><a class="btn sm" href="{{ stations }}">The stations tab &rarr;</a></span>{% endif %}
+    </div>
+    <div class="rb-body">
+        <table class="tbl">
+            <tr><th>applies to</th><th>the ring</th><th>per day</th><th>pool</th><th>generated to</th></tr>
+            {% for rotation in rotations %}
+                <tr>
+                    <td>
+                        {%- if rotation.station %}
+                            <b>{{ rotation.station.name }}</b> <span class="mono">{{ rotation.station.code ?: '—' }}</span>
+                        {%- else %}
+                            <b>{{ rotation.teamName }}</b> <span class="mono">per team{% if rotation.baseStation %} &middot; based at {{ rotation.baseStation.name }}{% endif %}</span>
+                        {%- endif %}
+                        {%- if not rotation.active %} <span class="fog">stood down</span>{% endif %}
+                    </td>
+                    <td>{{ rotation.cycle.positions|join(' · ') }}</td>
+                    <td>
+                        {%- for key, count in rotation.slotsPerShift -%}
+                            {{ loop.first ? '' : ', ' }}{{ key }} {{ count }}
+                        {%- else -%}
+                            <span class="fog">&mdash;</span>
+                        {%- endfor -%}
+                    </td>
+                    <td>{{ rotation.pool|length }}</td>
+                    <td>
+                        {%- if rotation.generatedThrough -%}
+                            <time datetime="{{ rotation.generatedThrough.format('Y-m-d') }}" data-localtime-format="day">{{ rotation.generatedThrough.format('j M')|lower }}</time>
+                        {%- else -%}
+                            <span class="fog">never run</span>
+                        {%- endif -%}
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5" class="fog">No rotation is declared in this area, so nothing is generated and no post is short.</td></tr>
+            {% endfor %}
+            {% for station in postsWithoutARotation %}
+                <tr><td class="fog">{{ station.name }} <span class="mono">{{ station.code ?: '—' }}</span></td><td class="fog" colspan="4">no rotation &mdash; and therefore never a hole</td></tr>
+            {% endfor %}
+        </table>
+        <div class="rfrag"><b>A post with no rotation is never counted, reported on or called a hole</b><em>the roster works the posts somebody put on its books, and says which ones those are</em></div>
+        <div class="rfrag"><b>Nothing here is presence</b><em>a rotation says who is DUE &middot; who was actually there is the handset&rsquo;s check-in, and this page never writes one</em></div>
+    </div>
+    <div class="rb-foot">
+        <span class="k">an edited day is never overwritten by a later run</span>
+        <span class="sp"></span>
+    </div>
+</div>
+{% endblock %}

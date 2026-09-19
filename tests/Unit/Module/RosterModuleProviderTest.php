@@ -15,6 +15,8 @@ namespace Uhifadhi\Roster\Tests\Unit\Module;
 
 use PHPUnit\Framework\TestCase;
 use Uhifadhi\Contracts\ModuleProviderInterface;
+use Uhifadhi\Roster\Controller\RosterConfigureController;
+use Uhifadhi\Roster\Controller\RosterController;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 
 final class RosterModuleProviderTest extends TestCase
@@ -49,23 +51,29 @@ final class RosterModuleProviderTest extends TestCase
     }
 
     /**
-     * Until this module owns a route, an area's tile renders through the
-     * platform's generic module page. This assertion is the reminder, and it
-     * changes in the commit that ships the Overview route — never before, or
-     * every tile links at a 404.
+     * THE TILE LINKS STRAIGHT TO THE OVERVIEW TAB. Until this commit the
+     * module rendered through the platform's generic module page; the route
+     * and this assertion landed together, because a tile pointing at a route
+     * that does not exist is a catalogue full of 404s.
      */
-    public function testRendersThroughTheGenericModulePageUntilItsScreensLand(): void
+    public function testTheTileLinksStraightToTheOverviewTab(): void
     {
-        self::assertNull(new RosterModuleProvider('operations')->entryRoute());
+        self::assertSame(RosterController::OVERVIEW_ROUTE, new RosterModuleProvider('operations')->entryRoute());
     }
 
     /**
-     * Permissions are declared alongside the routes that check them. There are
-     * no routes yet, so declaring one here would hand admins a permission that
-     * guards nothing.
+     * DECLARED, NEVER GRANTED — and declared against the exact attribute the
+     * controller checks. A permission whose declaration and whose check
+     * differ by one character is a screen nobody can open and an admin
+     * checkbox that grants nothing, and neither failure says so anywhere.
      */
-    public function testDeclaresNoPermissionsYet(): void
+    public function testItDeclaresTheOnePermissionItsWritesActuallyCheck(): void
     {
-        self::assertSame([], new RosterModuleProvider('operations')->permissions());
+        $permissions = new RosterModuleProvider('operations')->permissions();
+
+        self::assertCount(1, $permissions);
+        self::assertSame(RosterConfigureController::MANAGE_PERMISSION, $permissions[0]->value);
+        self::assertSame('Roster', $permissions[0]->umbrella);
+        self::assertNotSame('', trim($permissions[0]->description));
     }
 }
