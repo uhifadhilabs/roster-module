@@ -114,6 +114,15 @@ final class RosterContentProviderTest extends IntegrationTestCase
         return new \DateTimeImmutable('first day of this month')->setTime(0, 0);
     }
 
+    /** The earlier of the month's first day and the planner's fortnight. */
+    private function windowStart(): \DateTimeImmutable
+    {
+        $fortnight = RotaService::start(new \DateTimeImmutable('today'));
+        $month = $this->monthStart();
+
+        return $fortnight < $month ? $fortnight : $month;
+    }
+
     private function monthEnd(): \DateTimeImmutable
     {
         return new \DateTimeImmutable('last day of this month')->setTime(0, 0);
@@ -260,16 +269,54 @@ final class RosterContentProviderTest extends IntegrationTestCase
         self::assertNotEmpty($seen);
     }
 
-    /** NOTHING IS ROSTERED OUTSIDE THE MONTH the tabs are looking at. */
-    public function testItRostersNothingOutsideTheCurrentMonth(): void
+    /**
+     * NOTHING IS ROSTERED OUTSIDE THE WINDOW THE TABS LOOK AT, and that
+     * window is the FORTNIGHT-OR-MONTH, not the month alone.
+     *
+     * IT WAS THE MONTH, AND THAT WAS WRONG ON TWO DAYS IN EVERY MONTH.
+     * The Week tab opens on fourteen days from the Monday of this week, so
+     * in the first days of a month it reaches back into the last one: a
+     * demo bounded at the first drew those days as holes it had simply
+     * never generated, which reads as a park that forgot to staff itself.
+     * And the presence demo can only report from watches that have already
+     * happened — on the 1st a month-bounded plan has none, so a park seeded
+     * that morning had no worked history and no state for any screen to
+     * draw. Ruled 20 sep: roster from the earlier of the two, through the
+     * end of the month.
+     *
+     * THE UPPER BOUND IS STILL THE MONTH. Nothing beyond it, because that
+     * is where every tab's own reading stops.
+     */
+    public function testItRostersNothingOutsideTheFortnightOrTheMonth(): void
     {
         $this->provider()->load();
 
-        $before = $this->repository(DutyRepository::class)->findByAreaBetween($this->area, $this->monthStart()->modify('-2 months'), $this->monthStart()->modify('-1 day'));
-        $after = $this->repository(DutyRepository::class)->findByAreaBetween($this->area, $this->monthEnd()->modify('+1 day'), $this->monthEnd()->modify('+2 months'));
+        $duties = $this->repository(DutyRepository::class);
+
+        $before = $duties->findByAreaBetween($this->area, $this->windowStart()->modify('-2 months'), $this->windowStart()->modify('-1 day'));
+        $after = $duties->findByAreaBetween($this->area, $this->monthEnd()->modify('+1 day'), $this->monthEnd()->modify('+2 months'));
 
         self::assertSame([], $before);
         self::assertSame([], $after);
+    }
+
+    /**
+     * AND THERE IS ALWAYS SOMETHING BEHIND TODAY TO REPORT ON. This is the
+     * property the window exists for: whatever date the suite runs on,
+     * including the 1st, the plan reaches back far enough that the presence
+     * demo has worked watches to hand its readings to.
+     */
+    public function testThereIsAlwaysAPastToReportOn(): void
+    {
+        $this->provider()->load();
+
+        $past = $this->repository(DutyRepository::class)->findByAreaBetween(
+            $this->area,
+            $this->windowStart(),
+            new \DateTimeImmutable('yesterday'),
+        );
+
+        self::assertNotEmpty($past, 'A park seeded on the 1st still has days behind it.');
     }
 
     /** ABSENCES AND SWAPS, inside the window, so both cards read. */

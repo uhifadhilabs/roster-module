@@ -24,6 +24,7 @@ use Uhifadhi\Roster\Entity\Duty;
 use Uhifadhi\Roster\Model\ShiftWindow;
 use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
+use Uhifadhi\Roster\Service\RotaService;
 
 /**
  * THE PROOF BEHIND THE PLAN — the check-ins and the positions that turn a
@@ -116,8 +117,15 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
 
     private function loadArea(AreaOfInterest $area): void
     {
-        $from = new \DateTimeImmutable('first day of this month')->setTime(0, 0);
+        // THE SAME WINDOW THE PLAN WAS GENERATED OVER — the earlier of the
+        // month's first day and the fortnight the Week tab opens on. A
+        // report that started at the first would have nothing to report on
+        // during the first days of a month, which is precisely when a
+        // freshly seeded park is most likely to be looked at.
         $today = new \DateTimeImmutable('today');
+        $fortnight = RotaService::start($today);
+        $month = new \DateTimeImmutable('first day of this month')->setTime(0, 0);
+        $from = $fortnight < $month ? $fortnight : $month;
 
         $duties = $this->duties->findByAreaBetween($area, $from, $today);
         if ([] === $duties) {

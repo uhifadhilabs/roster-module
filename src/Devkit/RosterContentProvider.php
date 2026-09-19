@@ -262,7 +262,7 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         // day somebody is away — which is the behaviour worth showing, and
         // it can only show if the absence is already on the books.
         foreach ($rings as $rotation) {
-            $this->generator->generate($rotation, $this->monthStart(), $this->monthEnd());
+            $this->generator->generate($rotation, $this->windowStart(), $this->monthEnd());
         }
 
         $this->seedSwaps($area);
@@ -845,6 +845,32 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         }
 
         return null;
+    }
+
+    /**
+     * WHERE THE DEMO'S PLAN BEGINS — the earlier of the month's first day
+     * and the FORTNIGHT the Week tab opens on.
+     *
+     * TWO REASONS, AND BOTH ARE ABOUT A DAY NOBODY TESTS ON. The planner's
+     * window is fourteen days from the Monday of this week, so for the
+     * first days of a month it reaches back into the last one: a demo that
+     * started at the first would draw those days as holes it had simply
+     * never generated, which reads as a park that forgot to staff itself.
+     * And the presence demo can only report from watches that have already
+     * happened — on the 1st, a month-bounded plan has none, so a park
+     * seeded that morning had no worked history at all and no state to
+     * draw.
+     *
+     * IT IS THE EARLIER OF THE TWO, never simply the fortnight: mid-month
+     * the fortnight starts well after the first, and rostering from there
+     * would leave the first half of every calendar empty.
+     */
+    private function windowStart(): \DateTimeImmutable
+    {
+        $fortnight = RotaService::start(new \DateTimeImmutable('today'));
+        $month = $this->monthStart();
+
+        return $fortnight < $month ? $fortnight : $month;
     }
 
     private function monthStart(): \DateTimeImmutable
