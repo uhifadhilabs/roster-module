@@ -15,6 +15,7 @@ namespace Uhifadhi\Roster\DependencyInjection;
 
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
+use Uhifadhi\Roster\Model\Cycle;
 
 /**
  * THE BUNDLE'S SEMANTIC CONFIGURATION — what an installation writes in
@@ -23,18 +24,22 @@ use Symfony\Component\Config\Definition\Builder\NodeDefinition;
  * The line between the two is the one that matters here, because both look
  * like settings from a distance:
  *
- *   AN INSTALLATION'S, and therefore in this tree: the SHIFT VOCABULARY — the
- *   named windows a watch can be stood in — and the STARTING VALUES a new
- *   station watch or a new rotation is created with. These are deployment
- *   vocabulary: an organisation that runs three twelves rather than two names
- *   its own shifts, and does it without a code change.
+ *   AN INSTALLATION'S, and therefore in this tree: nothing but STARTING
+ *   VALUES. The shift vocabulary a new area's list is seeded with, and the
+ *   numbers a new station watch or a new rotation is created with.
  *
- *   AN AREA'S, and therefore NOT here: what any individual station expects,
- *   how long its silence may run, how wide its catchment is, and how often
- *   the handset pings. Those are edited on a screen by a person who runs the
- *   park, not by whoever last deployed it, and they are stored per area and
- *   per station. What this tree holds for each of them is the value a new one
- *   STARTS at — the default, in the honest sense of the word.
+ *   AN AREA'S, and therefore NOT here: the shift list the area actually runs,
+ *   what any individual station expects, how long its silence may run, how
+ *   wide its catchment is, and how often the handset pings. Those are edited
+ *   on a screen by somebody who runs the park, not by whoever last deployed
+ *   it.
+ *
+ * SO `shifts` SEEDS A LIST, IT IS NOT THE LIST. Ruled: "one list for the whole
+ * area", edited on the Configure page's Settings section, where a shift in use
+ * cannot be deleted, only closed — which is a lifecycle, and a lifecycle needs
+ * rows. {@see \Uhifadhi\Roster\Entity\Shift} is the running vocabulary; this
+ * is the four windows an area starts with so that nobody has to invent a day
+ * shift before they can write a rotation.
  *
  * NAMED SHIFTS ARE RULED (grammar 3, provisionally): a duty is stood in one of
  * a named set of windows, and a station declares which of them it runs. The
@@ -52,8 +57,8 @@ use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 final class RosterConfiguration
 {
     /**
-     * THE SHIFT VOCABULARY AN INSTALLATION STARTS WITH — the four named
-     * windows every surface in the design is drawn in.
+     * THE SHIFT VOCABULARY A NEW AREA IS SEEDED WITH — the four named windows
+     * every surface in the design is drawn in.
      *
      * `radio` is a real fourth shift rather than a note on `night`: a
      * headquarters stands a radio watch overnight, and the day board, the
@@ -126,7 +131,7 @@ final class RosterConfiguration
                     ->defaultFalse()
                 ->end()
                 ->arrayNode('shifts')
-                    ->info('The named windows a watch can be stood in. A station declares which of them it runs; a window may cross midnight.')
+                    ->info('The named windows a NEW AREA\'s shift list is seeded with. The list an area runs is edited on its Configure page; a window may cross midnight.')
                     ->defaultValue(self::DEFAULT_SHIFTS)
                     ->requiresAtLeastOneElement()
                     ->arrayPrototype()
@@ -137,6 +142,16 @@ final class RosterConfiguration
                                 ->validate()
                                     ->ifTrue(static fn (mixed $v): bool => !\is_string($v) || 1 !== preg_match('/^[a-z][a-z0-9_]*$/', $v))
                                     ->thenInvalid('A shift key is lowercase letters, digits and underscores, starting with a letter; got %s.')
+                                ->end()
+                                // "off" IS THE WORD A ROTATION'S RING USES FOR
+                                // A STOOD-DOWN DAY, so a shift called "off"
+                                // would make a stored ring ambiguous about
+                                // whether somebody is on the off-watch or not
+                                // working at all — and no later screen could
+                                // recover the answer.
+                                ->validate()
+                                    ->ifTrue(static fn (mixed $v): bool => Cycle::OFF === $v)
+                                    ->thenInvalid('"off" is reserved: a rotation\'s ring spells a stood-down day that way, so a shift of that name would make every stored cycle ambiguous. Call it something else.')
                                 ->end()
                             ->end()
                             ->scalarNode('label')

@@ -162,6 +162,23 @@ final class TestKernel extends Kernel
         // UX Map draws nothing at all until a renderer is named.
         $container->extension('ux_map', ['renderer' => 'leaflet://default']);
 
+        // Public aliases so tests can hold the bundle's private services,
+        // keyed by class name for readability (see IntegrationTestCase). They
+        // exist only because a bundle test kernel has no controllers yet:
+        // unreferenced private services are removed at compile time. Delete an
+        // alias the day a real reference exists.
+        foreach ([
+            \Uhifadhi\Roster\Service\CyclePlanner::class => 'roster.cycle_planner',
+            \Uhifadhi\Roster\Service\RotationGenerator::class => 'roster.rotation_generator',
+            \Uhifadhi\Roster\Repository\ShiftRepository::class => \Uhifadhi\Roster\Repository\ShiftRepository::class,
+            \Uhifadhi\Roster\Repository\RotationRepository::class => \Uhifadhi\Roster\Repository\RotationRepository::class,
+            \Uhifadhi\Roster\Repository\DutyRepository::class => \Uhifadhi\Roster\Repository\DutyRepository::class,
+            \Uhifadhi\Roster\Repository\EditedDayRepository::class => \Uhifadhi\Roster\Repository\EditedDayRepository::class,
+            \Uhifadhi\Roster\Repository\AbsenceRepository::class => \Uhifadhi\Roster\Repository\AbsenceRepository::class,
+        ] as $class => $serviceId) {
+            $container->services()->alias('test_public.'.$class, $serviceId)->public();
+        }
+
         // Stands in for the catalogue seed's collector: the registry collects
         // every service tagged "uhifadhi.module", and tagged services are
         // private, so this is what makes the bundle's contribution observable

@@ -53,8 +53,20 @@ fortnight without the org chart quietly rewriting itself.
 | The Symfony plug | `src/UhifadhiRosterBundle.php` |
 | Config tree (`roster:`) | `src/DependencyInjection/RosterConfiguration.php` |
 | Catalogue registration | `src/Module/RosterModuleProvider.php` |
+| The shift vocabulary an area runs | `src/Entity/Shift.php` |
+| The standing rotation and its ordered pool | `src/Entity/Rotation.php`, `src/Entity/RotationPoolMember.php` |
+| One watch, one station, one day | `src/Entity/Duty.php` |
+| The day the generator must not touch | `src/Entity/EditedDay.php` |
+| Who is away, and why | `src/Entity/Absence.php` |
+| What the ring says — pure, no database | `src/Service/CyclePlanner.php` |
+| What becomes a row | `src/Service/RotationGenerator.php` |
+| The SQL that creates it all | `migrations/` |
 | Static service wiring | `config/services.php` |
 | Test installation | `tests/Integration/TestKernel.php` |
+
+Still to come: the Configure page, the six tabs, the widget surface and its
+presets, the overview contributions, and the `WatchProviderInterface`
+implementation the area's `/me/roster` answers the handset through.
 
 The bundle maps its own entity directory and serves its own assets, so an
 installation writes no doctrine block and no asset path for it.

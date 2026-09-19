@@ -144,6 +144,19 @@ final class RosterConfigurationTest extends TestCase
         ]]);
     }
 
+    /**
+     * "off" is the word a rotation's ring spells a stood-down day with, so a
+     * shift of that name would make every stored cycle ambiguous.
+     */
+    public function testAShiftCalledOffIsRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['shifts' => [
+            ['key' => 'off', 'label' => 'Off watch', 'start' => '18:00', 'end' => '06:00'],
+        ]]);
+    }
+
     public function testAnEmptyShiftVocabularyIsRefused(): void
     {
         $this->expectException(InvalidConfigurationException::class);
