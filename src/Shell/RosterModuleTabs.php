@@ -47,6 +47,7 @@ final readonly class RosterModuleTabs implements ModuleTabsInterface
     {
         return [
             new ModuleTab('Overview', RosterController::OVERVIEW_ROUTE),
+            new ModuleTab('Week', RosterController::WEEK_ROUTE),
         ];
     }
 }

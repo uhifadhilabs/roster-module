@@ -46,6 +46,7 @@ final class MigrationsCoverSchemaTest extends MigrationsTestCase
         'roster_absence',
         'roster_station_watch',
         'roster_area_settings',
+        'roster_swap',
     ];
 
     public function testMigrateBuildsEveryTableThisModuleOwns(): void

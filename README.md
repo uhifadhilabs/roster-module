@@ -58,20 +58,24 @@ fortnight without the org chart quietly rewriting itself.
 | One watch, one station, one day | `src/Entity/Duty.php` |
 | The day the generator must not touch | `src/Entity/EditedDay.php` |
 | Who is away, and why | `src/Entity/Absence.php` |
+| Two cells, offered and answered on the handset | `src/Entity/Swap.php` |
+| Presence, read from the area and joined to the roster | `src/Service/PresenceReader.php` |
+| The handset's month | `src/Module/RosterWatches.php` |
+| The watch on the area's own station pages | `src/Shell/RosterStationSections.php` |
 | What the ring says — pure, no database | `src/Service/CyclePlanner.php` |
 | What becomes a row | `src/Service/RotationGenerator.php` |
 | The SQL that creates it all | `migrations/` |
 | The four columns the roster owns on a station | `src/Entity/StationWatch.php` |
 | The answers this module cannot guess | `src/Entity/AreaRosterSettings.php` |
 | The tabs and the configure sections | `src/Shell/` |
-| The Overview tab | `src/Controller/RosterController.php` |
+| The Overview and Week tabs | `src/Controller/RosterController.php` |
 | Rotation · Watches · Settings | `src/Controller/RosterConfigureController.php` |
 | The module's own vocabulary | `public/roster.css` |
 | Static service wiring | `config/services.php` |
 | Test installation | `tests/Integration/TestKernel.php` |
 
-Still to come: the five remaining tabs (Today, Week, Day board, Calendar,
-Live), the cycle editor, the widget surface and its presets, the overview
+Still to come: the four remaining tabs (Today, Day board, Calendar, Live),
+the cycle editor, the widget surface and its presets, the overview
 contributions, the `WatchProviderInterface` implementation the area's
 `/me/roster` answers the handset through, and the presence reads behind all
 of them.

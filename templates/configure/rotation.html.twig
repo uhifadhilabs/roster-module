@@ -25,8 +25,6 @@
     <div class="rb-hd">
         <span class="tab">Every rotation in this area</span>
         <span class="rb-ttl"><b>{{ rotations|length }}</b> declared &middot; the area&rsquo;s other {{ postsWithoutARotation|length }} post{{ postsWithoutARotation|length == 1 ? '' : 's' }} run none</span>
-        {%- set stations = roster_url(constant('Uhifadhi\\Bundle\\AreaBundle\\Controller\\StationsController::ROUTE'), {uuid: area.uuid}) -%}
-        {% if stations %}<span class="rb-act"><a class="btn sm" href="{{ stations }}">The stations tab &rarr;</a></span>{% endif %}
     </div>
     <div class="rb-body">
         <table class="tbl">
@@ -67,10 +65,7 @@
         </table>
         <div class="rfrag"><b>A post with no rotation is never counted, reported on or called a hole</b><em>the roster works the posts somebody put on its books, and says which ones those are</em></div>
         <div class="rfrag"><b>Nothing here is presence</b><em>a rotation says who is DUE &middot; who was actually there is the handset&rsquo;s check-in, and this page never writes one</em></div>
-    </div>
-    <div class="rb-foot">
-        <span class="k">an edited day is never overwritten by a later run</span>
-        <span class="sp"></span>
+        <div class="rfrag"><b>An edited day is never overwritten by a later run</b><em>the generator steps over a day somebody has touched, whole &mdash; it does not merge or fill the gaps</em></div>
     </div>
 </div>
 {% endblock %}

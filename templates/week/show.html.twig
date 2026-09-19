@@ -1,0 +1,102 @@
+{# ============================================================================
+   THE WEEK — the design's modules/roster/week.html, ported.
+
+   THE HOUSE CARD, ruled 2026-09-20: `.c`, a `.tab` header carrying the title
+   and its `.src` caption, a body, and at most ONE quiet `.more` door. No
+   banded card on a tab — banding is for register and configure cards — and
+   no footer strip: page actions live in the page header and row actions on
+   the row.
+
+   EVERY HOLE IS DRAWN AS A HOLE. That is the whole reason this tab exists:
+   it is the only surface in the module where a missing watch is visible
+   before the day arrives. A cell says what the post asked for beside what it
+   got, so "N 1 of 2" is a hole and "N 2" is not.
+   ========================================================================== #}
+{% extends '@UhifadhiRoster/base.html.twig' %}
+
+{% block title %}{{ area.name }} · Roster · week{% endblock %}
+
+{% block shell_page_title %}Roster{% endblock %}
+
+{% block shell_page_subtitle %}Posts down, days across. The planner&rsquo;s tab &mdash; a cell is the watch, and every hole is drawn as a hole.{% endblock %}
+
+{% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / week{% endblock %}
+
+{% block roster_page %}
+    {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
+
+    <div class="c">
+        <span class="tab">The week plan<span class="src">&middot; <time datetime="{{ from.format('Y-m-d') }}" data-localtime-format="day">{{ from.format('D j')|lower }}</time> &mdash; <time datetime="{{ through.format('Y-m-d') }}" data-localtime-format="day">{{ through.format('D j M')|lower }}</time> &middot; generated from the standing pattern</span></span>
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid, from: next.format('Y-m-d')}) }}">Next week &rarr;</a>
+
+        {% if rows is empty %}
+            <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed &mdash; the Watches section is where a post joins</em></div>
+        {% else %}
+            <table class="r-week">
+                <tr>
+                    <th>post</th>
+                    {% for day in days %}
+                        <th class="{{ day.format('Y-m-d') == today.format('Y-m-d') ? 'today' : '' }}">
+                            <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j')|lower }}</time>
+                        </th>
+                    {% endfor %}
+                </tr>
+                {% for row in rows %}
+                    <tr>
+                        <td>{{ row.stationName }}<em>{{ row.stationCode ?: '—' }}</em></td>
+                        {% for day in days %}
+                            <td>
+                                <div class="r-cell">
+                                    {%- for cell in row.on(day) %}
+                                        {%- if cell.isEmpty %}
+                                            <span class="gap">{{ cell.initial }} &mdash;</span>
+                                        {%- elseif cell.isShort %}
+                                            <span class="gap">{{ cell.initial }} {{ cell.filled }} of {{ cell.expected }}</span>
+                                        {%- else %}
+                                            <span class="{{ loop.first ? 'd' : 'n' }}">{{ cell.initial }} {{ cell.filled }}</span>
+                                        {%- endif %}
+                                    {%- else %}
+                                        <span class="off">{{ row.runsNoWatch ? 'no watch' : 'stood down' }}</span>
+                                    {%- endfor %}
+                                </div>
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </table>
+
+            <div class="rfrag"><b>Key</b><em>
+                {%- for shift in shifts %}{{ loop.first ? '' : ' · ' }}{{ shift.label|slice(0, 1)|upper }} {{ shift.label|lower }} {{ shift.startsAt }}&ndash;{{ shift.endsAt }}{% endfor %}
+                &middot; the number is how many people</em></div>
+            <div class="rfrag"><b>A dashed red cell</b><em>a watch the pattern asked for and nobody filled &mdash; {{ gaps|length }} this week</em></div>
+        {% endif %}
+    </div>
+
+    <div style="height:12px"></div>
+
+    {# THE HOLES, SOONEST FIRST — a BOUNDED list, so this card is the one that
+       may carry a foot: latest N and a way to the rest. Ordered by when the
+       watch STARTS and not by when the hole was noticed, because a hole three
+       hours away outranks one next week however long it has been open. #}
+    <div class="c">
+        <span class="tab">Unfilled watches<span class="src">&middot; this week &middot; {{ gaps|length }}</span></span>
+        {% for gap in gaps|slice(0, 8) %}
+            <div class="r-pres">
+                <span class="nm">{{ gap.station }}<em><time datetime="{{ gap.day.format('Y-m-d') }}" data-localtime-format="day">{{ gap.day.format('D j M')|lower }}</time> &middot; {{ gap.label|lower }}</em></span>
+                <span class="who">
+                    {%- if gap.filled == 0 %}
+                        the pattern asks for {{ gap.expected }}, nobody assigned
+                    {%- else %}
+                        the watch asks for {{ gap.expected }}, {{ gap.filled }} filled
+                    {%- endif %}
+                </span>
+                <span class="cnt w">{{ gap.expected - gap.filled }} short</span>
+            </div>
+        {% else %}
+            <div class="rfrag"><b>Nothing is short this week</b><em>every watch the pattern asked for has somebody on it</em></div>
+        {% endfor %}
+        {% if gaps|length > 8 %}
+            <div class="rfrag"><b>{{ gaps|length }} in total</b><em>the eight soonest are shown &mdash; a card never grows with its data</em></div>
+        {% endif %}
+    </div>
+{% endblock %}

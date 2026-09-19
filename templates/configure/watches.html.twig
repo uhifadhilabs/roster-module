@@ -22,6 +22,10 @@
 <form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SAVE_WATCHES_ROUTE'), {uuid: area.uuid}) }}">
     <input type="hidden" name="_token" value="{{ csrfToken }}">
     <div class="c rband">
+        {# HEADER = IDENTITY ONLY. Ruled 2026-09-20, measured against the
+           area's own Stations configure card: a configure card's band says
+           what the card IS and carries no door. Ways out are the section
+           strip, the lit Configure action and the crumb. #}
         <div class="rb-hd">
             <span class="tab">Watches</span>
             <span class="rb-ttl">what each post expects, how long its silence may run, and how wide its catchment is</span>
@@ -61,11 +65,15 @@
             {% endfor %}
             <div class="rfrag"><b>The name, kind, point and call sign are the AREA&rsquo;s</b><em>this section edits only the four columns the roster owns, and it is the same block the area&rsquo;s Stations configure card renders</em></div>
             <div class="rfrag"><b>A post with no watch is not a fault</b><em>a post that declares none is never counted, never late and never a hole &mdash; only offline</em></div>
-        </div>
-        <div class="rb-foot">
-            <span class="k">{{ postsOffTheBooks|length }} of the area&rsquo;s posts declare no watch and are not listed</span>
-            <span class="sp"></span>
-            {% if mayManage %}<button type="submit" class="cta">Save the watches</button>{% endif %}
+            <div class="rfrag"><b>{{ postsOffTheBooks|length }} of the area&rsquo;s posts are not on these books</b><em>they declare no watch, so this module never counts them, reports on them or complains about them</em></div>
+
+            {# SAVE AT THE END OF THE FORM BODY, RIGHT-ALIGNED — the house's
+               own .save-row. Ruled 2026-09-20: a footer strip is for one
+               SEPARATE operation, and saving the form you are looking at is
+               not separate from it. #}
+            {% if mayManage %}
+                <div class="save-row"><button type="submit" class="cta">Save the watches</button></div>
+            {% endif %}
         </div>
     </div>
 </form>

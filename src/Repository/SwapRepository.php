@@ -1,0 +1,69 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of the UhifadhiLabs Roster Module.
+ *
+ * (c) Ezekiel Mjema <https://github.com/eemjema>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Uhifadhi\Roster\Repository;
+
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
+use Uhifadhi\Roster\Entity\Duty;
+use Uhifadhi\Roster\Entity\Swap;
+use Uhifadhi\Roster\Enum\SwapState;
+
+/**
+ * The offers out on an area's roster.
+ *
+ * @extends ServiceEntityRepository<Swap>
+ */
+final class SwapRepository extends ServiceEntityRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, Swap::class);
+    }
+
+    /**
+     * EVERY OFFER STILL WAITING ON SOMEBODY, over a window of days.
+     *
+     * Scoped by the DUTY's day rather than by when the offer was made: a week
+     * grid is drawing a week, and an offer made a fortnight ago about a watch
+     * in that week belongs on it.
+     *
+     * @return list<Swap>
+     */
+    public function findOpenBetween(AreaOfInterest $area, \DateTimeImmutable $from, \DateTimeImmutable $through): array
+    {
+        /** @var list<Swap> $swaps */
+        $swaps = $this->createQueryBuilder('s')
+            ->join('s.duty', 'd')
+            ->andWhere('s.area = :area')
+            ->andWhere('s.state = :open')
+            ->andWhere('d.onDay BETWEEN :from AND :through')
+            ->setParameter('area', $area)
+            ->setParameter('open', SwapState::Offered)
+            ->setParameter('from', $from->setTime(0, 0))
+            ->setParameter('through', $through->setTime(0, 0))
+            ->orderBy('d.onDay', 'ASC')
+            ->addOrderBy('s.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $swaps;
+    }
+
+    /** Whatever offer is out on this watch, or null. */
+    public function findOpenForDuty(Duty $duty): ?Swap
+    {
+        return $this->findOneBy(['duty' => $duty, 'state' => SwapState::Offered]);
+    }
+}

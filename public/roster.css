@@ -35,11 +35,23 @@
     --rb-rule: var(--ln2);
 }
 
-/* ---- THE BANDED CARD ------------------------------------------------------
- * RULED 2026-09-18: a card has three legible regions, and a separate
- * OPERATION lives in a visually distinct footer strip rather than as one more
- * row of the body. The title stays the shell's `.tab` pill straddling the top
- * border, so the header band starts below it. */
+/* ---- THE BANDED CARD, AND ONLY ON A CONFIGURE PAGE ------------------------
+ * SCOPE NARROWED 2026-09-20. This is NOT the dashboard card. A dashboard card
+ * is the HOUSE card — `.c`, a `.tab` header, a body, and at most ONE quiet
+ * `.more` door — and none of the module's tabs wear anything from this block.
+ * The three-region banded card stays only where the house already used it:
+ * register cards and CONFIGURE cards. In this module that is the three
+ * sections of the configure page and nothing else.
+ *
+ * AND ON A CONFIGURE CARD THE BAND IS IDENTITY ONLY. Ruled 2026-09-20,
+ * measured against the area's own Stations configure card: the header says
+ * what the card is and carries no door, the form's Save sits at the END of
+ * the body in the house's `.save-row`, and a footer strip is kept for ONE
+ * SEPARATE operation — never for commentary, and never for saving the form
+ * you are looking at.
+ *
+ * The title stays the shell's `.tab` pill straddling the top border, so the
+ * header band starts below it. */
 .c.rband { padding: 0; overflow: visible; border-color: var(--ln2); }
 
 .rb-hd {
@@ -58,19 +70,6 @@
 .rb-hd .rb-act { margin-left: auto; display: flex; align-items: center; gap: 7px; flex: none; }
 
 .rb-body { padding: 12px 15px 13px; }
-
-.rb-foot {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding: 9px 15px 10px; border-top: 1px solid var(--rb-rule);
-    background: var(--rb-band); border-radius: 0 0 13px 13px;
-}
-
-.rb-foot .k {
-    font: 600 10px ui-monospace, monospace; color: var(--dim);
-    letter-spacing: .06em; white-space: nowrap;
-}
-
-.rb-foot .sp { flex: 1 1 auto; }
 
 /* ---- FRAGMENTS, NOT ESSAYS ------------------------------------------------
  * RULED 2026-09-18. A screen states facts. Where a card has to say one thing
@@ -249,3 +248,88 @@
 @media (max-width: 860px) {
     .rstat { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }
+
+/* ---- THE WEEK PLANNER ----------------------------------------------------
+ * Posts down, days across. `table-layout: fixed` so seven columns share the
+ * width evenly however long a post's name is — a grid whose columns moved
+ * with the longest name would redraw itself every time somebody renamed a
+ * post. */
+.r-week { width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; }
+
+.r-week th {
+    font: 600 8.5px ui-monospace, monospace; color: var(--dim); text-transform: uppercase;
+    letter-spacing: .09em; text-align: left; padding: 0 0 7px; border-bottom: 1px solid var(--ln);
+}
+
+.r-week th.today { color: var(--acc); }
+
+.r-week td { padding: 5px 4px 5px 0; border-bottom: 1px dashed var(--ln); vertical-align: top; }
+
+.r-week td:first-child {
+    font-size: 12px; font-weight: 600; color: var(--tx); padding-right: 10px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px;
+}
+
+.r-week td:first-child em {
+    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    font-style: normal; text-transform: uppercase; letter-spacing: .07em;
+}
+
+.r-week tr:last-child td { border-bottom: 0; }
+
+.r-cell { display: flex; flex-direction: column; gap: 3px; }
+
+.r-cell span {
+    font: 600 9px ui-monospace, monospace; border-radius: 5px; padding: 3px 5px;
+    color: var(--fog); background: var(--raised);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.r-cell span.d { color: var(--r-acc); background: color-mix(in srgb, var(--r-acc) 15%, transparent); }
+.r-cell span.n { color: var(--fog); background: color-mix(in srgb, var(--fog) 12%, transparent); }
+
+/* A HOLE IS DRAWN AS A HOLE — the dashed red edge is the one mark on this
+   grid that means somebody has to act, and it is why the tab exists. */
+.r-cell span.gap {
+    color: var(--fail); background: color-mix(in srgb, var(--fail) 10%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--fail) 50%, transparent);
+}
+
+/* A post the ring stood down, or one that declares no watch. Neither is a
+   hole: nobody was asked for. */
+.r-cell span.off { color: var(--dim); background: none; border: 1px dashed var(--ln2); }
+
+/* A WEEK DOES NOT FIT A PHONE, and squeezing it to would make every cell
+   unreadable. It scrolls sideways inside its card rather than widening the
+   page — the house's own answer for a table. */
+@media (max-width: 860px) {
+    .r-week { min-width: 620px; }
+}
+
+/* ---- A NAMED THING, ITS DETAIL AND A COUNT -------------------------------
+ * The module's list row: a post or a person, a line of context, and the one
+ * figure the list is about. Used by the unfilled-watches list and by the
+ * presence lists on the tabs that draw them. */
+.r-pres {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    padding: 7px 0; border-bottom: 1px dashed var(--ln);
+}
+
+.r-pres:last-of-type { border-bottom: 0; }
+
+.r-pres > .nm { font-size: 12px; font-weight: 600; color: var(--tx); flex: 0 0 auto; }
+.r-pres > .nm em {
+    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    font-style: normal; text-transform: uppercase; letter-spacing: .07em;
+}
+
+.r-pres > .who { font-size: 11px; color: var(--fog); flex: 1 1 auto; min-width: 0; }
+
+.r-pres > .cnt {
+    font: 700 10px ui-monospace, monospace; letter-spacing: .06em;
+    color: var(--fog); white-space: nowrap; flex: none;
+}
+
+.r-pres > .cnt.w { color: var(--warn); }
+.r-pres > .cnt.r { color: var(--fail); }
+.r-pres > .cnt.g { color: var(--ok); }

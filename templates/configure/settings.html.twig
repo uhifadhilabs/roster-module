@@ -16,6 +16,7 @@
 <form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SAVE_SETTINGS_ROUTE'), {uuid: area.uuid}) }}">
     <input type="hidden" name="_token" value="{{ csrfToken }}">
     <div class="c rband">
+        {# HEADER = IDENTITY ONLY, no door: ruled 2026-09-20. #}
         <div class="rb-hd">
             <span class="tab">Settings</span>
             <span class="rb-ttl">the answers this module cannot guess &mdash; each with the consequence of getting it wrong</span>
@@ -89,11 +90,12 @@
                 <span class="why"><b>Late is per post</b> and falls back to twice its ping interval; a post may override it on the Watches section. <b>A hole is announced as soon as it is known</b> &mdash; an unfit check-in at 05:58 makes tonight&rsquo;s hole visible at 05:58, not at 18:00.</span>
             </div>
 
-        </div>
-        <div class="rb-foot">
-            <span class="k">these were the module&rsquo;s open verdicts &mdash; they are settings now, not questions</span>
-            <span class="sp"></span>
-            {% if mayManage %}<button type="submit" class="cta">Save settings</button>{% endif %}
+
+            {# Save at the END of the form body, right-aligned — the house's
+               own .save-row, not a footer strip. #}
+            {% if mayManage %}
+                <div class="save-row"><button type="submit" class="cta">Save settings</button></div>
+            {% endif %}
         </div>
     </div>
 </form>

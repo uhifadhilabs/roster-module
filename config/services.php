@@ -22,6 +22,7 @@ use Uhifadhi\Roster\Repository\RotationPoolMemberRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
+use Uhifadhi\Roster\Repository\SwapRepository;
 use Uhifadhi\Roster\Service\CyclePlanner;
 use Uhifadhi\Roster\Service\PresenceReader;
 use Uhifadhi\Roster\Service\RosterIdentityService;
@@ -29,6 +30,8 @@ use Uhifadhi\Roster\Service\RosterSettingsService;
 use Uhifadhi\Roster\Service\RotationGenerator;
 use Uhifadhi\Roster\Service\ShiftVocabularyService;
 use Uhifadhi\Roster\Service\StationWatchService;
+use Uhifadhi\Roster\Service\SwapService;
+use Uhifadhi\Roster\Service\WeekGridService;
 use Uhifadhi\Roster\Twig\RosterTrailExtension;
 
 /*
@@ -69,6 +72,7 @@ return static function (ContainerConfigurator $container): void {
         AbsenceRepository::class,
         StationWatchRepository::class,
         AreaRosterSettingsRepository::class,
+        SwapRepository::class,
     ] as $repository) {
         $services->set($repository)
             ->args([service('doctrine')])
@@ -141,6 +145,32 @@ return static function (ContainerConfigurator $container): void {
             service(ShiftRepository::class),
             service(StationWatchRepository::class),
             service(RotationRepository::class),
+        ]);
+
+    /*
+     * OFFERING A WATCH, AND WHAT AN ACCEPTANCE DOES. Offering moves nobody;
+     * accepting moves the duties AND marks both days edited, so the nightly
+     * generator does not quietly rebuild them from the ring and undo an
+     * agreement two people made.
+     */
+    $services->set('roster.swaps', SwapService::class)
+        ->args([
+            service('doctrine.orm.entity_manager'),
+            service(SwapRepository::class),
+            service(EditedDayRepository::class),
+        ]);
+
+    /*
+     * THE PLANNER'S GRID. Two queries for a whole week rather than one per
+     * cell: seven days across six posts is forty-two cells, and asking per
+     * cell is how a planner's tab ends up slower than the month it plans.
+     */
+    $services->set('roster.week_grid', WeekGridService::class)
+        ->args([
+            service(StationWatchRepository::class),
+            service(DutyRepository::class),
+            service(RotationRepository::class),
+            service(ShiftRepository::class),
         ]);
 
     // `roster_url()` — the URL of a screen, or null where the installation did

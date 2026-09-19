@@ -175,6 +175,21 @@ class Duty
         return $this;
     }
 
+    /**
+     * THE WATCH CHANGES HANDS — the same row, deliberately.
+     *
+     * A swap that deleted one duty and wrote another would lose the row's
+     * identity, and everything pointing at it — the swap that agreed the
+     * move, most of all — would be pointing at nothing. The duty is the
+     * watch; who stands it is a field on it.
+     */
+    public function reassignTo(UserInterface $person): static
+    {
+        $this->person = $person;
+
+        return $this;
+    }
+
     public function getState(): DutyState
     {
         return $this->state;

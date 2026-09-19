@@ -196,6 +196,49 @@ check-in against a rostered watch" a board draws.
 **Reopens if** the area grows post-level state of its own. Then this module
 reads that too and keeps only the join.
 
+## Banding is for configure cards, not for tabs
+
+**RULED 2026-09-20** (workspace `730a095`, and the configure-card measure
+against the area's own Stations card).
+
+A **tab's** card is the house card: `.c`, a `.tab` header, a body, and at most
+ONE quiet `.more` door. A **configure** card keeps the three-region banded
+form — and its band is **identity only**: no door, the form's Save at the END
+of the body in the house's `.save-row`, and a footer strip reserved for one
+separate operation, never for commentary.
+
+**Consequence here.** The Week tab wears `.c`; the three configure sections
+keep `.rband` and lost their header doors, their footer commentary and their
+footer Save. The `.rb-foot` rules are deleted from the sheet rather than left
+unspent — a rule nothing draws is a rule that drifts.
+
+**Note for the shell.** The design defines `.c > .more` (the door pinned to the
+card's top edge) in `uhifadhi.css`, which is the shell's sheet. The core has
+not ported it yet, so the door renders with the shell's plain `.more` — right
+typography and gesture, not yet edge-positioned. This module deliberately does
+not define it: it is a shared component and belongs in the shell.
+
+## A swap is an offer, and only accepting moves anybody
+
+**Decision.** `Swap` is an entity, not a column on a duty. Offering changes
+nothing; accepting moves the duty (or both duties, for a true exchange) **and
+marks the affected days edited**.
+
+**Why the marking is the load-bearing half.** Without it the nightly generator
+rebuilds the day from the ring and puts everybody back where the pattern says
+they belong — quietly undoing an agreement two people made, with nothing
+anywhere saying why. It reuses `EditedDay` because it is the same fact as a
+duty officer's hand edit: somebody decided this day is not what the pattern
+says. There is a test that runs the generator after an accepted swap.
+
+**One open offer per watch**, enforced in the service and not by a unique
+index: a plain unique on (duty, state) would also forbid a second *declined*
+offer, and asking somebody else after the first said no is the ordinary way a
+hole gets filled.
+
+**Reopens if** a swap ever needs to be approved by a third person. It is an
+agreement between two today, and the handset is the only thing that accepts.
+
 ## What the design asks for that nothing can answer yet
 
 These are named here rather than invented, because the honest empty state is
