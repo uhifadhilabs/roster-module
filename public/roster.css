@@ -689,3 +689,40 @@
     border: 1.5px dashed var(--acc); color: var(--acc);
     background: color-mix(in srgb, var(--acc) 7%, transparent);
 }
+
+/* ---- HERE NOW, AGAINST THE WATCH ------------------------------------------
+ * The day board's second card: one row per post, what the pings say about the
+ * people on it, and how many of its own expectation they bear out.
+ *
+ * ROSTERED AND MEASURED STAY TWO COLUMNS. The count on the right is the
+ * measurement and the sentence beside it is the reason; a single verdict in
+ * their place would throw away the gap the module exists to show. */
+.r-preslist { display: block; margin-top: 4px; }
+
+.r-pres {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 6px 0; border-bottom: 1px dashed var(--ln);
+}
+
+.r-pres:last-child { border-bottom: 0; }
+
+.r-pres > .nm { font-size: 12px; font-weight: 600; color: var(--tx); flex: 0 0 auto; min-width: 150px; }
+.r-pres > .nm em {
+    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    font-style: normal; text-transform: uppercase; letter-spacing: .07em;
+}
+
+.r-pres > .who { font-size: 11px; color: var(--fog); flex: 1 1 auto; min-width: 0; }
+.r-pres > .who .r { color: var(--fail); }
+
+/* THE COUNT WEARS THE ANSWER. Green is the post's expectation met, amber is
+   partly, red is nobody, and a post that expects nobody is dimmed rather
+   than scored — nought of nought is not a failure. */
+.r-pres > .cnt {
+    flex: none; font: 700 11px ui-monospace, monospace; color: var(--fog);
+}
+
+.r-pres > .cnt.g { color: var(--ok); }
+.r-pres > .cnt.w { color: var(--warn); }
+.r-pres > .cnt.r { color: var(--fail); }
+.r-pres > .cnt.d { color: var(--dim); }
