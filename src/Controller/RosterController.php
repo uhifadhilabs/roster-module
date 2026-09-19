@@ -35,6 +35,7 @@ use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetService;
 use Uhifadhi\Contracts\Area\DayState;
+use Uhifadhi\Contracts\Area\LivePositionsInterface;
 use Uhifadhi\Contracts\Atlas\YearMonth;
 use Uhifadhi\Contracts\Entity\UserInterface;
 use Uhifadhi\Roster\Model\AgendaFilter;
@@ -50,6 +51,7 @@ use Uhifadhi\Roster\Service\RosterCalendar;
 use Uhifadhi\Roster\Service\RosterDashboardService;
 use Uhifadhi\Roster\Service\RosteredPeople;
 use Uhifadhi\Roster\Service\RosterIdentityService;
+use Uhifadhi\Roster\Service\RosterLiveService;
 use Uhifadhi\Roster\Service\RotaService;
 use Uhifadhi\Roster\Service\SwapCostService;
 use Uhifadhi\Roster\Service\SwapService;
@@ -146,6 +148,8 @@ final class RosterController
         private readonly AgendaService $agenda,
         private readonly ShiftRepository $shifts,
         private readonly DutyRepository $duties,
+        private readonly LivePositionsInterface $positions,
+        private readonly RosterLiveService $liveService,
         private readonly WidgetService $widgetService,
         private readonly UrlGeneratorInterface $router,
         /*
@@ -484,15 +488,43 @@ final class RosterController
     #[Route('/areas/{uuid}/modules/roster/live', name: self::LIVE_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['GET'])]
     public function live(
         #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
     ): Response {
         $day = new \DateTimeImmutable('today');
+        $now = new \DateTimeImmutable();
+
+        $filter = AgendaFilter::fromQuery(
+            $request->query->get('post'),
+            $request->query->get('state'),
+            $request->query->get('shift'),
+            $request->query->get('q'),
+        );
+
+        $whole = $this->presence->postsOn($area, $day, $now);
+        $narrowed = $this->agenda->narrow($whole, $filter, $now, $this->shifts->windowsFor($area));
+
+        // WHERE EVERYBODY IS, ASKED OF THE AREA FOR ONE STATED MOMENT. The
+        // instant is passed rather than taken from a clock inside the
+        // seam, so the plate, the rail and the figures on this page are
+        // all answering the same minute.
+        $live = $this->positions->liveIn((string) $area->getUuidString(), $now);
 
         return new Response($this->twig->render('@UhifadhiRoster/live/show.html.twig', [
             'area' => $area,
             'band' => $this->identity->bandFor($area),
             'day' => $day,
-            'now' => new \DateTimeImmutable(),
-            'posts' => $this->presence->postsOn($area, $day),
+            'now' => $now,
+            'filter' => $filter,
+            'posts' => $narrowed,
+            'plate' => $this->liveService->plate($area, $live),
+            'rail' => $this->liveService->rail($live, $narrowed),
+            'live' => $this->liveService->figures($live, $whole),
+            'stationsUrl' => $this->stationsUrl($area),
+            'chosenPost' => $this->chosenPost($whole, $filter),
+            'stateLabels' => self::stateLabels(),
+            'stateCounts' => self::stateCounts($whole),
+            'shiftLabels' => $this->shiftLabels($area),
+            'shiftCounts' => self::shiftCounts($whole),
         ]));
     }
 
@@ -535,6 +567,16 @@ final class RosterController
             'post' => $station?->getName(),
             'postUrl' => null === $station ? null : $this->stationUrl($station),
         ];
+    }
+
+    /** The area's stations page, or null where this installation omits it. */
+    private function stationsUrl(AreaOfInterest $area): ?string
+    {
+        try {
+            return $this->router->generate(StationsController::ROUTE, ['uuid' => (string) $area->getUuidString()]);
+        } catch (RouteNotFoundException|InvalidParameterException|MissingMandatoryParametersException) {
+            return null;
+        }
     }
 
     /**

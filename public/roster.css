@@ -726,3 +726,43 @@
 .r-pres > .cnt.w { color: var(--warn); }
 .r-pres > .cnt.r { color: var(--fail); }
 .r-pres > .cnt.d { color: var(--dim); }
+
+/* ---- THE LIVE PLATE AND THE RAIL BESIDE IT -------------------------------
+ * The plate takes the room; the rail is a fixed column of names next to it,
+ * and on a narrow screen it goes under rather than squeezing the map into a
+ * strip nobody can read a position off.
+ *
+ * THE RAIL LISTS EVERYBODY AND THE MAP DRAWS THE ONES WITH A FIX, which is
+ * why the rail scrolls on its own: the list is as long as the roster and the
+ * plate is a fixed height, and a card that grew to the longer of the two
+ * would push the map off the screen on a busy morning. */
+.r-live { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 14px; align-items: start; }
+.r-live-plate { min-width: 0; }
+.r-live-rail { max-height: min(64vh, 560px); overflow-y: auto; }
+
+@media (max-width: 860px) {
+    .r-live { grid-template-columns: minmax(0, 1fr); }
+    .r-live-rail { max-height: none; }
+}
+
+/* A HEADING IN THE RAIL — what the group is, and how many. The tone is the
+   house's three semantic classes and never a colour of this module's. */
+.r-live-grp {
+    font: 600 9.5px ui-monospace, monospace; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--dim); padding: 10px 0 5px; border-bottom: 1px solid var(--ln2);
+}
+
+.r-live-grp.st-ok { color: var(--ok); }
+.r-live-grp.st-warn { color: var(--warn); }
+.r-live-grp.st-fail { color: var(--fail); }
+
+.r-live-row {
+    display: flex; align-items: baseline; gap: 9px;
+    padding: 6px 0; border-bottom: 1px dashed var(--ln);
+}
+
+.r-live-row > .nm { font-size: 11.5px; font-weight: 600; color: var(--tx); flex: 1 1 auto; min-width: 0; }
+.r-live-row > .nm em {
+    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    font-style: normal; text-transform: uppercase; letter-spacing: .07em;
+}

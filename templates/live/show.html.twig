@@ -27,6 +27,77 @@
 {% block roster_page %}
     {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
 
+    {{ include('@UhifadhiRoster/today/_filters.html.twig', {
+        area: area, day: day, isToday: true, filter: filter, posts: posts,
+        chosenPost: chosenPost, stateLabels: stateLabels, stateCounts: stateCounts,
+        shiftLabels: shiftLabels, shiftCounts: shiftCounts,
+        here: constant('Uhifadhi\\Roster\\Controller\\RosterController::LIVE_ROUTE'),
+    }, with_context: false) }}
+
+    <div class="grid kstrip">
+        <div class="c kpi hot" data-kpi="positions-now">
+            <span class="tab">Positions now</span>
+            <b class="disp">{{ live.positions }}<em>of {{ live.expected }} expected</em></b>
+            <span class="sub">{{ live.stale }} stale &middot; {{ live.withoutAFix }} with none at all</span>
+        </div>
+        <div class="c kpi" data-kpi="verified">
+            <span class="tab">Verified at a post</span>
+            <b class="disp">{{ live.verified }}</b>
+            <span class="sub">the pings sit inside the catchment</span>
+        </div>
+        <div class="c kpi" data-kpi="away">
+            <span class="tab">Away from a post</span>
+            <b class="disp">{{ live.awayFromAPost }}</b>
+            <span class="sub">on an escort, outside the park, or not working</span>
+        </div>
+        <div class="c kpi{{ live.stale > 0 ? ' bad' : '' }}" data-kpi="oldest-ping">
+            <span class="tab">Oldest ping</span>
+            <b class="disp">{{ live.oldestAge ?: '—' }}</b>
+            <span class="sub">
+                {%- if live.oldestName %}{{ live.oldestName }}{% if live.oldestStation %} &middot; {{ live.oldestStation }}{% endif %} &middot; the interval is {{ live.pingIntervalMinutes }} min
+                {%- else %}no handset has reported a position{% endif -%}
+            </span>
+        </div>
+        <div class="c kpi" data-kpi="posts-reporting">
+            <span class="tab">Posts reporting</span>
+            <b class="disp">{{ live.postsReporting }}<em>of {{ live.postsOnTheBooks }}</em></b>
+            <span class="sub">measured against each post&rsquo;s own silence window</span>
+        </div>
+    </div>
+
+    <h2 class="zone">The plate first</h2>
+    <div class="c">
+        <span class="tab">Where everybody is<span class="src">&middot; <time datetime="{{ now.format('c') }}" data-localtime-format="time">{{ now.format('H:i') }}</time> &middot; {{ live.positions }} position{{ live.positions == 1 ? '' : 's' }} &middot; {{ live.stale }} stale &middot; {{ live.withoutAFix }} with none</span></span>
+        {% if stationsUrl %}<a class="more" href="{{ stationsUrl }}">The stations layer &rarr;</a>{% endif %}
+
+        {# THE PLATE IS THE ATLAS'S AND THE GROUND IS THE AREA'S. What this
+           module contributes is the marker layers and their legend group;
+           it draws nothing itself. #}
+        <div class="r-live">
+            <div class="r-live-plate">{{ render_map(plate, {"--map-plate-height": "min(64vh, 560px)"}) }}</div>
+
+            {# THE RAIL LISTS EVERYBODY, the map draws the ones with a fix.
+               Somebody at their post whose phone has said nothing is here
+               and not there, and that difference is the point of both. #}
+            <div class="r-live-rail">
+                {% for group in rail %}
+                    {% if not group.isEmpty %}
+                        <div class="r-live-grp {{ group.tone }}">{{ group.label }} &middot; {{ group.count }}</div>
+                        {% for row in group.rows %}
+                            <div class="r-live-row">
+                                <span class="nm">{{ row.person.personName }}<em>{{ row.post.stationName }}</em></span>
+                                <span class="r-ping {{ row.fix ? (row.stale ? 'off' : 'on') : 'off' }}"><i></i>{{ row.age ?: 'no ping' }}</span>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% else %}
+                    <div class="rfrag"><b>Nobody is on a watch this minute</b><em>the rail lists who is due; the plate draws the ones whose handsets have said where</em></div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <h2 class="zone">The roster, underneath</h2>
     <div class="c">
         <span class="tab">The roster, underneath<span class="src">&middot; <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j M')|lower }}</time> &middot; {{ posts|length }} post{{ posts|length == 1 ? '' : 's' }} on the books</span></span>
         <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::TODAY_ROUTE'), {uuid: area.uuid}) }}">The agenda &rarr;</a>

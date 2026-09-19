@@ -21,14 +21,17 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
+use Uhifadhi\Bundle\AreaBundle\Service\AreaPlateService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
+use Uhifadhi\Bundle\AreaBundle\Service\ZoneSetService;
 use Uhifadhi\Bundle\ShellBundle\Widget\Registry\WidgetSurfaceInterface;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetEndpoint;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetService;
 use Uhifadhi\Bundle\TeamBundle\Repository\DepartmentRepository;
 use Uhifadhi\Bundle\TeamBundle\Repository\UserRepository;
+use Uhifadhi\Contracts\Area\LivePositionsInterface;
 use Uhifadhi\Contracts\Area\StationSectionsInterface;
 use Uhifadhi\Contracts\Roster\WatchProviderInterface;
 use Uhifadhi\Contracts\Shell\ConfigurationSectionsInterface;
@@ -49,6 +52,7 @@ use Uhifadhi\Roster\Repository\StationWatchRepository;
 use Uhifadhi\Roster\Service\AgendaService;
 use Uhifadhi\Roster\Service\RosterDashboardService;
 use Uhifadhi\Roster\Service\RosterFiguresService;
+use Uhifadhi\Roster\Service\RosterLiveService;
 use Uhifadhi\Roster\Service\RosterWidgetUrls;
 use Uhifadhi\Roster\Shell\RosterConfigurationSections;
 use Uhifadhi\Roster\Shell\RosterModuleTabs;
@@ -283,6 +287,17 @@ final class UhifadhiRosterBundle extends AbstractBundle
             ])
             ->tag(WatchProviderInterface::TAG);
 
+        // WHERE EVERYBODY IS, FED TO THE ATLAS. The plate, the ground and
+        // the posts are other people's; this contributes the marker layers
+        // and the legend group over them, and draws nothing itself.
+        $services->set('roster.live', RosterLiveService::class)
+            ->args([
+                service(AreaPlateService::class),
+                service(ZoneSetService::class),
+                service(StationRepository::class),
+                service(PostingRepository::class),
+            ]);
+
         // THE WHOLE SURFACE'S ONE READ. Both the dashboard and the library
         // build their widget context from this, which is what makes a
         // library preview the widget rather than a picture of one.
@@ -404,6 +419,8 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service('roster.agenda'),
                 service(ShiftRepository::class),
                 service(DutyRepository::class),
+                service(LivePositionsInterface::class),
+                service('roster.live'),
                 service(WidgetService::class),
                 service('router'),
                 // Null where the installation runs no security: the week tab
