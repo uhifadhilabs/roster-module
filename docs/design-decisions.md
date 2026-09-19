@@ -204,7 +204,7 @@ against the area's own Stations card).
 A **tab's** card is the house card: `.c`, a `.tab` header, a body, and at most
 ONE quiet `.more` door. A **configure** card keeps the three-region banded
 form — and its band is **identity only**: no door, the form's Save at the END
-of the body in the house's `.save-row`, and a footer strip reserved for one
+of the body in the house's `.staddrow`, and a footer strip reserved for one
 separate operation, never for commentary.
 
 **Consequence here.** The Week tab wears `.c`; the three configure sections

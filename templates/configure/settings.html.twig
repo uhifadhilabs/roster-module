@@ -28,6 +28,7 @@
                 <span class="ct">
                     <input class="fld" type="number" min="1" name="ping_interval_minutes" value="{{ settings.pingIntervalMinutes }}" aria-label="Ping interval in minutes" {{ mayManage ? '' : 'disabled' }}>
                     <span class="unit">minutes</span>
+                    <span class="unit">default {{ constant('Uhifadhi\\Roster\\DependencyInjection\\RosterConfiguration::DEFAULT_PING_INTERVAL_MINUTES') }}</span>
                 </span>
                 <span class="why"><b>It trades against the catchment.</b> A wide catchment tolerates a slow interval; a tight one does not &mdash; at 2 km and 60 min a ranger can leave and return unseen. Every minute you take off it costs battery in a place with no mains.</span>
             </div>
@@ -70,7 +71,7 @@
                     <input class="fld" type="number" min="1" name="default_catchment_metres" value="{{ settings.defaultCatchmentMetres }}" aria-label="Default catchment in metres" {{ mayManage ? '' : 'disabled' }}>
                     <span class="unit">m</span>
                 </span>
-                <span class="why"><b>It decides who reads as unverified.</b> A radius smaller than the post&rsquo;s own compound will flag people who are standing in it; one larger than the nearest road will verify people driving past. Changing it <b>re-derives every past day</b>, because a state is never stored.</span>
+                <span class="why"><b>It decides who reads as unverified.</b> A radius smaller than the post&rsquo;s own compound will flag people who are standing in it; one larger than the nearest road will verify people driving past. Changing it <b>re-derives every past day</b>, because a state is never stored. <b>It does not reach verification yet</b> &mdash; that reads the post&rsquo;s own catchment, which nothing in the product writes.</span>
             </div>
 
             <div class="rset">

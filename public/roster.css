@@ -84,6 +84,13 @@
 .rfrag b { font-weight: 700; color: var(--fog); }
 .rfrag em { font-style: normal; color: var(--fog); }
 
+/* A FRAGMENT THAT NAMES A GAP RATHER THAN A RULE — something the product
+ * cannot honour yet, marked so a reader does not take it for ordinary
+ * commentary and go on setting a field that changes nothing. It is a colour
+ * on the lead and nothing else: a left bar on anything but the focus line
+ * was ruled out on 21 sep. */
+.rfrag.flagged b { color: var(--warn); }
+
 /* ---- THE SHIFT CHIP -------------------------------------------------------
  * ONE vocabulary for a shift, everywhere the module draws one. A shift is a
  * NAMED WINDOW; it is never a free pair of times typed twice.

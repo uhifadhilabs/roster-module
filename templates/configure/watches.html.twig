@@ -66,6 +66,16 @@
             <div class="rfrag"><b>The name, kind, point and call sign are the AREA&rsquo;s</b><em>this section edits only the four columns the roster owns, and it is the same block the area&rsquo;s Stations configure card renders</em></div>
             <div class="rfrag"><b>A post with no watch is not a fault</b><em>a post that declares none is never counted, never late and never a hole &mdash; only offline</em></div>
             <div class="rfrag"><b>{{ postsOffTheBooks|length }} of the area&rsquo;s posts are not on these books</b><em>they declare no watch, so this module never counts them, reports on them or complains about them</em></div>
+            {# FLAGGED, and it is a CORE gap rather than a setting somebody
+               forgot: verification measures a ping against the POST's own
+               catchment column, and the area exposes no verb that writes it
+               — no service method, no form field, and its describe() names
+               its facts without it. Writing that column from here would be
+               this module computing presence, which it is ruled never to do,
+               so the fact is stated instead. A unit test pins this note to
+               the absence of the verb and turns red the day the core grows
+               one. #}
+            <div class="rfrag flagged"><b>This catchment is the roster&rsquo;s own, and verification does not read it yet</b><em>a claim is verified against the POST&rsquo;s catchment, a column nothing in the product writes &mdash; so every at-post claim reads <i>unverified &mdash; the post has no ring</i> until the core grows the verb, whatever is set here</em></div>
 
             {# SAVE AT THE END OF THE FORM BODY, RIGHT-ALIGNED — the house's
                own .staddrow. Ruled 2026-09-20: a footer strip is for one
