@@ -86,22 +86,22 @@ final readonly class RosterLiveService
     {
         $view = $this->zones->view($area);
 
-        $hues = [];
-        foreach ($view->rows as $zone) {
-            $hues[$zone->name] = $zone->hue;
-        }
-
+        // THE POSTS AS THE AREA'S PLATE ASKS FOR THEM, and not one field
+        // more. A ZONE'S NAME IS A NAME; ITS COLOUR IS THE AREA'S, and
+        // this module neither reads it nor passes it on. The zone rows go
+        // through untouched and the area hues them — the only arrangement
+        // in which the same zone is the same colour on every plate in the
+        // product, and the only one that does not have to be edited every
+        // time that palette changes.
         $posts = [];
         foreach ($this->stations->findByArea($area) as $post) {
-            $zone = $post->getZone()?->getName();
             $posts[] = [
                 'uuid' => (string) $post->getUuidString(),
                 'name' => (string) $post->getName(),
                 'point' => $post->getPoint(),
                 'posted' => $this->postings->countStandingByStation($post),
                 'here' => false,
-                'zone' => $zone,
-                'hue' => null === $zone ? null : ($hues[$zone] ?? null),
+                'zone' => $post->getZone()?->getName(),
             ];
         }
 
