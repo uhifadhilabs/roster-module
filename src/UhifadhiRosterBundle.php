@@ -403,6 +403,7 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service('roster.dashboard'),
                 service('roster.agenda'),
                 service(ShiftRepository::class),
+                service(DutyRepository::class),
                 service(WidgetService::class),
                 service('router'),
                 // Null where the installation runs no security: the week tab

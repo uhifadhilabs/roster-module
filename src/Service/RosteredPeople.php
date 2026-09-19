@@ -15,6 +15,7 @@ namespace Uhifadhi\Roster\Service;
 
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
+use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Contracts\Atlas\YearMonth;
 use Uhifadhi\Contracts\Entity\UserInterface;
 use Uhifadhi\Roster\Repository\RotationPoolMemberRepository;
@@ -128,6 +129,21 @@ final readonly class RosteredPeople
         }
 
         return $people[0];
+    }
+
+    /**
+     * WHAT TEAM CALLS THIS PERSON — their position's name, or null where
+     * they hold none.
+     *
+     * IT IS READ, NEVER STORED HERE. A role is team's fact about a person
+     * and this module only prints it beside their month; a roster that kept
+     * its own copy would be a second org chart going quietly out of date.
+     */
+    public function roleOf(AreaOfInterest $area, string $personUuid): ?string
+    {
+        $person = $this->byUuid($area)[$personUuid] ?? null;
+
+        return $person instanceof User ? $person->getPosition()?->getName() : null;
     }
 
     /**

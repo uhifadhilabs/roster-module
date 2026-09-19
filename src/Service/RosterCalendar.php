@@ -25,6 +25,7 @@ use Uhifadhi\Contracts\Atlas\CalendarPill;
 use Uhifadhi\Contracts\Atlas\PillHue;
 use Uhifadhi\Contracts\Atlas\YearMonth;
 use Uhifadhi\Roster\Entity\Duty;
+use Uhifadhi\Roster\Model\MonthFigures;
 use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 
@@ -109,6 +110,106 @@ final readonly class RosterCalendar implements CalendarFeedInterface
         }
 
         return new CalendarMonth($month, $month_);
+    }
+
+    /**
+     * THE SAME MONTH, IN FIGURES — what the strip above the grid says.
+     *
+     * IT WALKS THE SAME DUTIES AND THE SAME PRESENCE READS the grid does,
+     * because a strip that counted a second query could say "14 verified"
+     * over a grid showing thirteen. The cost of the walk is paid once by
+     * the page, not twice.
+     *
+     * A FUTURE WATCH IS COUNTED AS PLANNED AND NOTHING ELSE. Nothing has
+     * been reported for a day that has not happened, so it is in `watches`
+     * and in neither `worked` nor `noCheckIn` — "no check-in" against
+     * tomorrow would be an accusation about the future.
+     */
+    public function figuresFor(AreaOfInterest $area, string $personUuid, YearMonth $month): MonthFigures
+    {
+        $windows = $this->shifts->windowsFor($area);
+        $today = new \DateTimeImmutable('today');
+        $areaUuid = (string) $area->getUuidString();
+
+        $watches = 0;
+        $nights = 0;
+        $worked = 0;
+        $verified = 0;
+        $unverified = 0;
+        $noCheckIn = 0;
+
+        /** @var array<string, bool> $nightOn a night was stood on this day */
+        $nightOn = [];
+
+        foreach ($this->duties->findStandingForPersonBetween($area, $personUuid, $month->firstDay(), $month->lastDay()) as $duty) {
+            ++$watches;
+
+            $localDate = $duty->getOnDay()->format('Y-m-d');
+            // A SHIFT THE AREA NO LONGER NAMES IS NOT A NIGHT. A duty can
+            // outlive the vocabulary entry it was generated from, and a
+            // missing window is not evidence of anything.
+            $window = $windows[$duty->getShiftKey()] ?? null;
+            $isNight = null !== $window && $window->crossesMidnight();
+
+            if ($isNight) {
+                ++$nights;
+                $nightOn[$localDate] = true;
+            }
+
+            if ($duty->getOnDay() >= $today) {
+                continue;
+            }
+
+            $day = $this->presence->dayFor($areaUuid, $personUuid, $localDate);
+            if (null === $day) {
+                ++$noCheckIn;
+
+                continue;
+            }
+
+            ++$worked;
+
+            foreach ($day->watches as $watch) {
+                if (DayState::AtPostVerified === $watch->state) {
+                    ++$verified;
+                } elseif (DayState::AtPostUnverified === $watch->state) {
+                    ++$unverified;
+                }
+            }
+        }
+
+        return new MonthFigures(
+            watches: $watches,
+            daysInMonth: (int) $month->lastDay()->format('j'),
+            nights: $nights,
+            days: $watches - $nights,
+            worked: $worked,
+            verified: $verified,
+            unverified: $unverified,
+            noCheckIn: $noCheckIn,
+            longestNightRun: self::longestRun($nightOn, $month),
+        );
+    }
+
+    /**
+     * THE LONGEST RUN OF CONSECUTIVE NIGHTS, walked over the calendar rather
+     * than over the list: two nights with a rest day between them are two
+     * runs of one, and a list sorted by anything else would call them two in
+     * a row.
+     *
+     * @param array<string, bool> $nightOn
+     */
+    private static function longestRun(array $nightOn, YearMonth $month): int
+    {
+        $longest = 0;
+        $run = 0;
+
+        for ($day = $month->firstDay(); $day <= $month->lastDay(); $day = $day->modify('+1 day')) {
+            $run = isset($nightOn[$day->format('Y-m-d')]) ? $run + 1 : 0;
+            $longest = max($longest, $run);
+        }
+
+        return $longest;
     }
 
     /**

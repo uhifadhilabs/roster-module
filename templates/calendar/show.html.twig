@@ -25,31 +25,70 @@
 {% block roster_page %}
     {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
 
-    <div class="c">
-        <span class="tab">The month{% if chosen %}<span class="src">&middot; {{ chosen.name }} &middot; {{ month.label|lower }}</span>{% endif %}</span>
-
-        {% if chosen is null %}
+    {% if chosen is null %}
+        <div class="c">
+            <span class="tab">The month</span>
             <div class="rfrag"><b>No rotation in this area draws from anybody yet</b><em>a month is one ranger&rsquo;s watches, and there is nobody in a pool to show one for</em></div>
-        {% else %}
-            {# THE RANGER PICKER, as a grouped dropdown in the house's own
-                 `.cal-nav` — ruled 2026-09-20. The month's own stepper is the
-                 atlas's and is drawn by the component below. #}
+        </div>
+    {% else %}
+        <div class="grid kstrip">
+            <div class="c kpi hot" data-kpi="watches">
+                <span class="tab">Watches this month</span>
+                <b class="disp">{{ figures.watches }}<em>of {{ figures.daysInMonth }} days</em></b>
+                <span class="sub">{{ figures.nights }} night{{ figures.nights == 1 ? '' : 's' }} &middot; {{ figures.days }} day{{ figures.days == 1 ? '' : 's' }}</span>
+            </div>
+            <div class="c kpi" data-kpi="verified">
+                <span class="tab">Verified</span>
+                <b class="disp">{{ figures.verified }}<em>of {{ figures.worked }} worked</em></b>
+                <span class="sub">the pings agreed with the post</span>
+            </div>
+            <div class="c kpi{{ figures.unverified > 0 ? ' bad' : '' }}" data-kpi="unverified">
+                <span class="tab">Unverified</span>
+                <b class="disp">{{ figures.unverified }}</b>
+                <span class="sub">{% if figures.unverified > 0 %}<span class="r">a claim the pings did not bear out</span>{% else %}every claim at a post was borne out{% endif %}</span>
+            </div>
+            <div class="c kpi" data-kpi="no-check-in">
+                <span class="tab">No check-in</span>
+                <b class="disp">{{ figures.noCheckIn }}</b>
+                <span class="sub">{% if figures.noCheckIn > 0 %}<span class="r">a past watch nothing arrived for</span>{% else %}every past watch was reported{% endif %}</span>
+            </div>
+            <div class="c kpi" data-kpi="nights-in-a-row">
+                <span class="tab">Nights in a row, most</span>
+                <b class="disp">{{ figures.longestNightRun }}</b>
+                <span class="sub">{% if figures.longestNightRun > 0 %}the longest run the ring produced{% else %}no night watch this month{% endif %}</span>
+            </div>
+        </div>
+
+        <h2 class="zone">{{ chosen.name }} &mdash; {{ month.label|lower }}</h2>
+        <div class="c">
+            {# THE CAPTION CARRIES WHO, WHAT THEY ARE AND WHERE — the design's
+               own fields. A month with only a name on it makes the reader
+               check the picker to know whose it is. #}
+            <span class="tab">The month<span class="src">&middot; {{ chosen.name }}{% if chosen.role %} &middot; {{ chosen.role }}{% endif %}{% if chosen.post %} &middot; {{ chosen.post }}{% endif %} &middot; {{ figures.watches }} watch{{ figures.watches == 1 ? '' : 'es' }} &middot; {{ figures.nights }} night{{ figures.nights == 1 ? '' : 's' }}</span></span>
+            {% if chosen.postUrl %}<a class="more" href="{{ chosen.postUrl }}">The post &rarr;</a>{% endif %}
+
+            {# THE RANGER PICKER — the house's grouped dropdown, which is a
+               `<details>`: the browser opens it, and a panel rendered as a
+               div is a panel rendered OPEN. Every option is a real link, so
+               a chosen ranger is a url somebody can send.
+
+               IT IS ITS OWN ROW, above the atlas's stepper, and the design
+               puts the two on ONE line. The month component owns its nav row
+               and has no slot for a surface's control; that is a core change
+               and is listed rather than forced from here. #}
             <div class="cal-nav">
-                <span class="i-dd" data-dd>
-                    <button type="button" class="mchip i-ddt" data-dd-trigger aria-haspopup="listbox" aria-expanded="false">
-                        <span class="i-ddval">{{ chosen.name|lower }}</span><span class="i-ddcaret">&#9662;</span>
-                    </button>
-                    <div class="i-ddmenu" data-dd-menu role="listbox" aria-label="ranger">
+                <details class="i-dd">
+                    <summary class="mchip i-ddt">
+                        <span class="i-ddval">{{ chosen.name|lower }}{% if chosen.post %} &middot; {{ chosen.post|lower }}{% endif %}</span><span class="i-ddcaret">&#9662;</span>
+                    </summary>
+                    <div class="i-ddmenu" aria-label="Choose a ranger">
                         <span class="i-ddhead">ranger</span>
                         {% for person in people %}
-                            <a class="i-ddopt{{ person.uuid == chosen.uuid ? ' on' : '' }}" role="option"
-                               aria-selected="{{ person.uuid == chosen.uuid ? 'true' : 'false' }}"
-                               href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::CALENDAR_ROUTE'), {uuid: area.uuid, ranger: person.uuid, month: month.year ~ '-' ~ '%02d'|format(month.month)}) }}">
-                                <span class="i-dot"></span><span class="i-ddopt-l">{{ person.name }}</span>
-                            </a>
+                            <a class="i-ddopt{{ person.uuid == chosen.uuid ? ' on' : '' }}"
+                               href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::CALENDAR_ROUTE'), {uuid: area.uuid, ranger: person.uuid, month: month.year ~ '-' ~ '%02d'|format(month.month)}) }}"><span class="i-dot"></span><span class="i-ddopt-l">{{ person.name }}</span></a>
                         {% endfor %}
                     </div>
-                </span>
+                </details>
             </div>
 
             {# The feed is handed over by the controller rather than reached
@@ -62,7 +101,6 @@
                 previousUrl: path(constant('Uhifadhi\\Roster\\Controller\\RosterController::CALENDAR_ROUTE'), {uuid: area.uuid, ranger: chosen.uuid, month: month.previous.year ~ '-' ~ '%02d'|format(month.previous.month)}),
                 nextUrl: path(constant('Uhifadhi\\Roster\\Controller\\RosterController::CALENDAR_ROUTE'), {uuid: area.uuid, ranger: chosen.uuid, month: month.next.year ~ '-' ~ '%02d'|format(month.next.month)})
             ) }}
-
-        {% endif %}
-    </div>
+        </div>
+    {% endif %}
 {% endblock %}

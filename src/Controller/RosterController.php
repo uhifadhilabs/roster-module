@@ -20,6 +20,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Exception\InvalidParameterException;
+use Symfony\Component\Routing\Exception\MissingMandatoryParametersException;
+use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -27,14 +30,18 @@ use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment;
+use Uhifadhi\Bundle\AreaBundle\Controller\StationsController;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
+use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetService;
 use Uhifadhi\Contracts\Area\DayState;
+use Uhifadhi\Contracts\Atlas\YearMonth;
 use Uhifadhi\Contracts\Entity\UserInterface;
 use Uhifadhi\Roster\Model\AgendaFilter;
 use Uhifadhi\Roster\Model\PostPresence;
 use Uhifadhi\Roster\Model\PostState;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
+use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Service\AgendaService;
 use Uhifadhi\Roster\Service\DayBoardService;
@@ -138,6 +145,7 @@ final class RosterController
         private readonly RosterDashboardService $dashboard,
         private readonly AgendaService $agenda,
         private readonly ShiftRepository $shifts,
+        private readonly DutyRepository $duties,
         private readonly WidgetService $widgetService,
         private readonly UrlGeneratorInterface $router,
         /*
@@ -430,8 +438,12 @@ final class RosterController
             'area' => $area,
             'band' => $this->identity->bandFor($area),
             'people' => $people,
-            'chosen' => $chosen,
+            // WHO, WHAT THEY ARE AND WHERE — the caption's own fields. The
+            // role is team's fact and the post is the area's; this only
+            // reads them, and says nothing where either is unanswered.
+            'chosen' => null === $chosen ? null : $this->describe($area, $chosen, $month),
             'month' => $month,
+            'figures' => null === $chosen ? null : $this->calendar->figuresFor($area, $chosen['uuid'], $month),
             'scope' => null === $chosen ? null : RosterCalendar::scopeFor((string) $area->getUuidString(), $chosen['uuid']),
             'feed' => $this->calendar,
         ]));
@@ -457,6 +469,61 @@ final class RosterController
             'now' => new \DateTimeImmutable(),
             'posts' => $this->presence->postsOn($area, $day),
         ]));
+    }
+
+    /**
+     * THE RANGER THE CALENDAR IS ABOUT, with the two facts the caption
+     * carries beside their name.
+     *
+     * NEITHER IS THIS MODULE'S. The role is the position TEAM holds for
+     * them and the post is where the AREA posts them; a month that invented
+     * either would be a roster claiming to know the org chart. Where a fact
+     * is unanswered the caption simply leaves it out.
+     *
+     * THE POST IS THE ONE THIS MONTH'S WATCHES ARE AT, not a posting: a
+     * ranger posted at three gates who stood every watch at one of them is
+     * described by the one, and that is what the reader of a month wants.
+     *
+     * @param array{uuid: string, name: string} $chosen
+     *
+     * @return array{uuid: string, name: string, role: string|null, post: string|null, postUrl: string|null}
+     */
+    private function describe(AreaOfInterest $area, array $chosen, YearMonth $month): array
+    {
+        $counts = [];
+        $stations = [];
+        foreach ($this->duties->findStandingForPersonBetween($area, $chosen['uuid'], $month->firstDay(), $month->lastDay()) as $duty) {
+            $station = $duty->getStation();
+            $key = (string) $station->getUuidString();
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
+            $stations[$key] = $station;
+        }
+
+        arsort($counts);
+        $mostWatched = array_key_first($counts);
+        $station = null === $mostWatched ? null : $stations[$mostWatched];
+
+        return [
+            'uuid' => $chosen['uuid'],
+            'name' => $chosen['name'],
+            'role' => $this->people->roleOf($area, $chosen['uuid']),
+            'post' => $station?->getName(),
+            'postUrl' => null === $station ? null : $this->stationUrl($station),
+        ];
+    }
+
+    /**
+     * THE AREA'S OWN PAGE FOR A POST, or null where this installation does
+     * not run the screen. A door to a route that is not registered is a
+     * 500 on a page that was only trying to be helpful.
+     */
+    private function stationUrl(Station $station): ?string
+    {
+        try {
+            return $this->router->generate(StationsController::ROUTE, ['uuid' => (string) $station->getArea()?->getUuidString()]);
+        } catch (RouteNotFoundException|InvalidParameterException|MissingMandatoryParametersException) {
+            return null;
+        }
     }
 
     /**
