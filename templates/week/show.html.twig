@@ -25,19 +25,50 @@
 {% block roster_page %}
     {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
 
+    {{ include('@UhifadhiRoster/today/_filters.html.twig', {
+        area: area, day: from, isToday: false, filter: filter, posts: postsForFilter,
+        chosenPost: chosenPost, stateLabels: stateLabels, stateCounts: stateCounts,
+        shiftLabels: shiftLabels, shiftCounts: shiftCounts,
+        here: constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'),
+    }, with_context: false) }}
+
     {# THE FIVE FIGURES, every one measuring the same fortnight the grid
        draws — a strip that counted a different window would be a strip
        nobody could check against the picture under it. #}
     <div class="grid kstrip" style="margin-bottom:12px">
-        <div class="c kpi hot"><span class="tab">Person-watches</span><b class="disp">{{ figures.personWatches }}<em>this fortnight</em></b></div>
-        <div class="c kpi"><span class="tab">Holes</span><b class="disp">{{ figures.holes }}</b><span class="sub">{{ figures.holes ? 'watches the rings asked for and nobody is on' : 'every watch is filled' }}</span></div>
-        <div class="c kpi"><span class="tab">Nights, the heaviest</span><b class="disp">{{ figures.heaviestNights }}</b><span class="sub">{{ figures.heaviestName ?: 'nobody stands a night' }}</span></div>
-        <div class="c kpi"><span class="tab">Flagged today</span><b class="disp">{{ figures.flaggedToday }}</b><span class="sub">{{ figures.flaggedToday ? 'at post, unverified' : 'no claim the positions disagree with' }}</span></div>
-        <div class="c kpi"><span class="tab">Swaps pending</span><b class="disp">{{ figures.swapsPending }}</b><span class="sub">{{ figures.swapsPending ? 'waiting on a handset' : 'nothing out' }}</span></div>
+        <div class="c kpi hot" data-kpi="person-watches">
+            <span class="tab">Person-watches</span>
+            <b class="disp">{{ figures.personWatches }}<em>this fortnight</em></b>
+            <span class="sub">from the {{ band.rangers }} posted at the {{ band.postsWithAWatch }}</span>
+        </div>
+        <div class="c kpi{{ figures.holes > 0 ? ' bad' : '' }}" data-kpi="holes">
+            <span class="tab">Holes</span>
+            <b class="disp">{{ figures.holes }}</b>
+            <span class="sub">
+                {%- if soonestGap %}<span class="r">soonest <time datetime="{{ soonestGap.day.format('Y-m-d') }}" data-localtime-format="day">{{ soonestGap.day.format('D j M')|lower }}</time> at {{ soonestGap.station }}</span>
+                {%- else %}every watch the rings asked for is filled{% endif -%}
+            </span>
+        </div>
+        <div class="c kpi" data-kpi="heaviest-nights">
+            <span class="tab">Nights, the heaviest</span>
+            <b class="disp">{{ figures.heaviestNights }}<em>of {{ days|length }}</em></b>
+            <span class="sub">{{ figures.heaviestName ? figures.heaviestName ~ ' · the ring gives them the most' : 'nobody stands a night' }}</span>
+        </div>
+        <div class="c kpi{{ figures.flaggedToday > 0 ? ' bad' : '' }}" data-kpi="flagged-today">
+            <span class="tab">Flagged today</span>
+            <b class="disp">{{ figures.flaggedToday }}</b>
+            <span class="sub">{% if figures.flaggedToday %}<span class="r">at post, and the pings disagree</span>{% else %}no claim the positions disagree with{% endif %}</span>
+        </div>
+        <div class="c kpi" data-kpi="swaps-pending">
+            <span class="tab">Swaps pending</span>
+            <b class="disp">{{ figures.swapsPending }}</b>
+            <span class="sub">{{ figures.swapsPending ? 'waiting on a handset' : 'nothing out' }}</span>
+        </div>
     </div>
 
+    <h2 class="zone">People down, days across &mdash; the fortnight</h2>
     <div class="c">
-        <span class="tab">The rota<span class="src">&middot; <time datetime="{{ from.format('Y-m-d') }}" data-localtime-format="day">{{ from.format('D j')|lower }}</time> &ndash; <time datetime="{{ through.format('Y-m-d') }}" data-localtime-format="day">{{ through.format('D j M')|lower }}</time></span></span>
+        <span class="tab">The rota<span class="src">&middot; <time datetime="{{ from.format('Y-m-d') }}" data-localtime-format="day">{{ from.format('D j')|lower }}</time> &ndash; <time datetime="{{ through.format('Y-m-d') }}" data-localtime-format="day">{{ through.format('D j M')|lower }}</time> &middot; {{ band.rangers }} ranger{{ band.rangers == 1 ? '' : 's' }} &middot; {{ days|length }} days</span></span>
         <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ROTATION_ROUTE'), {uuid: area.uuid}) }}">The rotation &rarr;</a>
 
         {% if groups is empty %}

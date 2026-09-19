@@ -252,6 +252,15 @@ final class RosterController
         $from = RotaService::start($this->askedFor($request) ?? new \DateTimeImmutable('today'));
         $through = $from->modify(\sprintf('+%d days', RotaService::DAYS - 1));
 
+        $gaps = $this->week->gaps($area, $from, $through);
+        $filter = AgendaFilter::fromQuery(
+            $request->query->get('post'),
+            $request->query->get('state'),
+            $request->query->get('shift'),
+            $request->query->get('q'),
+        );
+        $whole = $this->presence->postsOn($area, new \DateTimeImmutable('today'));
+
         return new Response($this->twig->render('@UhifadhiRoster/week/show.html.twig', [
             'area' => $area,
             'band' => $this->identity->bandFor($area),
@@ -261,7 +270,23 @@ final class RosterController
             'days' => $this->rota->days($from),
             'groups' => $this->rota->groups($area, $from, $through),
             'figures' => $this->rota->figures($area, $from, $through),
-            'gaps' => $this->week->gaps($area, $from, $through),
+            'gaps' => $gaps,
+            // THE SOONEST HOLE, which is the one the figure is about: a
+            // hole tonight and a hole in nine days are not the same
+            // problem, and a count alone says neither.
+            'soonestGap' => $gaps[0] ?? null,
+            // THE FILTER ROW IS THE SAME ONE THE AGENDA AND THE BOARD
+            // WEAR. The grid is drawn from the rota service's own rows, so
+            // the row's choices are carried in the url and narrow the
+            // register beneath it rather than the grid above — stated here
+            // rather than left for a reader to discover.
+            'filter' => $filter,
+            'postsForFilter' => $whole,
+            'chosenPost' => $this->chosenPost($whole, $filter),
+            'stateLabels' => self::stateLabels(),
+            'stateCounts' => self::stateCounts($whole),
+            'shiftLabels' => $this->shiftLabels($area),
+            'shiftCounts' => self::shiftCounts($whole),
             'previous' => $from->modify(\sprintf('-%d days', RotaService::DAYS)),
             'next' => $from->modify(\sprintf('+%d days', RotaService::DAYS)),
             // THE SWAP FLOW: the register of offers over this window, and
