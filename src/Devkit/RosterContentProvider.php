@@ -16,9 +16,13 @@ namespace Uhifadhi\Roster\Devkit;
 use Doctrine\ORM\EntityManagerInterface;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
+use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
 use Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
+use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
+use Uhifadhi\Bundle\TeamBundle\Entity\User;
+use Uhifadhi\Bundle\TeamBundle\Repository\UserRepository;
 use Uhifadhi\Contracts\Devkit\ContentProviderInterface;
 use Uhifadhi\Contracts\Entity\UserInterface;
 use Uhifadhi\Roster\Entity\Absence;
@@ -27,10 +31,13 @@ use Uhifadhi\Roster\Entity\Rotation;
 use Uhifadhi\Roster\Entity\RotationPoolMember;
 use Uhifadhi\Roster\Enum\AbsenceKind;
 use Uhifadhi\Roster\Enum\RotationScope;
+use Uhifadhi\Roster\Enum\SwapState;
 use Uhifadhi\Roster\Model\Cycle;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
+use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
+use Uhifadhi\Roster\Service\RotaService;
 use Uhifadhi\Roster\Service\RotationGenerator;
 use Uhifadhi\Roster\Service\ShiftVocabularyService;
 use Uhifadhi\Roster\Service\StationWatchService;
@@ -47,7 +54,9 @@ use Uhifadhi\Roster\Service\SwapService;
  * that picked its own people would put somebody on the night watch at a
  * post whose own page never lists them, and the first thing it would hide
  * is the seam between the two modules — which is the thing most worth
- * demonstrating.
+ * demonstrating. Where an area has no postings at all there is nothing to
+ * hang on, so the people are posted first — through the area's own
+ * service, so the station page and the ring still agree.
  *
  * IT IS ALWAYS THIS MONTH. Every tab opens on the month it is opened in,
  * so content seeded into a fixed calendar month reads rich on the day it
@@ -56,12 +65,14 @@ use Uhifadhi\Roster\Service\SwapService;
  *
  * IT SEEDS THE STATES THE SCREENS HAVE TO DRAW, on purpose — a post that
  * asks for nothing, a post manned round the clock, a ring too small for
- * what its post asks, somebody away, a trade in flight and a trade already
- * answered. A demo where every post is alike exercises one branch of every
- * page and ships the rest broken.
+ * what its post asks, somebody away, and a trade in each of the four
+ * states a trade can be in. A demo where every post is alike exercises one
+ * branch of every page and ships the rest broken.
  *
- * IT SEEDS ONCE, PER AREA. An area that already has a shift vocabulary has
- * been here before and is left exactly as it is.
+ * IT ASKS FOR EACH THING SEPARATELY, NEVER FOR THE AREA AS A WHOLE. What
+ * somebody configured is left exactly as it is; what nobody did is filled
+ * in beside it. An area-wide "been here" mark is how one hand-made post
+ * kept a whole park empty through run after run.
  */
 final readonly class RosterContentProvider implements ContentProviderInterface
 {
@@ -107,11 +118,28 @@ final readonly class RosterContentProvider implements ContentProviderInterface
      */
     private const int HORIZON_DAYS = 45;
 
+    /**
+     * HOW MANY PEOPLE THE DEMO POSTS AT A POST it had to staff itself. Enough
+     * that a two-on-one-off ring has somebody for every position in it, few
+     * enough that a post still reads as a post rather than a parade.
+     */
+    private const int POSTED_PER_POST = 3;
+
+    /**
+     * HOW MANY TRADES ARE READ BACK to see which states a window already
+     * holds. Four would do today; a handful leaves room for a hand-made one
+     * beside them without the seeder concluding it has never been here.
+     */
+    private const int TRADES_READ = 50;
+
     public function __construct(
         private AreaOfInterestRepository $areas,
         private StationRepository $stations,
         private PostingRepository $postings,
+        private PostingService $postingDesk,
+        private UserRepository $people,
         private DutyRepository $duties,
+        private RotationRepository $rings,
         private StationWatchRepository $rosteredPosts,
         private AbsenceRepository $absences,
         private ShiftVocabularyService $vocabulary,
@@ -134,7 +162,7 @@ final readonly class RosterContentProvider implements ContentProviderInterface
 
     public function description(): string
     {
-        return 'Watches, rings and a month of duties at the demo areas\' posts, with absences and a trade in flight.';
+        return 'Watches, rings and a month of duties at the areas\' own posts, with absences and a trade in every state.';
     }
 
     /**
@@ -174,6 +202,7 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         // filled in beside it.
 
         $this->seedVocabulary($area);
+        $this->staffTheArea($area, $posts);
 
         $rings = [];
 
@@ -214,6 +243,78 @@ final readonly class RosterContentProvider implements ContentProviderInterface
     }
 
     /**
+     * AN AREA NOBODY IS POSTED AT IS STAFFED, THROUGH THE AREA'S OWN DOOR.
+     *
+     * A ring draws from the people posted at its post, so an area whose
+     * posts carry no postings has nobody to draw and every tab on it reads
+     * nought — which is the state the one area a demo is usually switched
+     * on for arrives in, because the core's own demo staffs the two parks
+     * it invented and no others.
+     *
+     * IT ASKS THE AREA RATHER THAN WRITING THE AREA'S TABLE. A posting is
+     * the area's fact, so it is made through {@see PostingService} — the
+     * same rule the check-ins follow — and the station page, the identity
+     * band and the ring then all say the same thing. A demo that rang
+     * people the area does not post would show a roster the post's own
+     * page contradicts.
+     *
+     * IT IS ALL OR NOTHING, PER AREA. One post nobody is posted at inside a
+     * staffed area is a deliberate state the board has to draw, and filling
+     * that in would delete it; an area with no standing posting anywhere is
+     * not making a point, it is empty.
+     *
+     * @param list<Station> $posts
+     */
+    private function staffTheArea(AreaOfInterest $area, array $posts): void
+    {
+        if ([] !== $this->postings->findStandingByArea($area)) {
+            return;
+        }
+
+        $people = $this->theInstallationsPeople();
+        $headcount = \count($people);
+        if (0 === $headcount) {
+            return;
+        }
+
+        $next = 0;
+        foreach ($posts as $post) {
+            // CONSECUTIVE PEOPLE, WALKED ROUND, and never more than there
+            // are: taking fewer than the headcount from a cursor that only
+            // moves forward hands each post distinct people, so the area's
+            // own "already posted here" refusal is never reached.
+            foreach (range(1, min(self::POSTED_PER_POST, $headcount)) as $ignored) {
+                $this->postingDesk->post($post, $people[$next % $headcount], PostingSource::WrittenHere);
+                ++$next;
+            }
+        }
+    }
+
+    /**
+     * THE REAL PEOPLE THE INSTALLATION HAS, preferring the ones who hold a
+     * position: a park's watches are stood by its rangers, and an account
+     * with no position is as likely to be an administrator as a ranger.
+     * Where nobody holds one, everybody is a candidate — an installation
+     * that has not filled in its positions still deserves a demo.
+     *
+     * @return list<User>
+     */
+    private function theInstallationsPeople(): array
+    {
+        $everyone = array_values(array_filter(
+            $this->people->findAllByName(),
+            static fn (User $person): bool => $person->isActive() && null === $person->getDeletedAt(),
+        ));
+
+        $positioned = array_values(array_filter(
+            $everyone,
+            static fn (User $person): bool => null !== $person->getPosition(),
+        ));
+
+        return [] === $positioned ? $everyone : $positioned;
+    }
+
+    /**
      * ONE POST ONTO THE ROSTER: what it asks for, and the ring of the
      * people posted there that answers it.
      *
@@ -227,26 +328,40 @@ final readonly class RosterContentProvider implements ContentProviderInterface
      */
     private function putOnTheRoster(Station $post, int $index, array &$ringed): ?Rotation
     {
-        $demands = self::DEMANDS[$index % \count(self::DEMANDS)];
+        $watch = $this->rosteredPosts->findOneForStation($post);
 
-        if (null !== $this->rosteredPosts->findOneForStation($post)) {
-            // SOMEBODY'S OWN WORK, OR THIS SEEDER'S FROM AN EARLIER RUN.
-            // Either way the post already says what it asks for, and
-            // saying it again would either change nothing or overwrite a
-            // decision with a demo.
+        if (null === $watch) {
+            $watch = $this->watches->addToRoster($post);
+            $this->watches->save(
+                $watch,
+                self::DEMANDS[$index % \count(self::DEMANDS)],
+                $watch->getSilenceWindowMinutes(),
+                $watch->getOfflineAfterMinutes(),
+                $watch->getCatchmentMetres(),
+            );
+        }
+
+        // WHAT THE POST ASKS IS THE WATCH'S OWN ANSWER, never the demo's
+        // list — the second half of the per-thing correction. A post
+        // somebody had configured was read as "been here, leave it" and
+        // returned before anybody had been rung, so an area whose single
+        // post was set up by hand stayed at nought through run after run.
+        // The configuration is still theirs; the ring answers it.
+        //
+        // AND ONLY IN SHIFTS THE AREA NAMES. A watch may ask for a shift
+        // that was never in the vocabulary or has since been closed, and a
+        // ring built round one generates nothing while reading, on every
+        // page, like a ring that is broken.
+        $demands = $this->shiftsTheAreaNames($post->getArea(), $watch->getExpects());
+
+        if ([] === $demands) {
             return null;
         }
 
-        $watch = $this->watches->addToRoster($post);
-        $this->watches->save(
-            $watch,
-            $demands,
-            $watch->getSilenceWindowMinutes(),
-            $watch->getOfflineAfterMinutes(),
-            $watch->getCatchmentMetres(),
-        );
-
-        if ([] === $demands) {
+        if (null !== $this->rings->findOneForStation($post)) {
+            // A RING IS ALREADY TURNING HERE — this seeder's from an
+            // earlier run, or somebody's own. Either way a second one at
+            // one post is two people on one watch.
             return null;
         }
 
@@ -325,6 +440,28 @@ final readonly class RosterContentProvider implements ContentProviderInterface
     }
 
     /**
+     * THE ASKED-FOR SHIFTS THE AREA ACTUALLY NAMES, in the order the post
+     * asked for them.
+     *
+     * @param list<string> $asked
+     *
+     * @return list<string>
+     */
+    private function shiftsTheAreaNames(?AreaOfInterest $area, array $asked): array
+    {
+        if (null === $area) {
+            return [];
+        }
+
+        $named = [];
+        foreach ($this->vocabulary->openFor($area) as $shift) {
+            $named[$shift->getKey()] = true;
+        }
+
+        return array_values(array_filter($asked, static fn (string $key): bool => isset($named[$key])));
+    }
+
+    /**
      * SOMEBODY IS ALWAYS AWAY. Three people, three reasons and three
      * lengths, spread across the month so the generator's skip is visible
      * in the grid rather than tucked into a corner of it.
@@ -373,51 +510,130 @@ final readonly class RosterContentProvider implements ContentProviderInterface
     }
 
     /**
-     * A TRADE IN FLIGHT AND A TRADE ALREADY ANSWERED, both inside the
-     * fortnight the grid draws — the open one is what marks two cells,
-     * and the answered one is what keeps the swaps card from reading as
-     * though a trade only ever has one state.
+     * A TRADE IN EVERY STATE IT CAN BE IN, all inside the fortnight the
+     * grid draws — the offered one marks two cells, and the three that
+     * have been answered are what keep the register from drawing one of
+     * its four rows in anger and the other three never.
+     *
+     * IT IS ASKED PER STATE, not per area. A window that already held one
+     * trade counted as done, so an area seeded before a state existed
+     * never got it however many times the seeder ran.
+     *
+     * THE FORTNIGHT IS THE PLANNER'S OWN, so every trade falls inside the
+     * window the Week tab opens on rather than near it.
      */
     private function seedSwaps(AreaOfInterest $area): void
     {
-        if ([] !== $this->swaps->recentBetween($area, $this->monthStart(), $this->monthEnd(), 1)) {
-            // A TRADE IS ALREADY ON THE BOOKS this month, so the card reads
-            // and a second pair would be a second pair every run.
-            return;
+        $from = RotaService::start(new \DateTimeImmutable('today'));
+        $through = $from->modify(\sprintf('+%d days', RotaService::DAYS - 1));
+
+        $alreadyIn = [];
+        foreach ($this->swaps->recentBetween($area, $from, $through, self::TRADES_READ) as $swap) {
+            $alreadyIn[$swap->getState()->value] = true;
         }
 
-        $duties = $this->duties->findByAreaBetween($area, new \DateTimeImmutable('today'), new \DateTimeImmutable('today')->modify('+10 days'));
+        $duties = $this->duties->findByAreaBetween($area, $from, $through);
         if (\count($duties) < 2) {
             return;
         }
 
-        $offered = $this->someoneElse($duties[0], $duties);
-        if (null !== $offered) {
-            $this->swaps->offer($duties[0], $offered, $duties[0]->getPerson());
+        // WHO IS ALREADY DUE ON WHICH DAY. An accepted trade MOVES a watch,
+        // and moving it onto somebody who is already standing one that day
+        // would be the double-booking every surface is built to show — and,
+        // where it is the same post and shift, a row the database refuses.
+        $due = [];
+        foreach ($duties as $duty) {
+            $due[$duty->getOnDay()->format('Y-m-d')][(string) $duty->getPerson()->getUuidString()] = true;
         }
 
-        $answered = $duties[\count($duties) - 1];
-        $taker = $this->someoneElse($answered, $duties);
-        if (null !== $taker) {
-            $this->swaps->decline(
-                $this->swaps->offer($answered, $taker, $answered->getPerson()),
-                new \DateTimeImmutable('today'),
-            );
+        // THE WATCHES THAT ALREADY HAVE AN OFFER OUT. Two offers on one
+        // cell is a roster that depends on who taps first, and the area
+        // refuses it — so a run that finds a state missing must look past
+        // the watches an earlier run already spoke for.
+        $spokenFor = [];
+        foreach ($this->swaps->openBetween($area, $from, $through) as $open) {
+            $spokenFor[(string) $open->getDuty()->getUuid()] = true;
+        }
+
+        $answeredOn = new \DateTimeImmutable('today');
+        $cursor = 0;
+
+        foreach (SwapState::cases() as $state) {
+            if (isset($alreadyIn[$state->value])) {
+                continue;
+            }
+
+            $trade = $this->nextTradableWatch($duties, $cursor, $spokenFor, $due);
+            if (null === $trade) {
+                return;
+            }
+
+            ['duty' => $duty, 'taker' => $taker] = $trade;
+            $swap = $this->swaps->offer($duty, $taker, $duty->getPerson());
+            $spokenFor[(string) $duty->getUuid()] = true;
+
+            match ($state) {
+                SwapState::Offered => null,
+                SwapState::Accepted => $this->swaps->accept($swap, $answeredOn),
+                SwapState::Declined => $this->swaps->decline($swap, $answeredOn),
+                SwapState::Withdrawn => $this->swaps->withdraw($swap, $answeredOn),
+            };
+
+            if (SwapState::Accepted === $state) {
+                // The watch has changed hands, so the day says so.
+                $due[$duty->getOnDay()->format('Y-m-d')][(string) $taker->getUuidString()] = true;
+            }
         }
     }
 
     /**
-     * SOMEBODY OTHER THAN THE PERSON STANDING IT — a trade needs two, and
-     * a swap offered to the person already on the watch is not a trade.
+     * THE NEXT WATCH A TRADE CAN BE MADE OF, and somebody who could take
+     * it — walking forward from where the last one was found, so four
+     * trades are four different cells.
      *
-     * @param list<Duty> $duties
+     * @param list<Duty>                         $duties
+     * @param array<string, true>                $spokenFor watches that already have an offer out
+     * @param array<string, array<string, true>> $due       who is already due, by day
+     *
+     * @return array{duty: Duty, taker: UserInterface}|null
      */
-    private function someoneElse(Duty $duty, array $duties): ?UserInterface
+    private function nextTradableWatch(array $duties, int &$cursor, array $spokenFor, array $due): ?array
     {
-        $standing = $duty->getPerson()->getUuidString();
+        while (isset($duties[$cursor])) {
+            $duty = $duties[$cursor];
+            ++$cursor;
+
+            if (isset($spokenFor[(string) $duty->getUuid()])) {
+                continue;
+            }
+
+            $taker = $this->somebodyFreeThatDay($duty, $duties, $due);
+            if (null !== $taker) {
+                return ['duty' => $duty, 'taker' => $taker];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * SOMEBODY WHO COULD ACTUALLY TAKE IT — not the person already standing
+     * the watch, and nobody who is due elsewhere that day.
+     *
+     * @param list<Duty>                         $duties
+     * @param array<string, array<string, true>> $due    who is already due, by day
+     */
+    private function somebodyFreeThatDay(Duty $duty, array $duties, array $due): ?UserInterface
+    {
+        $day = $duty->getOnDay()->format('Y-m-d');
+        $standing = (string) $duty->getPerson()->getUuidString();
+
         foreach ($duties as $other) {
-            if ($other->getPerson()->getUuidString() !== $standing) {
-                return $other->getPerson();
+            $candidate = $other->getPerson();
+            $uuid = (string) $candidate->getUuidString();
+
+            if ($uuid !== $standing && !isset($due[$day][$uuid])) {
+                return $candidate;
             }
         }
 

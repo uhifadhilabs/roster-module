@@ -18,12 +18,16 @@ use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
 use Uhifadhi\Roster\Devkit\RosterContentProvider;
+use Uhifadhi\Roster\Enum\SwapState;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
+use Uhifadhi\Roster\Repository\EditedDayRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
 use Uhifadhi\Roster\Repository\SwapRepository;
+use Uhifadhi\Roster\Service\RotaService;
+use Uhifadhi\Roster\Service\StationWatchService;
 use Uhifadhi\Roster\Tests\Integration\IntegrationTestCase;
 
 /**
@@ -343,8 +347,8 @@ final class RosterContentProviderTest extends IntegrationTestCase
      */
     public function testAConfiguredPostIsUntouchedAndTheRestOfTheAreaIsStillSeeded(): void
     {
-        $watches = $this->service(\Uhifadhi\Roster\Service\StationWatchService::class);
-        self::assertInstanceOf(\Uhifadhi\Roster\Service\StationWatchService::class, $watches);
+        $watches = $this->service(StationWatchService::class);
+        self::assertInstanceOf(StationWatchService::class, $watches);
 
         $posts = $this->em->getRepository(Station::class)->findBy(['area' => $this->area], ['code' => 'ASC']);
         self::assertNotEmpty($posts);
@@ -373,5 +377,127 @@ final class RosterContentProviderTest extends IntegrationTestCase
 
         self::assertSame([], $this->repository(StationWatchRepository::class)->findByArea($bare));
         self::assertSame([], $this->repository(RotationRepository::class)->findByArea($bare));
+    }
+
+    /**
+     * A POST SOMEBODY PUT ON THE ROSTER BY HAND STILL GETS A RING.
+     *
+     * Configuring a post and staffing it are two decisions, and only the
+     * first of them had been made. The seeder read a watch on a post as
+     * "been here, leave it" and returned before it had rung anybody, so a
+     * post an administrator had set up sat on every tab with nothing on
+     * it — and so did the whole of an area whose single post was set up
+     * that way. What a person configured is still theirs: the ring
+     * answers THE WATCH'S OWN demands, never the demo's list.
+     */
+    public function testAPostConfiguredByHandStillGetsARingAnsweringItsOwnDemands(): void
+    {
+        $watches = $this->service(StationWatchService::class);
+        self::assertInstanceOf(StationWatchService::class, $watches);
+
+        $posts = $this->em->getRepository(Station::class)->findBy(['area' => $this->area], ['code' => 'ASC']);
+        self::assertNotEmpty($posts);
+        $watches->save($watches->addToRoster($posts[0]), ['night'], 45, 180, 900);
+
+        $this->provider()->load();
+
+        $rotation = $this->repository(RotationRepository::class)->findOneForStation($posts[0]);
+        self::assertNotNull($rotation, 'A post on the books with nobody on it is not a demo.');
+
+        $shifts = [];
+        foreach ($this->repository(DutyRepository::class)->findByStationBetween($posts[0], $this->monthStart(), $this->monthEnd()) as $duty) {
+            $shifts[$duty->getShiftKey()] = true;
+        }
+
+        self::assertSame(['night'], array_keys($shifts), 'It stands the watch it was configured for, and no other.');
+    }
+
+    /**
+     * AN AREA NOBODY IS POSTED AT IS STAFFED FROM THE INSTALLATION'S OWN
+     * PEOPLE, THROUGH THE AREA'S OWN DOOR.
+     *
+     * A ring is drawn from the people posted at its post, so an area whose
+     * posts carry no postings has nothing to draw and every tab on it
+     * reads nought. The demo therefore posts the real people the
+     * installation has — through {@see PostingService}, the area's own
+     * service, so the station page, the identity band and the ring all
+     * say the same thing. It only does so where the area has NO standing
+     * posting at all: one unstaffed post inside a staffed area is a state
+     * worth drawing, and this must not fill it in.
+     */
+    public function testAnAreaNobodyIsPostedAtIsStaffedFromTheInstallationsPeople(): void
+    {
+        $quiet = $this->anArea('quiet reserve');
+        foreach (range(1, 3) as $n) {
+            $this->aStation($quiet, \sprintf('quiet post %d', $n), \sprintf('QT-0%d', $n));
+        }
+        $this->em->flush();
+
+        $this->provider()->load();
+
+        $postings = $this->service(PostingService::class);
+        self::assertInstanceOf(PostingService::class, $postings);
+
+        $posts = $this->em->getRepository(Station::class)->findBy(['area' => $quiet], ['code' => 'ASC']);
+        self::assertNotEmpty($postings->standingAt($posts[0]), 'Somebody is posted at the first post.');
+
+        self::assertNotEmpty($this->repository(RotationRepository::class)->findByArea($quiet));
+        self::assertNotEmpty($this->repository(DutyRepository::class)->findByAreaBetween($quiet, $this->monthStart(), $this->monthEnd()));
+    }
+
+    /**
+     * ONE UNSTAFFED POST INSIDE A STAFFED AREA IS LEFT UNSTAFFED. The area's
+     * own demo leaves a post with nobody at it on purpose; filling it in
+     * would delete the state.
+     */
+    public function testAPostNobodyIsPostedAtInsideAStaffedAreaIsLeftAlone(): void
+    {
+        $spare = $this->aStation($this->area, 'spare post', 'ST-09');
+        $this->em->flush();
+
+        $this->provider()->load();
+
+        $postings = $this->service(PostingService::class);
+        self::assertInstanceOf(PostingService::class, $postings);
+
+        self::assertSame([], $postings->standingAt($spare));
+    }
+
+    /**
+     * A TRADE IN EVERY STATE IT CAN BE IN — offered, accepted, declined and
+     * withdrawn. A register that only ever shows two of the four draws two
+     * of its four rows in anger and the other two never.
+     */
+    public function testATradeIsSeededInEveryState(): void
+    {
+        $this->provider()->load();
+
+        $from = RotaService::start(new \DateTimeImmutable('today'));
+        $through = $from->modify(\sprintf('+%d days', RotaService::DAYS - 1));
+
+        $states = [];
+        foreach ($this->repository(SwapRepository::class)->findRecentBetween($this->area, $from, $through, 50) as $swap) {
+            $states[$swap->getState()->value] = true;
+        }
+
+        foreach (SwapState::cases() as $state) {
+            self::assertArrayHasKey($state->value, $states, \sprintf('No trade is %s.', $state->value));
+        }
+    }
+
+    /**
+     * AN ACCEPTED TRADE MARKS ITS DAY, so the next generation leaves the
+     * agreement two people made exactly where they put it.
+     */
+    public function testAnAcceptedTradeProtectsItsDay(): void
+    {
+        $this->provider()->load();
+
+        $protected = 0;
+        foreach ($this->em->getRepository(Station::class)->findBy(['area' => $this->area]) as $post) {
+            $protected += \count($this->repository(EditedDayRepository::class)->protectedDaysBetween($post, $this->monthStart(), $this->monthEnd()));
+        }
+
+        self::assertGreaterThan(0, $protected);
     }
 }
