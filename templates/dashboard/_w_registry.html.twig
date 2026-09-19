@@ -1,0 +1,18 @@
+{# Widget "registry" — the four columns this module owns on a station.
+
+   NAME, KIND, POINT AND CALL SIGN ARE THE AREA'S and are not repeated here;
+   what a card about the roster's own columns says is what each post EXPECTS.
+   Editing is on the configure page and never here. #}
+<div class="c">
+    <span class="tab">What each station&rsquo;s watch expects<span class="src">&middot; {{ dash.posts|length }} on the books</span></span>
+    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::WATCHES_ROUTE'), {uuid: area.uuid}) }}">Configure the watches &rarr;</a>
+    {% for post in dash.posts|slice(0, 6) %}
+        <div class="rset">
+            <span class="lb"><b>{{ post.stationName }}</b><em>{{ post.state.label }}</em></span>
+            <span class="ct"><span class="r-sh"><i></i>{{ post.expected }} expected</span></span>
+            <span class="why"><span class="unit">rostered</span> {{ post.rostered|length }} <span class="unit">verified</span> {{ post.verified }} <span class="unit">flagged</span> {{ post.flagged }}</span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed</em></div>
+    {% endfor %}
+</div>

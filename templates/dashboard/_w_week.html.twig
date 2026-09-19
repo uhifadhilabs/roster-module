@@ -1,0 +1,20 @@
+{# Widget "week" — the fortnight, posts down and days across, every hole
+   drawn as a hole. The planner's own grid, on the dashboard. #}
+<div class="c">
+    <span class="tab">The week plan<span class="src">&middot; {{ dash.weekDays|length }} days</span></span>
+    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid}) }}">The fortnight &rarr;</a>
+    {% for row in dash.weekRows|slice(0, 6) %}
+        <div class="rset">
+            <span class="lb"><b>{{ row.stationName }}</b><em>{{ row.stationCode ?: '—' }}</em></span>
+            <span class="ct">
+                {%- for day in dash.weekDays|slice(0, 7) %}
+                    {%- set short = row.shortfallOn(day) %}
+                    <span class="r-sh {{ short > 0 ? 'st-fail' : (row.on(day)|length > 0 ? 'st-ok' : '') }}"><i></i>{{ day.format('j') }}</span>
+                {%- endfor %}
+            </span>
+            <span class="why">{% if row.runsNoWatch %}this post declares no watch{% else %}the first seven of the fortnight &mdash; the tab draws all {{ dash.weekDays|length }}{% endif %}</span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed</em></div>
+    {% endfor %}
+</div>

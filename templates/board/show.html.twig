@@ -32,36 +32,7 @@
         {% if posts is empty %}
             <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed</em></div>
         {% else %}
-            <div class="r-day">
-                <div class="r-ruler">
-                    <span></span>
-                    <span class="hrs">{% for hour in [0, 3, 6, 9, 12, 15, 18, 21] %}<span>{{ '%02d'|format(hour) }}</span>{% endfor %}</span>
-                </div>
-                <div class="r-daywrap">
-                    {% for post in posts %}
-                        <div class="r-dayrow">
-                            <span class="lbl">{{ post.stationName }}<em>{{ post.state.label }}</em></span>
-                            <span class="r-track">
-                                {%- for block in blocks[post.stationUuid]|default([]) %}
-                                    <span class="r-blk{{ block.crossesMidnight ? ' night' : '' }}"
-                                          style="left:{{ block.leftPercent }}%;width:{{ block.widthPercent }}%"
-                                          title="{{ block.label }}{{ block.fromYesterday ? ' — began yesterday' : '' }}: {{ block.people|join(' · ') }}">
-                                        <span class="n">{{ block.count }}</span> {{ block.people|join(' · ') }}
-                                    </span>
-                                {%- else %}
-                                    <span class="r-blk gap" style="left:0;width:100%">
-                                        {{ post.state.value == 'no_watch' ? 'no watch declared — never counted, never late, never a hole' : 'nothing rostered on this day' }}
-                                    </span>
-                                {%- endfor %}
-                            </span>
-                        </div>
-                    {% endfor %}
-                    {% if nowPercent is not null %}
-                        <div class="r-now" style="left:{{ nowPercent }}%"></div>
-                    {% endif %}
-                </div>
-            </div>
-
+            {{ include('@UhifadhiRoster/board/_wall.html.twig', {posts: posts, blocks: blocks, nowPercent: nowPercent, area: area}, with_context: false) }}
         {% endif %}
     </div>
 {% endblock %}

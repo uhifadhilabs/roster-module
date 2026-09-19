@@ -1,0 +1,16 @@
+{# Widget "people" — the rota as the people in it, the watches standing now
+   first. Department and posting are the AREA's and team's facts; what this
+   card adds is the watch each of them is on today. #}
+<div class="c">
+    <span class="tab">People on the roster<span class="src">&middot; {{ dash.onTheWatch|length }} reporting today</span></span>
+    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::CALENDAR_ROUTE'), {uuid: area.uuid}) }}">One ranger&rsquo;s month &rarr;</a>
+    {% for row in dash.onTheWatch|slice(0, 6) %}
+        <div class="rset">
+            <span class="lb"><b>{{ row.person.personName }}</b><em>{{ row.post.stationName }}</em></span>
+            <span class="ct"><span class="r-sh {{ row.person.isFlagged ? 'st-fail' : 'st-ok' }}"><i></i>{{ row.person.shiftLabel|lower }}</span></span>
+            <span class="why">{{ row.person.state.label }}{% if row.person.watchCount > 1 %} &middot; {{ row.person.watchCount }} watches today{% endif %}{% if row.person.isStillOut %} &middot; still out{% endif %}</span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>Nobody has reported today</b><em>rostered and reporting are different facts, and this card is about the second</em></div>
+    {% endfor %}
+</div>

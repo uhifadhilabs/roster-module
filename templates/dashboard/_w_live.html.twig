@@ -1,0 +1,20 @@
+{# Widget "live" — who is reporting this minute, with the age of the last
+   position beside each of them. Age and not a coordinate: where somebody is
+   belongs on the plate, how old the answer is belongs in a list. #}
+<div class="c">
+    <span class="tab">Reporting right now<span class="src">&middot; <time datetime="{{ dash.now.format('c') }}" data-localtime-format="time">{{ dash.now.format('H:i') }}</time></span></span>
+    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::LIVE_ROUTE'), {uuid: area.uuid}) }}">The live plate &rarr;</a>
+    {% for row in dash.onTheWatch|slice(0, 6) %}
+        {% set watch = row.person.watches|last %}
+        <div class="rset">
+            <span class="lb"><b>{{ row.person.personName }}</b><em>{{ row.post.stationName }}</em></span>
+            <span class="ct"><span class="r-ci {{ row.person.state.value }}"><i></i>{{ row.person.state.label }}</span></span>
+            <span class="why">
+                {%- if watch and watch.lastPingAt %}last position <time datetime="{{ watch.lastPingAt.format('c') }}" data-localtime-format="time">{{ watch.lastPingAt.format('H:i') }}</time> &middot; {{ watch.pings }} since the check-in
+                {%- else %}no position has arrived for this watch{% endif -%}
+            </span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>Nobody is reporting this minute</b><em>every watch either has not begun or has been closed</em></div>
+    {% endfor %}
+</div>

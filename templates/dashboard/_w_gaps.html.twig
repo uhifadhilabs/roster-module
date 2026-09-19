@@ -1,0 +1,18 @@
+{# Widget "gaps" — every unfilled watch in the fortnight, soonest first.
+
+   THE ONE CARD THAT SHOWS ABSENCE rather than activity, which is why it is
+   ordered by when rather than by where: a hole tonight and a hole in nine
+   days are not the same problem. #}
+<div class="c">
+    <span class="tab">Unfilled shifts<span class="src">&middot; {{ dash.gaps|length }} in the fortnight</span></span>
+    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid}) }}">The fortnight &rarr;</a>
+    {% for gap in dash.gaps|slice(0, 6) %}
+        <div class="rset">
+            <span class="lb"><b>{{ gap.station }}</b><em><time datetime="{{ gap.day.format('Y-m-d') }}" data-localtime-format="day">{{ gap.day.format('D j M')|lower }}</time></em></span>
+            <span class="ct"><span class="r-sh st-fail"><i></i>{{ gap.label|lower }}</span></span>
+            <span class="why">the pattern asked for {{ gap.expected }} and {{ gap.filled }} {{ gap.filled == 1 ? 'is' : 'are' }} on it</span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>Every watch the pattern asked for is filled</b><em>across the whole fortnight the planner draws</em></div>
+    {% endfor %}
+</div>

@@ -1,0 +1,18 @@
+{# Widget "offline" — every post that is late, silent or offline.
+
+   THE ONLY READING IN WHICH AN OFFLINE POST CANNOT BE MISSED, which is the
+   whole reason the direction it leads exists. Late is a warning and not a
+   fault: it clears itself the moment something lands, and nothing here is
+   dismissed by hand. #}
+<div class="c">
+    <span class="tab">Silent &amp; offline<span class="src">&middot; {{ dash.quiet|length }} of {{ dash.posts|length }}</span></span>
+    {% for post in dash.quiet|slice(0, 6) %}
+        <div class="rset">
+            <span class="lb"><b>{{ post.stationName }}</b><em>{{ post.state.label }}</em></span>
+            <span class="ct"><span class="r-sh {{ post.state.value == 'offline' ? 'st-fail' : 'st-warn' }}"><i></i>{{ post.state.label }}</span></span>
+            <span class="why">{% if post.silentFor is not null %}nothing has landed for {{ post.silentFor }} minutes{% else %}nothing has landed inside this post&rsquo;s silence window{% endif %}</span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>Every post on the books is reporting</b><em>each has something newer than its own silence window</em></div>
+    {% endfor %}
+</div>

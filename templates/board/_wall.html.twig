@@ -1,0 +1,38 @@
+{# THE WALL ITSELF — twenty-four hours across, one post per row, a block for
+   every watch and a line where now is.
+
+   IT IS A PARTIAL BECAUSE TWO SURFACES DRAW IT: the Day board tab and the
+   dashboard's day-board widget. The library's preview IS the widget, so the
+   picture and the page have to be one file or they drift.
+
+   A NIGHT WATCH IS TWO BLOCKS. It crosses midnight, so the morning before
+   06:00 belongs to the watch that began yesterday; drawing it as one would
+   be a lie about the day it belongs to. #}
+    <div class="r-day">
+        <div class="r-ruler">
+            <span></span>
+            <span class="hrs">{% for hour in [0, 3, 6, 9, 12, 15, 18, 21] %}<span>{{ '%02d'|format(hour) }}</span>{% endfor %}</span>
+        </div>
+        <div class="r-daywrap">
+            {% for post in posts %}
+                <div class="r-dayrow">
+                    <span class="lbl">{{ post.stationName }}<em>{{ post.state.label }}</em></span>
+                    <span class="r-track">
+                        {%- for block in blocks[post.stationUuid]|default([]) %}
+                            <span class="r-blk{{ block.crossesMidnight ? ' night' : '' }}"
+                                  style="left:{{ block.leftPercent }}%;width:{{ block.widthPercent }}%"
+                                  title="{{ block.label }}{{ block.fromYesterday ? ' — began yesterday' : '' }}: {{ block.people|join(' · ') }}">
+                                <span class="n">{{ block.count }}</span> {{ block.people|join(' · ') }}
+                            </span>
+                        {%- else %}
+                            <span class="r-blk gap" style="left:0;width:100%">
+                                {{ post.state.value == 'no_watch' ? 'no watch declared — never counted, never late, never a hole' : 'nothing rostered on this day' }}
+                            </span>
+                        {%- endfor %}
+                    </span>
+                </div>
+            {% endfor %}
+            {% if nowPercent is not null %}
+                <div class="r-now" style="left:{{ nowPercent }}%"></div>
+            {% endif %}
+        </div>

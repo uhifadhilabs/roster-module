@@ -1,0 +1,9 @@
+{# Widget "day" — the day as a wall, the Day board tab's own content on the
+   dashboard. Twenty-four hours across, one post per row, a block per watch.
+   The line at now is the tab's; a card this size states the hour scale and
+   the blocks, and the tab is one click away. #}
+<div class="c">
+    <span class="tab">The day board<span class="src">&middot; <time datetime="{{ dash.day.format('Y-m-d') }}" data-localtime-format="day">{{ dash.day.format('D j M')|lower }}</time></span></span>
+    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::BOARD_ROUTE'), {uuid: area.uuid}) }}">The day board &rarr;</a>
+    {{ include('@UhifadhiRoster/board/_wall.html.twig', {posts: dash.posts, blocks: dash.blocks, nowPercent: dash.nowPercent, area: area}, with_context: false) }}
+</div>

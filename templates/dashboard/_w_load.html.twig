@@ -1,0 +1,17 @@
+{# Widget "load" — shifts and nights per person this month.
+
+   NIGHTS ARE COUNTED SEPARATELY and the card is ordered by them: a month of
+   nights and a month of days are not the same month, and "is this fair" is
+   a question about the first. #}
+<div class="c">
+    <span class="tab">Nights and hours<span class="src">&middot; this month</span></span>
+    {% for row in dash.load %}
+        <div class="rset">
+            <span class="lb"><b>{{ row.name }}</b><em>{{ row.watches }} watch{{ row.watches == 1 ? '' : 'es' }}</em></span>
+            <span class="ct"><span class="r-sh {{ row.nights > 0 ? 'st-warn' : '' }}"><i></i>{{ row.nights }} night{{ row.nights == 1 ? '' : 's' }}</span></span>
+            <span class="why">{% if row.nights > 0 %}{{ (row.nights / row.watches * 100)|round }}% of their month is on the night watch{% else %}no night watch this month{% endif %}</span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>Nothing is rostered this month</b><em>there is no load to compare until the ring has generated one</em></div>
+    {% endfor %}
+</div>

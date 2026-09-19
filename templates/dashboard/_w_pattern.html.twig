@@ -1,0 +1,20 @@
+{# Widget "pattern" — the standing rotation each post runs, and how far
+   ahead it has been generated. READ ONLY: a ring is edited in the rotation
+   editor, and a card that let it be changed here would be a second editor. #}
+<div class="c">
+    <span class="tab">The standing pattern<span class="src">&middot; {{ dash.rotations|length }} rotation{{ dash.rotations|length == 1 ? '' : 's' }}</span></span>
+    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ROTATION_ROUTE'), {uuid: area.uuid}) }}">The rotation editor &rarr;</a>
+    {% for rotation in dash.rotations|slice(0, 6) %}
+        <div class="rset">
+            <span class="lb"><b>{{ rotation.scope.value == 'team' ? rotation.teamName : (rotation.station ? rotation.station.name : '—') }}</b><em>{{ rotation.scope.label|lower }}</em></span>
+            <span class="ct"><span class="r-sh"><i></i>{{ rotation.pool|length }} in the ring</span></span>
+            <span class="why">
+                {%- if rotation.generatedThrough %}generated to <time datetime="{{ rotation.generatedThrough.format('Y-m-d') }}" data-localtime-format="day">{{ rotation.generatedThrough.format('j M')|lower }}</time>
+                {%- else %}nothing generated from it yet{% endif %}
+                &middot; horizon {{ rotation.horizonDays }} days
+            </span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>No rotation is turning in this area</b><em>a post with no ring is short, and every surface draws it as the hole it is</em></div>
+    {% endfor %}
+</div>

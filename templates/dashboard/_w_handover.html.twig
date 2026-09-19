@@ -1,0 +1,21 @@
+{# Widget "handover" — the next shift change: who goes off, who comes on.
+
+   IT READS THE PLAN, NOT THE CLOCK ALONE. The people are the ones rostered
+   on either side of the change; whether they have checked in is the
+   agenda's question and is deliberately not folded in here. #}
+<div class="c">
+    <span class="tab">Next shift change<span class="src">&middot; who goes off and who comes on</span></span>
+    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::TODAY_ROUTE'), {uuid: area.uuid}) }}">The agenda &rarr;</a>
+    {% set coming = dash.figures.dueLaterToday %}
+    <div class="rset">
+        <span class="lb"><b>On the watch now</b><em>this minute</em></span>
+        <span class="ct"><span class="r-sh st-ok"><i></i>{{ dash.figures.onTheWatchNow }}</span></span>
+        <span class="why">they hand over to whoever the ring puts on next</span>
+    </div>
+    <div class="rset">
+        <span class="lb"><b>Coming on</b><em>later today</em></span>
+        <span class="ct"><span class="r-sh {{ coming > 0 ? 'st-ok' : 'st-warn' }}"><i></i>{{ coming }}</span></span>
+        <span class="why">{% if coming > 0 %}their check-in is not expected until the watch begins{% else %}nobody else is due today &mdash; the last watch of the day is standing{% endif %}</span>
+    </div>
+    <div class="rfrag"><b>{{ dash.figures.onTheWatchTomorrow }} on the watch tomorrow</b><em>the plan, not a forecast &mdash; the ring has already generated it</em></div>
+</div>

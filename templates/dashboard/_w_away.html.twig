@@ -1,0 +1,21 @@
+{# Widget "away" — leave, rest days and courses: who is not available.
+
+   AN ABSENCE IS THIS MODULE'S because the HOLE it makes is; approval
+   belongs to Team and is deliberately not shown here. #}
+<div class="c">
+    <span class="tab">Away<span class="src">&middot; {{ dash.absences|length }} this month</span></span>
+    {% for absence in dash.absences|slice(0, 6) %}
+        <div class="rset">
+            <span class="lb"><b>{{ absence.person.fullName }}</b><em>{{ absence.kind.label|lower }}</em></span>
+            <span class="ct"><span class="r-sh st-warn"><i></i>{{ absence.kind.label|lower }}</span></span>
+            <span class="why">
+                <time datetime="{{ absence.startsOn.format('Y-m-d') }}" data-localtime-format="day">{{ absence.startsOn.format('j M')|lower }}</time>
+                &ndash;
+                <time datetime="{{ absence.endsOn.format('Y-m-d') }}" data-localtime-format="day">{{ absence.endsOn.format('j M')|lower }}</time>
+                &middot; the generator steps over these days
+            </span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>Nobody is down as away this month</b><em>an absence is recorded here because the hole it makes is this module&rsquo;s to show</em></div>
+    {% endfor %}
+</div>

@@ -39,8 +39,8 @@ use Uhifadhi\Roster\Service\AgendaService;
 use Uhifadhi\Roster\Service\DayBoardService;
 use Uhifadhi\Roster\Service\PresenceReader;
 use Uhifadhi\Roster\Service\RosterCalendar;
+use Uhifadhi\Roster\Service\RosterDashboardService;
 use Uhifadhi\Roster\Service\RosteredPeople;
-use Uhifadhi\Roster\Service\RosterFiguresService;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\RotaService;
 use Uhifadhi\Roster\Service\SwapCostService;
@@ -134,7 +134,7 @@ final class RosterController
         private readonly RosterCalendar $calendar,
         private readonly SwapService $swaps,
         private readonly SwapCostService $cost,
-        private readonly RosterFiguresService $figures,
+        private readonly RosterDashboardService $dashboard,
         private readonly AgendaService $agenda,
         private readonly ShiftRepository $shifts,
         private readonly WidgetService $widgetService,
@@ -207,19 +207,14 @@ final class RosterController
     ): Response {
         $day = new \DateTimeImmutable('today');
 
-        // ONE READ OF THE DAY, handed to every widget that needs it. Five
-        // cards asking the presence seam separately is five chances for one
-        // screen to disagree with itself about the same morning.
-        $posts = $this->presence->postsOn($area, $day);
-        $gaps = $this->week->gaps($area, $day, $day->modify(\sprintf('+%d days', RosterFiguresService::HOLE_HORIZON_DAYS - 1)));
-
+        // ONE READ OF THE DAY, and it is the SAME build the widget library
+        // hands its previews. Two contexts would eventually disagree, and
+        // the disagreement would show up as a preview that looked nothing
+        // like the card it added.
         return new Response($this->twig->render('@UhifadhiRoster/overview/show.html.twig', [
             'area' => $area,
             'band' => $this->identity->bandFor($area),
-            'day' => $day,
-            'posts' => $posts,
-            'figures' => $this->figures->forDay($area, $day),
-            'decisions' => RosterFiguresService::decisions($posts, $gaps),
+            'dash' => $this->dashboard->build($area, $day),
             'rosterDecisionLimit' => self::DECISIONS_SHOWN,
             'rosterStationLimit' => self::STATIONS_SHOWN,
             // WHICH WIDGETS, HOW WIDE, IN WHAT ORDER — the shell's widget

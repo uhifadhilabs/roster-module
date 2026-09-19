@@ -9,12 +9,12 @@
 
    BOUNDED, like every dashboard card: the first few posts, then the door. #}
 <div class="c">
-    <span class="tab">Stations &amp; who is actually on<span class="src">&middot; {{ posts|length }} of the area&rsquo;s {{ figures.postsInTheArea }}</span></span>
-    {% if posts|length > rosterStationLimit %}
-        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::BOARD_ROUTE'), {uuid: area.uuid}) }}">{{ rosterStationLimit }} of {{ posts|length }} &middot; the day board &rarr;</a>
+    <span class="tab">Stations &amp; who is actually on<span class="src">&middot; {{ dash.posts|length }} of the area&rsquo;s {{ dash.figures.day.postsInTheArea }}</span></span>
+    {% if dash.posts|length > rosterStationLimit %}
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::BOARD_ROUTE'), {uuid: area.uuid}) }}">{{ rosterStationLimit }} of {{ dash.posts|length }} &middot; the day board &rarr;</a>
     {% endif %}
 
-    {% for post in posts|slice(0, rosterStationLimit) %}
+    {% for post in dash.posts|slice(0, rosterStationLimit) %}
         <div class="rset">
             <span class="lb"><b>{{ post.stationName }}</b><em>{{ post.state.label }}</em></span>
             <span class="ct">

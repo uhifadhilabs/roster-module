@@ -1,0 +1,22 @@
+{# Widget "checkins" — the day's check-ins newest first.
+
+   THE SAME WATCHES THE AGENDA DRAWS, in the other shape: under their posts
+   there, in the order they were claimed here. One reading, two readings of
+   it — never two queries. #}
+<div class="c">
+    <span class="tab">The check-in feed<span class="src">&middot; {{ dash.checkIns|length }} today</span></span>
+    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::TODAY_ROUTE'), {uuid: area.uuid}) }}">The agenda &rarr;</a>
+    {% for row in dash.checkIns|slice(0, 8) %}
+        <div class="rset">
+            <span class="lb"><b>{{ row.person }}</b><em>{{ row.station ?: '—' }}</em></span>
+            <span class="ct"><span class="r-ci {{ row.watch.state.value }}"><i></i>{{ row.watch.state.label }}</span></span>
+            <span class="why">
+                {%- if row.watch.occurredAt %}<time datetime="{{ row.watch.occurredAt.format('c') }}" data-localtime-format="time">{{ row.watch.occurredAt.format('H:i') }}</time>{% endif %}
+                &middot; {{ row.shift|lower }}
+                {%- if row.watch.notCheckedOut %} &middot; <b>nobody closed this watch</b>{% endif -%}
+            </span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>No check-in has arrived today</b><em>nothing reported is not the same as nobody working &mdash; the agenda says which people are due</em></div>
+    {% endfor %}
+</div>

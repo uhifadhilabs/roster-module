@@ -25,6 +25,7 @@ use Uhifadhi\Bundle\AreaBundle\Service\CheckInService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
 use Uhifadhi\Bundle\ShellBundle\Widget\Registry\WidgetSurfaceInterface;
+use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetEndpoint;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetService;
 use Uhifadhi\Bundle\TeamBundle\Repository\DepartmentRepository;
 use Uhifadhi\Bundle\TeamBundle\Repository\UserRepository;
@@ -34,6 +35,7 @@ use Uhifadhi\Contracts\Shell\ConfigurationSectionsInterface;
 use Uhifadhi\Contracts\Shell\ModuleTabsInterface;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
 use Uhifadhi\Roster\Controller\RosterController;
+use Uhifadhi\Roster\Controller\RosterWidgetsController;
 use Uhifadhi\Roster\DependencyInjection\RosterConfiguration;
 use Uhifadhi\Roster\Devkit\PresenceContentProvider;
 use Uhifadhi\Roster\Devkit\RosterContentProvider;
@@ -45,7 +47,9 @@ use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
 use Uhifadhi\Roster\Service\AgendaService;
+use Uhifadhi\Roster\Service\RosterDashboardService;
 use Uhifadhi\Roster\Service\RosterFiguresService;
+use Uhifadhi\Roster\Service\RosterWidgetUrls;
 use Uhifadhi\Roster\Shell\RosterConfigurationSections;
 use Uhifadhi\Roster\Shell\RosterModuleTabs;
 use Uhifadhi\Roster\Shell\RosterStationSections;
@@ -279,6 +283,21 @@ final class UhifadhiRosterBundle extends AbstractBundle
             ])
             ->tag(WatchProviderInterface::TAG);
 
+        // THE WHOLE SURFACE'S ONE READ. Both the dashboard and the library
+        // build their widget context from this, which is what makes a
+        // library preview the widget rather than a picture of one.
+        $services->set('roster.dashboard', RosterDashboardService::class)
+            ->args([
+                service('roster.presence'),
+                service('roster.agenda'),
+                service('roster.week_grid'),
+                service('roster.day_board'),
+                service(DutyRepository::class),
+                service(RotationRepository::class),
+                service(AbsenceRepository::class),
+                service(ShiftRepository::class),
+            ]);
+
         // THE AGENDA — which posts and people a filtered day shows, and the
         // five figures over the whole of it.
         $services->set('roster.agenda', AgendaService::class)
@@ -381,7 +400,7 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service('roster.calendar'),
                 service('roster.swaps'),
                 service('roster.swap_cost'),
-                service('roster.figures'),
+                service('roster.dashboard'),
                 service('roster.agenda'),
                 service(ShiftRepository::class),
                 service(WidgetService::class),
@@ -441,6 +460,31 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 ])
                 ->public();
             $services->alias(RosterConfigureController::class, 'roster.controller.configure')->public();
+
+            /*
+             * THE WIDGET LIBRARY — the configure page's first section.
+             *
+             * SECURITY-GATED like every other write here, and for the same
+             * reason: arranging a dashboard is a write attributed to a
+             * person, and without a firewall there is nobody to attribute
+             * it to. The screen does not exist rather than existing
+             * unattributed.
+             */
+            $services->set('roster.widget_urls', RosterWidgetUrls::class)
+                ->args([service('router')]);
+
+            $services->set('roster.controller.widgets', RosterWidgetsController::class)
+                ->args([
+                    service('twig'),
+                    service(WidgetService::class),
+                    service(WidgetEndpoint::class),
+                    service('roster.widget_urls'),
+                    service('roster.dashboard'),
+                    service('roster.identity'),
+                    service('router'),
+                ])
+                ->public();
+            $services->alias(RosterWidgetsController::class, 'roster.controller.widgets')->public();
         }
     }
 

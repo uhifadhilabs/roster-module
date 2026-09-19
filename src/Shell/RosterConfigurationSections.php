@@ -20,6 +20,7 @@ use Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository;
 use Uhifadhi\Contracts\Shell\ConfigurationSection;
 use Uhifadhi\Contracts\Shell\ConfigurationSectionsInterface;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
+use Uhifadhi\Roster\Controller\RosterWidgetsController;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 
 /**
@@ -39,15 +40,18 @@ use Uhifadhi\Roster\Module\RosterModuleProvider;
  * page's heading and the page's strip, and the Configure action stays lit on
  * it, because that screen adopts the same frame.
  *
- * WIDGET LIBRARY IS NOT HERE YET. It is first on every configure page in the
- * platform and will be, the day this module ships its widget surface; the
- * shell anchors it by id, so adding it later changes nothing else.
+ * WIDGET LIBRARY IS FIRST, as it is on every configure page in the platform.
+ * It is a section of THIS page and never a door on the dashboard: editing a
+ * surface does not happen on the surface being edited.
  *
  * IT RESOLVES THE REQUEST ITSELF, like every other source in the frame: the
  * shell passes nothing, because it has a slug and not an area.
  */
 final readonly class RosterConfigurationSections implements ConfigurationSectionsInterface
 {
+    /** How this area's roster dashboard is composed. */
+    public const string WIDGETS = 'widgets';
+
     /** The rotation a post or a team runs. */
     public const string ROTATION = 'rotation';
 
@@ -94,6 +98,7 @@ final readonly class RosterConfigurationSections implements ConfigurationSection
         $uuid = (string) $area->getUuidString();
 
         return [
+            ConfigurationSection::screen(self::WIDGETS, 'Widget library', RosterWidgetsController::LIBRARY_ROUTE, ['uuid' => $uuid]),
             ConfigurationSection::screen(self::ROTATION, 'Rotation', RosterConfigureController::ROTATION_ROUTE, ['uuid' => $uuid]),
             ConfigurationSection::screen(self::WATCHES, 'Watches', RosterConfigureController::WATCHES_ROUTE, ['uuid' => $uuid]),
             ConfigurationSection::screen(ConfigurationSection::SETTINGS, 'Settings', RosterConfigureController::SETTINGS_ROUTE, ['uuid' => $uuid]),

@@ -1,0 +1,61 @@
+{# ============================================================================
+   THE ROSTER'S WIDGET LIBRARY — the FIRST section of the module's configure
+   page, exactly where every other module in the platform keeps it.
+
+   IT IS NOT A DOOR ON THE DASHBOARD. Editing never happens on the surface
+   being edited; the dashboard carries no customize control at all, and this
+   screen is reached from the configure strip like Rotation, Watches and
+   Settings.
+
+   THE PAGE IS ONLY CHROME. Everything below the note is the shell's own
+   preset component, identical on every surface that ships a catalogue and
+   parameterised by this one's catalogue, partial name and routes. There are
+   no roster-specific widget mechanics anywhere.
+
+   AREA-SCOPED: every url the component is handed names this area, so
+   arranging one area's roster leaves every other area's alone.
+   ========================================================================== #}
+{% extends '@UhifadhiRoster/configure/_frame.html.twig' %}
+
+{% block title %}Roster · widget library{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {# type="module" is deferred by definition, so the library is armed after
+       the DOM exists. The script is the widget framework's — one library,
+       every surface. #}
+    <script type="module">
+        import { initWidgetLibrary } from 'uhifadhi/widgets';
+        initWidgetLibrary();
+    </script>
+{% endblock %}
+
+{% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / configure / widgets{% endblock %}
+
+{% block shell_page_actions %}
+    {# Throwing the whole composition away asks first — through the shell's
+       reusable confirm modal, never the browser's own dialog. #}
+    <button type="button" class="tgl w-act" {{ constant('Uhifadhi\\Bundle\\ShellBundle\\Widget\\Model\\WidgetDom::RESET') }}
+            {{ stimulus_controller('confirm-modal') }}
+            data-action="click->confirm-modal#ask"
+            data-confirm-modal-title-value="Reset your widget layout?"
+            data-confirm-modal-message-value="This area's roster dashboard goes back to the composition the module ships with. Your own designs are kept, and your other areas are untouched."
+            data-confirm-modal-confirm-label-value="Reset layout"
+            data-confirm-modal-danger-value="true">{{ ux_icon('shell:rotate-ccw') }}Reset to defaults</button>
+{% endblock %}
+
+{% block roster_section %}
+    <div class="rfrag"><b>The directions are presets, not pages</b><em>the roster was drawn five ways &mdash; as a day board, station first, a week planner, the people, and right now. None became a screen of its own: each is a headed section below and a design that composes it. Adopt one, copy it, then pull a widget out of another into your copy.</em></div>
+
+    {{ include('@Shell/widget/_library.html.twig', {
+        catalog: catalog,
+        builtins: builtins,
+        customPresets: customPresets,
+        active: active,
+        widgets: widgets,
+        partial: partial,
+        widgetContext: widgetContext,
+        urls: urls,
+        csrfToken: csrfToken,
+    }, with_context: false) }}
+{% endblock %}
