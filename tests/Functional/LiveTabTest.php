@@ -199,6 +199,34 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
         );
     }
 
+    /**
+     * THE PAGE LINKS THE MAP SHEET, because the plate's styles do not
+     * travel with the component the way the calendar's and the chart's do.
+     *
+     * A PAGE THAT FORGETS IT IS NOT A BROKEN COMPONENT, IT IS AN UNSTYLED
+     * ONE: the map collapses to a strip, the key inlines itself into the
+     * text and the controls pile into a corner — and nothing errors, so
+     * only a render catches it. This is that render, made cheap.
+     */
+    public function testThePageLinksTheMapSheet(): void
+    {
+        $crawler = $this->open();
+
+        $sheets = $crawler->filter('link[rel="stylesheet"]')->each(
+            static fn (\Symfony\Component\DomCrawler\Crawler $link): string => (string) $link->attr('href'),
+        );
+
+        $map = array_filter($sheets, static fn (string $href): bool => str_contains($href, 'map'));
+        self::assertNotEmpty($map, 'A page that draws a plate links the atlas map sheet.');
+
+        // AND LEAFLET'S OWN IS NOT LINKED: the UX Map bridge's controller
+        // imports it, so there is one Leaflet and one copy of its styles.
+        self::assertEmpty(
+            array_filter($sheets, static fn (string $href): bool => str_contains(strtolower($href), 'leaflet')),
+            'Leaflet\'s sheet comes with the bridge, never from a page.',
+        );
+    }
+
     /** AND THE MODULE'S OWN SOURCE CARRIES NO COLOUR EITHER. */
     public function testTheModuleDeclaresNoColourInItsLiveService(): void
     {

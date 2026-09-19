@@ -1,22 +1,33 @@
 {# ============================================================================
-   LIVE — what is true this minute, and the roster underneath it.
+   LIVE — what is true this minute: the plate first, the roster underneath.
 
-   THE POSITIONS ARE THE AREA'S, RULED. This module stores no position and
-   draws no plate of its own: live location is an area feature the roster
-   READS. What the roster contributes over the area's stations layer is the
-   presence states and their legend group, and that contribution belongs on
-   the area's own plate rather than on a second map drawn here.
+   THE POSITIONS ARE THE AREA'S, RULED. This module stores none and derives
+   none: it READS the area's live answer and feeds the atlas one marker
+   layer per presence state, with the legend group over them. The ground,
+   the boundary, the posts, the imagery, the controls and the key are all
+   somebody else's; the roster draws nothing itself.
 
-   SO THIS TAB SHIPS THE HALF IT OWNS — the roster underneath: every post on
-   the books, what its watch asks for, who is on it, how many are verified,
-   and the state of the post. The plate lands when the area publishes the
-   position feed this module would read; it is named in the notes below
-   rather than sketched, because a map with invented markers on it is worse
-   than no map.
+   THE RAIL LISTS EVERYBODY AND THE MAP DRAWS THE ONES WITH A FIX, which is
+   why both are here. Somebody at their post whose phone has said nothing is
+   in the rail and nowhere on the plate — a page with only the map would
+   report them absent, and a marker invented at the post's own point would
+   turn a claim into proof.
    ========================================================================== #}
 {% extends '@UhifadhiRoster/base.html.twig' %}
 
 {% block title %}{{ area.name }} · Roster · live{% endblock %}
+
+{# THE MAP SHEET IS THE PAGE'S TO LINK, and only the pages that draw a plate
+   link it. The calendar and chart sheets travel with their components; the
+   plate's does not, so a page that renders one and forgets this gets the
+   map as a collapsed strip with its key inlined and its controls piled in a
+   corner — which is not a broken component, it is an unstyled one. Leaflet's
+   own sheet is NOT linked: the UX Map bridge's controller imports it, so
+   there is one Leaflet and one copy of its styles. #}
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset(constant('Uhifadhi\\Bundle\\AtlasBundle\\AtlasBundle::STYLESHEET')) }}">
+{% endblock %}
 
 {% block shell_page_title %}Roster{% endblock %}
 

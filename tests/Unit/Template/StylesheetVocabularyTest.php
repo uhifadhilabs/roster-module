@@ -50,6 +50,14 @@ final class StylesheetVocabularyTest extends TestCase
      */
     private const string WIDGET_SHEET = __DIR__.'/../../../vendor/uhifadhi/uhifadhi/src/Uhifadhi/Bundle/ShellBundle/public/widget.css';
 
+    /**
+     * THE PLATFORM'S ONE MAP SHEET, which the PAGE links rather than the
+     * component. The calendar and the chart bring their own; the plate's
+     * does not travel with it, so every page that draws one links this —
+     * and its vocabulary counts as shipped on those pages.
+     */
+    private const string MAP_SHEET = __DIR__.'/../../../vendor/uhifadhi/uhifadhi/src/Uhifadhi/Bundle/AtlasBundle/public/map.css';
+
     private const string TEMPLATES = __DIR__.'/../../../templates';
 
     /**
@@ -72,7 +80,8 @@ final class StylesheetVocabularyTest extends TestCase
     {
         $shipped = self::selectorsIn(self::read(self::MODULE_SHEET))
             + self::selectorsIn(self::read(self::SHELL_SHEET))
-            + self::selectorsIn(self::read(self::WIDGET_SHEET));
+            + self::selectorsIn(self::read(self::WIDGET_SHEET))
+            + self::selectorsIn(self::read(self::MAP_SHEET));
 
         $missing = [];
         foreach (self::classesUsedInTemplates() as $class => $files) {
@@ -102,7 +111,9 @@ final class StylesheetVocabularyTest extends TestCase
      */
     public function testThisModuleRestatesNoSharedClassUnqualified(): void
     {
-        $shell = self::selectorsIn(self::read(self::SHELL_SHEET)) + self::selectorsIn(self::read(self::WIDGET_SHEET));
+        $shell = self::selectorsIn(self::read(self::SHELL_SHEET))
+            + self::selectorsIn(self::read(self::WIDGET_SHEET))
+            + self::selectorsIn(self::read(self::MAP_SHEET));
 
         $restated = [];
         foreach (self::selectorListIn(self::read(self::MODULE_SHEET)) as $selector) {
@@ -154,7 +165,8 @@ final class StylesheetVocabularyTest extends TestCase
         $mine = self::read(self::MODULE_SHEET);
         $defined = self::tokensDefinedIn($mine)
             + self::tokensDefinedIn(self::read(self::SHELL_SHEET))
-            + self::tokensDefinedIn(self::read(self::WIDGET_SHEET));
+            + self::tokensDefinedIn(self::read(self::WIDGET_SHEET))
+            + self::tokensDefinedIn(self::read(self::MAP_SHEET));
 
         $spent = [];
         preg_match_all('/var\(\s*(--[a-z0-9_-]+)/i', $mine, $matches);
