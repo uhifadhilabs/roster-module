@@ -72,11 +72,11 @@
                div is a panel rendered OPEN. Every option is a real link, so
                a chosen ranger is a url somebody can send.
 
-               IT IS ITS OWN ROW, above the atlas's stepper, and the design
-               puts the two on ONE line. The month component owns its nav row
-               and has no slot for a surface's control; that is a core change
-               and is listed rather than forced from here. #}
-            <div class="cal-nav">
+               IT RIDES IN THE MONTH'S OWN NAV ROW, through the atlas's
+               `controls` slot — one line, the stepper at the left and this
+               at the right, as the design draws it. It had a row of its
+               own until the slot landed. #}
+            {% set rangerPicker %}
                 <details class="i-dd">
                     <summary class="mchip i-ddt">
                         <span class="i-ddval">{{ chosen.name|lower }}{% if chosen.post %} &middot; {{ chosen.post|lower }}{% endif %}</span><span class="i-ddcaret">&#9662;</span>
@@ -89,7 +89,7 @@
                         {% endfor %}
                     </div>
                 </details>
-            </div>
+            {% endset %}
 
             {# The feed is handed over by the controller rather than reached
                for as a global: a template that resolved a service would be a
@@ -99,7 +99,8 @@
                 month,
                 scope,
                 previousUrl: path(constant('Uhifadhi\\Roster\\Controller\\RosterController::CALENDAR_ROUTE'), {uuid: area.uuid, ranger: chosen.uuid, month: month.previous.year ~ '-' ~ '%02d'|format(month.previous.month)}),
-                nextUrl: path(constant('Uhifadhi\\Roster\\Controller\\RosterController::CALENDAR_ROUTE'), {uuid: area.uuid, ranger: chosen.uuid, month: month.next.year ~ '-' ~ '%02d'|format(month.next.month)})
+                nextUrl: path(constant('Uhifadhi\\Roster\\Controller\\RosterController::CALENDAR_ROUTE'), {uuid: area.uuid, ranger: chosen.uuid, month: month.next.year ~ '-' ~ '%02d'|format(month.next.month)}),
+                controls: rangerPicker
             ) }}
         </div>
     {% endif %}

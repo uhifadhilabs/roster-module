@@ -142,8 +142,12 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
     {
         $crawler = $this->open();
 
-        $picker = $crawler->filter('.cal-nav details.i-dd');
+        // IN THE MONTH'S OWN NAV ROW, through the atlas's controls slot:
+        // one line, the stepper at the left and the picker at the right,
+        // as the design draws it.
+        $picker = $crawler->filter('.cal-plate .cal-nav details.i-dd');
         self::assertCount(1, $picker, 'A details element the browser opens — never a div that is always open.');
+        self::assertCount(1, $crawler->filter('.cal-nav'), 'One nav row, not the picker in a row of its own.');
         self::assertNull($picker->attr('open'));
         self::assertCount(1, $picker->filter('summary.mchip.i-ddt'));
 
