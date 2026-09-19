@@ -130,6 +130,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         }
 
         $windows = $this->shifts->windowsFor($area);
+        $scripted = self::script($duties, $windows, $today);
 
         foreach ($duties as $duty) {
             $window = $windows[$duty->getShiftKey()] ?? null;
@@ -137,8 +138,95 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
                 continue;
             }
 
-            $this->workTheWatch($area, $duty, $window, $statuses, $today);
+            $this->workTheWatch($area, $duty, $window, $statuses, $today, $scripted[(string) $duty->getUuid()] ?? null);
         }
+    }
+
+    /**
+     * THE READINGS THE SCREENS HAVE TO DRAW, HANDED OUT BEFORE THE DRAW.
+     *
+     * A FREQUENCY IS NOT A GUARANTEE, and that is the bug this replaces. The
+     * states were picked by a stable hash of each duty's UUID — "about one
+     * watch in nineteen is a special assignment" — but the UUIDs are new on
+     * every seed, so a month that happened to contain no nineteenth watch
+     * shipped a park with a whole reading missing. It surfaced in CI on a
+     * date nobody had run before, which is precisely how it would have
+     * surfaced at a demo.
+     *
+     * THE ORDER IS THE CALENDAR'S, not the query's. The list is sorted by
+     * day, then post, then shift, then person, so the same month hands the
+     * same watches the same scripts however the rows came back — otherwise
+     * the guarantee would hold and the park would still look different on
+     * every seed.
+     *
+     * ONLY PAST WATCHES ARE SCRIPTED. Today's are left to the clock: a watch
+     * that has not ended yet is still running, which is a different fact
+     * from one nobody closed, and scripting it would make the live plate
+     * lie.
+     *
+     * @param list<Duty>                 $duties
+     * @param array<string, ShiftWindow> $windows
+     *
+     * @return array<string, DemoWatchScript> by duty uuid
+     */
+    private static function script(array $duties, array $windows, \DateTimeImmutable $today): array
+    {
+        $past = array_values(array_filter(
+            $duties,
+            static fn (Duty $duty): bool => $duty->getOnDay() < $today && isset($windows[$duty->getShiftKey()]),
+        ));
+
+        usort($past, static fn (Duty $a, Duty $b): int => [
+            $a->getOnDay()->format('Y-m-d'), (string) $a->getStation()->getUuidString(), $a->getShiftKey(), (string) $a->getPerson()->getUuidString(),
+        ] <=> [
+            $b->getOnDay()->format('Y-m-d'), (string) $b->getStation()->getUuidString(), $b->getShiftKey(), (string) $b->getPerson()->getUuidString(),
+        ]);
+
+        // THE SECOND WATCH NEEDS ROOM IN ITS OWN DAY, so it is given to a
+        // watch that does not cross midnight. A night watch resuming in the
+        // afternoon of the day it began is not a second watch, it is a
+        // different day.
+        $daytime = null;
+        foreach ($past as $index => $duty) {
+            // Every duty in $past was filtered to one the area names a
+            // window for, so this lookup always answers.
+            if (!$windows[$duty->getShiftKey()]->crossesMidnight()) {
+                $daytime = $index;
+
+                break;
+            }
+        }
+
+        $scripts = [
+            DemoWatchScript::reporting(CheckInStatusKind::AtPost),
+            DemoWatchScript::reporting(CheckInStatusKind::WorkingElsewhere),
+            DemoWatchScript::reporting(CheckInStatusKind::NotWorking),
+            DemoWatchScript::reporting(CheckInStatusKind::Special),
+            DemoWatchScript::neverClosed(),
+            DemoWatchScript::unreported(),
+        ];
+
+        $assigned = [];
+        $next = 0;
+        foreach ($past as $index => $duty) {
+            if ($index === $daytime) {
+                // Spoken for by the two-watch day, below.
+                continue;
+            }
+
+            if (!isset($scripts[$next])) {
+                break;
+            }
+
+            $assigned[(string) $duty->getUuid()] = $scripts[$next];
+            ++$next;
+        }
+
+        if (null !== $daytime) {
+            $assigned[(string) $past[$daytime]->getUuid()] = DemoWatchScript::twoWatches();
+        }
+
+        return $assigned;
     }
 
     /**
@@ -147,7 +235,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
      *
      * @param array<string, CheckInStatus> $statuses
      */
-    private function workTheWatch(AreaOfInterest $area, Duty $duty, ShiftWindow $window, array $statuses, \DateTimeImmutable $today): void
+    private function workTheWatch(AreaOfInterest $area, Duty $duty, ShiftWindow $window, array $statuses, \DateTimeImmutable $today, ?DemoWatchScript $script = null): void
     {
         $draw = DemoDraw::of('watch', (string) $duty->getUuid());
         $day = $duty->getOnDay();
@@ -155,17 +243,20 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
 
         // A FEW WATCHES ARE SIMPLY NOT REPORTED, and that is the "no
         // check-in" a board draws against somebody who was due. A demo
-        // where every rostered person checked in never shows it.
-        if ($draw->oneIn(14)) {
+        // where every rostered person checked in never shows it — and one
+        // that left it to a frequency could go a whole month without it,
+        // which is why one watch is TOLD to be unreported.
+        if (null !== $script ? !$script->isReported() : $draw->oneIn(14)) {
             return;
         }
 
         $startedAt = $day->setTime(0, 0)->modify(\sprintf('+%d minutes', $window->startsAtMinuteOfDay() + $draw->between(0, 25)));
         $endsAt = $startedAt->modify(\sprintf('+%d minutes', $window->lengthMinutes()));
 
-        // THE FIRST WATCH OF THE DAY. Most are at post; the rest are the
-        // reasons a park actually records.
-        $kind = match (true) {
+        // THE FIRST WATCH OF THE DAY. Where the script says what this one
+        // is, it says so; the rest are drawn — most at post, and the others
+        // the reasons a park actually records.
+        $kind = null !== $script ? $script->claims() : match (true) {
             $draw->oneIn(11) => CheckInStatusKind::WorkingElsewhere,
             $draw->oneIn(17) => CheckInStatusKind::NotWorking,
             $draw->oneIn(19) => CheckInStatusKind::Special,
@@ -175,8 +266,11 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         // A WATCH NOBODY CLOSED. On a past day the area derives it once
         // the rostered end has gone by, which is what makes it a fact
         // rather than a failure. Today's watches that have not ended yet
-        // are simply still running, which is a different thing.
-        $stillOut = $isToday ? $endsAt > new \DateTimeImmutable() : $draw->oneIn(9);
+        // are simply still running, which is a different thing — and the
+        // clock, never the script, settles those.
+        $stillOut = $isToday
+            ? $endsAt > new \DateTimeImmutable()
+            : (null !== $script ? !$script->closed : $draw->oneIn(9));
 
         $this->claim(
             $area,
@@ -193,10 +287,13 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         // is a morning at the post and an afternoon somewhere else, which
         // is the case a demo of single intervals never produces and every
         // surface now has to draw as two rows and a total.
-        if (!$stillOut && $draw->then('second')->oneIn(5)) {
+        if (!$stillOut && (null !== $script ? $script->second : $draw->then('second')->oneIn(5))) {
             $secondDraw = $draw->then('second-watch');
             $resumedAt = $endsAt->modify(\sprintf('+%d minutes', $secondDraw->between(45, 150)));
 
+            // A SECOND WATCH THAT DOES NOT FIT ITS OWN DAY IS NOT ONE. The
+            // scripted day is chosen from the shifts that do not cross
+            // midnight precisely so this holds.
             if ($resumedAt < new \DateTimeImmutable() && $resumedAt->format('Y-m-d') === $day->format('Y-m-d')) {
                 $this->claim(
                     $area,
