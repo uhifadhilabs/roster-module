@@ -26,6 +26,9 @@
        overview will link this same sheet when it renders this module's
        presence card, and a path typed twice is a path that eventually
        differs. #}
+    {# THE WIDGET GRID'S OWN SHEET. Without it nothing declares a span and
+       every widget on a composed surface draws one column wide. #}
+    <link rel="stylesheet" href="{{ asset(constant('Uhifadhi\\Bundle\\ShellBundle\\ShellBundle::WIDGET_STYLESHEET')) }}">
     <link rel="stylesheet" href="{{ asset(constant('Uhifadhi\\Roster\\UhifadhiRosterBundle::STYLESHEET')) }}">
 {% endblock %}
 

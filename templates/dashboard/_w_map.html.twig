@@ -1,0 +1,18 @@
+{# Widget "map" — presence on the area's stations layer.
+
+   IT WAITS FOR A SEAM AND SAYS SO RATHER THAN DRAWING A PLATE WITH NOTHING
+   ON IT. The plate and the stations layer are the AREA's, drawn by Atlas;
+   what this module contributes is a marker per LIVE POSITION and the legend
+   group over them. The live positions read is the core's and has not landed,
+   so the card states the gap instead of inventing a marker — an empty plate
+   would read as "the park has nobody in it", which is a different and much
+   worse claim than "we cannot answer yet".
+
+   The moment the contract lands this body becomes the plate; nothing else on
+   the surface changes, because the widget is already in the shipped
+   composition. #}
+<div class="c">
+    <span class="tab">Presence on the stations layer<span class="src">&middot; the area&rsquo;s plate and layer</span></span>
+    <div class="rfrag flagged"><b>Waiting on the area&rsquo;s live positions read</b><em>the plate draws a marker per live position, and the position feed is the area&rsquo;s to answer &mdash; this module stores none and will not invent one</em></div>
+    <div class="rfrag"><b>{{ posts|length }} post{{ posts|length == 1 ? '' : 's' }} on the books</b><em>their points are already on the area&rsquo;s stations layer; what is missing is where the people are</em></div>
+</div>

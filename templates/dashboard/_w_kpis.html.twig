@@ -1,0 +1,46 @@
+{# Widget "kpis" — the day's figures, the design's five cards.
+
+   THE HOUSE KPI CARD AND NOTHING BESPOKE: `.grid.kstrip` of `.c.kpi`, each a
+   `.tab`, a `.disp` figure with its denominator, and one `.sub` fragment. The
+   strip idiom and the card idiom are the only two the house has.
+
+   EVERY FIGURE IS A COUNT, NEVER A VERDICT. The plan says who was due; the
+   AREA says what its handsets reported; the numbers are the sizes of the sets
+   that fall out. Nothing here is stored and nothing is re-derived.
+
+   AN AREA WITH NO POST ON THE BOOKS IS NOT A PARK SCORING NOUGHT. It gets the
+   empty state, because 0 of 0 reporting is an accusation nobody made. #}
+{% if not figures.hasABook %}
+    <div class="c">
+        <span class="tab">The day&rsquo;s check-ins</span>
+        <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>the area registers {{ figures.postsInTheArea }} station{{ figures.postsInTheArea == 1 ? '' : 's' }}; a watch is given to a post deliberately, so none is assumed</em></div>
+    </div>
+{% else %}
+<div class="grid kstrip">
+    <div class="c kpi hot" data-kpi="checked-in">
+        <span class="tab">Checked in<span class="src">&middot; <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j M')|lower }}</time></span></span>
+        <b class="disp">{{ figures.checkedIn }}<em>of {{ figures.expected }}</em></b>
+        <span class="sub">{{ figures.expected - figures.checkedIn }} the area has read nothing for</span>
+    </div>
+    <div class="c kpi" data-kpi="verified">
+        <span class="tab">At post &middot; verified</span>
+        <b class="disp">{{ figures.verified }}<em>of {{ figures.verified + figures.flagged }} claiming</em></b>
+        <span class="sub">the pings sit inside the catchment</span>
+    </div>
+    <div class="c kpi{{ figures.flagged > 0 ? ' bad' : '' }}" data-kpi="flagged">
+        <span class="tab">Flagged</span>
+        <b class="disp">{{ figures.flagged }}</b>
+        <span class="sub">{% if figures.flagged > 0 %}<span class="r">a claim the pings do not bear out</span>{% else %}every claim at a post is borne out{% endif %}</span>
+    </div>
+    <div class="c kpi" data-kpi="no-check-in">
+        <span class="tab">No check-in</span>
+        <b class="disp">{{ figures.noCheckIn }}</b>
+        <span class="sub">{% if figures.noCheckIn > 0 %}<span class="r">due, and nothing arrived</span>{% else %}everybody due has reported{% endif %}</span>
+    </div>
+    <div class="c kpi" data-kpi="posts-reporting">
+        <span class="tab">Posts reporting</span>
+        <b class="disp">{{ figures.postsReporting }}<em>of {{ figures.postsOnTheBooks }}</em></b>
+        <span class="sub">of the area&rsquo;s {{ figures.postsInTheArea }} registered</span>
+    </div>
+</div>
+{% endif %}

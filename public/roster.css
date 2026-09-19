@@ -124,6 +124,18 @@
 .r-sh.closed { color: var(--dim); border-style: dashed; }
 .r-sh.closed i { background: none; border: 1px solid var(--dim); }
 
+/* THE THREE STATES A CHIP MAY CARRY, and they are the HOUSE's semantic
+ * tokens rather than anything of this module's. A module has no hue (ruled
+ * 21 sep): borne out, wants an eye, and wrong are facts every screen in the
+ * installation states the same colour, and a roster that invented its own
+ * would be teaching the reader a second vocabulary for the same three
+ * things. The design's day/night/office chip hues are the workspace's own
+ * referencing; they are deliberately not ported. */
+.r-sh.st-ok i { background: var(--ok); }
+.r-sh.st-warn i { background: var(--warn); }
+.r-sh.st-fail { color: var(--fail); border-color: color-mix(in srgb, var(--fail) 45%, transparent); }
+.r-sh.st-fail i { background: var(--fail); }
+
 /* ---- THE WATCH / SETTING ROW ----------------------------------------------
  * A label, the controls, and the CONSEQUENCE of choosing wrong. The third
  * column is what makes a setting answerable by somebody who did not design

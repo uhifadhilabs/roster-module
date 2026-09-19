@@ -28,17 +28,20 @@ use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
+use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetService;
 use Uhifadhi\Contracts\Entity\UserInterface;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Service\DayBoardService;
 use Uhifadhi\Roster\Service\PresenceReader;
 use Uhifadhi\Roster\Service\RosterCalendar;
 use Uhifadhi\Roster\Service\RosteredPeople;
+use Uhifadhi\Roster\Service\RosterFiguresService;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\RotaService;
 use Uhifadhi\Roster\Service\SwapCostService;
 use Uhifadhi\Roster\Service\SwapService;
 use Uhifadhi\Roster\Service\WeekGridService;
+use Uhifadhi\Roster\Widget\RosterWidgets;
 
 /**
  * THE ROSTER'S OWN PAGES, at /areas/{uuid}/modules/roster.
@@ -106,6 +109,15 @@ final class RosterController
     /** What is true this minute. */
     public const string LIVE_ROUTE = 'roster_live';
 
+    /**
+     * HOW MANY ROWS A DASHBOARD CARD SHOWS BEFORE IT SAYS HOW MANY THERE
+     * WERE. A card's height never grows with its data (ruled): the rest are
+     * one click away on the tab that is built to list them.
+     */
+    public const int DECISIONS_SHOWN = 6;
+
+    public const int STATIONS_SHOWN = 6;
+
     public function __construct(
         private readonly Environment $twig,
         private readonly RosterIdentityService $identity,
@@ -117,6 +129,8 @@ final class RosterController
         private readonly RosterCalendar $calendar,
         private readonly SwapService $swaps,
         private readonly SwapCostService $cost,
+        private readonly RosterFiguresService $figures,
+        private readonly WidgetService $widgetService,
         private readonly UrlGeneratorInterface $router,
         /*
          * NULL WHERE THE INSTALLATION RUNS NO SECURITY. There the week tab
@@ -184,9 +198,27 @@ final class RosterController
     public function overview(
         #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
     ): Response {
+        $day = new \DateTimeImmutable('today');
+
+        // ONE READ OF THE DAY, handed to every widget that needs it. Five
+        // cards asking the presence seam separately is five chances for one
+        // screen to disagree with itself about the same morning.
+        $posts = $this->presence->postsOn($area, $day);
+        $gaps = $this->week->gaps($area, $day, $day->modify(\sprintf('+%d days', RosterFiguresService::HOLE_HORIZON_DAYS - 1)));
+
         return new Response($this->twig->render('@UhifadhiRoster/overview/show.html.twig', [
             'area' => $area,
             'band' => $this->identity->bandFor($area),
+            'day' => $day,
+            'posts' => $posts,
+            'figures' => $this->figures->forDay($area, $day),
+            'decisions' => RosterFiguresService::decisions($posts, $gaps),
+            'rosterDecisionLimit' => self::DECISIONS_SHOWN,
+            'rosterStationLimit' => self::STATIONS_SHOWN,
+            // WHICH WIDGETS, HOW WIDE, IN WHAT ORDER — the shell's widget
+            // framework resolving this surface's catalogue: the shipped
+            // composition until somebody changes it in the library.
+            'widgets' => $this->widgetService->resolve(RosterWidgets::declaration(), $this->viewer(), $area->getUuid()),
         ]));
     }
 

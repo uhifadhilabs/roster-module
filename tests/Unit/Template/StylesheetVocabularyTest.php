@@ -41,6 +41,15 @@ final class StylesheetVocabularyTest extends TestCase
 
     private const string SHELL_SHEET = __DIR__.'/../../../vendor/uhifadhi/uhifadhi/src/Uhifadhi/Bundle/ShellBundle/public/shell.css';
 
+    /**
+     * THE WIDGET GRID'S OWN SHEET, third in the chain the composed tab
+     * loads. The shell ships it separately because only a page that
+     * composes a surface needs it, and this module's base links it for
+     * exactly that reason — so the vocabulary it defines is shipped on the
+     * overview and has to count as shipped here.
+     */
+    private const string WIDGET_SHEET = __DIR__.'/../../../vendor/uhifadhi/uhifadhi/src/Uhifadhi/Bundle/ShellBundle/public/widget.css';
+
     private const string TEMPLATES = __DIR__.'/../../../templates';
 
     /**
@@ -61,7 +70,9 @@ final class StylesheetVocabularyTest extends TestCase
      */
     public function testEveryClassTheTemplatesUseIsShippedBySomebody(): void
     {
-        $shipped = self::selectorsIn(self::read(self::MODULE_SHEET)) + self::selectorsIn(self::read(self::SHELL_SHEET));
+        $shipped = self::selectorsIn(self::read(self::MODULE_SHEET))
+            + self::selectorsIn(self::read(self::SHELL_SHEET))
+            + self::selectorsIn(self::read(self::WIDGET_SHEET));
 
         $missing = [];
         foreach (self::classesUsedInTemplates() as $class => $files) {
@@ -91,7 +102,7 @@ final class StylesheetVocabularyTest extends TestCase
      */
     public function testThisModuleRestatesNoSharedClassUnqualified(): void
     {
-        $shell = self::selectorsIn(self::read(self::SHELL_SHEET));
+        $shell = self::selectorsIn(self::read(self::SHELL_SHEET)) + self::selectorsIn(self::read(self::WIDGET_SHEET));
 
         $restated = [];
         foreach (self::selectorListIn(self::read(self::MODULE_SHEET)) as $selector) {
@@ -141,7 +152,9 @@ final class StylesheetVocabularyTest extends TestCase
     public function testEveryTokenThisSheetSpendsIsDefinedBySomebody(): void
     {
         $mine = self::read(self::MODULE_SHEET);
-        $defined = self::tokensDefinedIn($mine) + self::tokensDefinedIn(self::read(self::SHELL_SHEET));
+        $defined = self::tokensDefinedIn($mine)
+            + self::tokensDefinedIn(self::read(self::SHELL_SHEET))
+            + self::tokensDefinedIn(self::read(self::WIDGET_SHEET));
 
         $spent = [];
         preg_match_all('/var\(\s*(--[a-z0-9_-]+)/i', $mine, $matches);

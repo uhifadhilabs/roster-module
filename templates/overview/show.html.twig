@@ -1,17 +1,18 @@
 {# ============================================================================
-   THE ROSTER'S OVERVIEW TAB — the design's modules/roster/index.html, ported
-   as far as it can honestly go today.
+   THE ROSTER'S OVERVIEW TAB — the design's modules/roster/index.html.
 
-   WHAT IS HERE: the header, the six-tab strip (drawn by the shell from
-   RosterModuleTabs), the Configure action, and the identity band.
+   THE TAB IS COMPOSED, NOT DRAWN. The design's own `.w-grid` is empty in the
+   source for the same reason this block is a loop: which widgets, how wide
+   and in what order comes from the shell's widget framework resolving
+   RosterWidgets, and the shipped composition is what a person who has never
+   chosen sees — the figures, what needs a decision, the posts and who the
+   pings put on them, the plate.
 
-   WHAT IS NOT, AND WHY IT IS NOT A PLACEHOLDER: the shipped composition under
-   the band is `kpis · decisions · stations · map`, and every one of those four
-   is a reading of PRESENCE — who checked in, whose claim the device disagrees
-   with, which posts are reporting, where the pings put people. Presence is
-   ruled to be the AREA's, read through a seam that has not landed. Drawing any
-   of it today would mean inventing the one thing this module is ruled never to
-   invent, so the band is where the page honestly stops.
+   THE WIDGETS THEMSELVES live in _w_<id>.html.twig and are rendered by BOTH
+   this page and the widget library, so a library preview IS the widget.
+
+   EDITING NEVER HAPPENS HERE. Add, remove, width and order are the library's,
+   reached by the one standard door every module ships.
    ========================================================================== #}
 {% extends '@UhifadhiRoster/base.html.twig' %}
 
@@ -27,4 +28,21 @@
 
 {% block roster_page %}
     {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
+
+    {# THE LIBRARY DOOR IS NOT HERE YET, and a door to a screen that does not
+       exist is worse than none. The surface is composed and the framework
+       resolves it; what is missing is the module's own library page — the
+       one standard `.tgl.w-act` link goes in exactly here when it lands. #}
+
+    <div class="w-grid">
+        {% for widget in widgets %}
+            {% if widget.on %}
+                <div data-w="{{ widget.id }}" class="w-cell w-span-{{ widget.cols }}">
+                    <div class="w-inner">
+                        {{ include('@UhifadhiRoster/dashboard/_w_' ~ widget.id ~ '.html.twig') }}
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
 {% endblock %}

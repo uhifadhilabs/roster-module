@@ -1,0 +1,28 @@
+{# Widget "decisions" — what needs somebody to act, and WHICH.
+
+   THE FIGURES SAY HOW MANY; THIS SAYS WHICH, and the design puts it first
+   under them for that reason.
+
+   THREE KINDS OF PROBLEM, THREE ROWS, never one red list: a missing check-in,
+   a claim the device disagrees with, and a hole are acted on by different
+   people in different ways, and collapsing them hides which one anybody can
+   do something about.
+
+   THE CARD IS BOUNDED. It shows the first few and says how many there were —
+   a dashboard card never grows with its data. #}
+<div class="c">
+    <span class="tab">Needs a decision<span class="src">&middot; {{ decisions|length }} item{{ decisions|length == 1 ? '' : 's' }}</span></span>
+    {% if decisions|length > rosterDecisionLimit %}
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::TODAY_ROUTE'), {uuid: area.uuid}) }}">{{ rosterDecisionLimit }} of {{ decisions|length }} &middot; view all &rarr;</a>
+    {% endif %}
+
+    {% for row in decisions|slice(0, rosterDecisionLimit) %}
+        <div class="rset">
+            <span class="lb"><b>{{ row.who }}</b><em>{{ row.where }}</em></span>
+            <span class="ct"><span class="r-sh {{ row.tone }}"><i></i>{{ row.kindLabel }}</span></span>
+            <span class="why">{{ row.fact }}</span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>Nothing is waiting on anybody</b><em>every watch due today has been reported and the pings bear out every claim at a post</em></div>
+    {% endfor %}
+</div>

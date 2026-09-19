@@ -24,6 +24,8 @@ use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
+use Uhifadhi\Bundle\ShellBundle\Widget\Registry\WidgetSurfaceInterface;
+use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetService;
 use Uhifadhi\Bundle\TeamBundle\Repository\DepartmentRepository;
 use Uhifadhi\Bundle\TeamBundle\Repository\UserRepository;
 use Uhifadhi\Contracts\Area\StationSectionsInterface;
@@ -42,9 +44,11 @@ use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
+use Uhifadhi\Roster\Service\RosterFiguresService;
 use Uhifadhi\Roster\Shell\RosterConfigurationSections;
 use Uhifadhi\Roster\Shell\RosterModuleTabs;
 use Uhifadhi\Roster\Shell\RosterStationSections;
+use Uhifadhi\Roster\Widget\RosterWidgets;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
@@ -258,6 +262,28 @@ final class UhifadhiRosterBundle extends AbstractBundle
             ])
             ->tag(WatchProviderInterface::TAG);
 
+        // THE DAY'S FIGURES — one read, folded once, so five cards on one
+        // screen can never disagree about the same day.
+        $services->set('roster.figures', RosterFiguresService::class)
+            ->args([
+                service('roster.presence'),
+                service('roster.week_grid'),
+                service(StationRepository::class),
+            ]);
+
+        /*
+         * THE WIDGET SURFACE — a CATALOGUE, not a renderer. The shell owns
+         * the preference storage, the presets and the resolution; this says
+         * only what the surface ships and what the shipped composition is.
+         *
+         * TAGGED BY HAND, like every contribution seam: a reusable bundle
+         * does not autoconfigure, so registerForAutoconfiguration never
+         * fires for it and an untagged surface is one whose stored layouts
+         * `widget:prune` reads as orphans and deletes.
+         */
+        $services->set('roster.widgets', RosterWidgets::class)
+            ->tag(WidgetSurfaceInterface::TAG);
+
         /*
          * THE DEMO CONTENT, WHICH EXISTS ONLY WHERE DEVKIT DOES.
          *
@@ -327,6 +353,8 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service('roster.calendar'),
                 service('roster.swaps'),
                 service('roster.swap_cost'),
+                service('roster.figures'),
+                service(WidgetService::class),
                 service('router'),
                 // Null where the installation runs no security: the week tab
                 // then offers no swap, because there is nobody to attribute

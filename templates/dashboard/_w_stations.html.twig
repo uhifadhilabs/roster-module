@@ -1,0 +1,38 @@
+{# Widget "stations" — the posts, and who the pings actually put on them.
+
+   ROSTERED AND MEASURED ARE TWO COLUMNS AND THE MODULE NEVER MERGES THEM.
+   The gap between what was planned and what the device reported is the thing
+   this card exists to show; one verdict in its place would throw it away.
+
+   THE DENOMINATOR IS THE AREA'S. "of the area's N" admits that the other
+   posts exist and are deliberately not this module's business.
+
+   BOUNDED, like every dashboard card: the first few posts, then the door. #}
+<div class="c">
+    <span class="tab">Stations &amp; who is actually on<span class="src">&middot; {{ posts|length }} of the area&rsquo;s {{ figures.postsInTheArea }}</span></span>
+    {% if posts|length > rosterStationLimit %}
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::BOARD_ROUTE'), {uuid: area.uuid}) }}">{{ rosterStationLimit }} of {{ posts|length }} &middot; the day board &rarr;</a>
+    {% endif %}
+
+    {% for post in posts|slice(0, rosterStationLimit) %}
+        <div class="rset">
+            <span class="lb"><b>{{ post.stationName }}</b><em>{{ post.state.label }}</em></span>
+            <span class="ct">
+                {% for person in post.rostered|slice(0, 3) %}
+                    <span class="r-sh {{ person.isFlagged ? 'st-fail' : (person.isPresent ? 'st-ok' : 'st-warn') }}"><i></i>{{ person.personName }}</span>
+                {% else %}
+                    <span class="r-sh">nobody rostered</span>
+                {% endfor %}
+            </span>
+            <span class="why">
+                <span class="unit">rostered</span> {{ post.rostered|length }}
+                <span class="unit">expected</span> {{ post.expected }}
+                <span class="unit">verified</span> {{ post.verified }}
+                <span class="unit">flagged</span> {{ post.flagged }}
+                {% if post.silentFor is not null %}<span class="unit">silent</span> {{ post.silentFor }} min{% endif %}
+            </span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed</em></div>
+    {% endfor %}
+</div>
