@@ -100,8 +100,28 @@ php bin/console cache:clear
 The **Flex recipe** (`uhifadhi/roster-module/0.1` in `uhifadhilabs/recipes`)
 adds `Uhifadhi\Roster\UhifadhiRosterBundle` to `config/bundles.php`, mounts
 `config/routes/roster.yaml` and writes `config/packages/roster.yaml` with the
-vocabulary below. Entity mapping and the migrations path are prepended by the
-bundle itself, so there is nothing else to wire.
+vocabulary below. Entity mapping, the migrations path and the module's icon
+set are prepended by the bundle itself, so there is nothing else to wire.
+
+### The two lines a recipe cannot merge
+
+`assets/controllers.json` is the INSTALLATION's file and Flex merges into it,
+but an installation that was built before this module shipped its controllers
+will not have them — and a Stimulus controller that is not enabled there is
+markup that looks perfect and does nothing. Check for this block and add it if
+it is missing:
+
+```jsonc
+// assets/controllers.json
+"@uhifadhi/roster-module": {
+    "rotation": { "enabled": true, "fetch": "eager" },   // the cycle editor
+    "now-line":  { "enabled": true, "fetch": "eager" }   // the day board's line at "now"
+}
+```
+
+The widget library also imports `uhifadhi/widgets`, which the CORE's own
+recipe puts in `importmap.php`; an installation running the shell already has
+it.
 
 Then **switch it on per area** — a module is installed but parked, and every
 page answers 404 in an area that has not taken it — and grant `roster.manage`
