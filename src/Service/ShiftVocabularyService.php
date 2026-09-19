@@ -90,11 +90,20 @@ final readonly class ShiftVocabularyService
     {
         $this->guardKey($key);
 
+        // THE VOCABULARY IS READ BEFORE THE KEY IS CHECKED, because reading
+        // it is what SEEDS an area that has never had one — and a key that
+        // does not clash with an empty vocabulary may well clash with the
+        // four defaults that reading it just created. Asking first and
+        // checking after was a unique-constraint crash instead of the
+        // sentence below, for the one case most likely to hit it: adding
+        // "day" to an area nobody had configured yet.
+        $position = \count($this->forArea($area));
+
         if (null !== $this->shifts->findOneByKey($area, $key)) {
             throw new \InvalidArgumentException(\sprintf('This area already has a shift called "%s". A duty stores the key, so two of them would make a stored row ambiguous about the window it was stood in.', $key));
         }
 
-        $shift = new Shift($area, $key, $label, $startsAt, $endsAt, \count($this->forArea($area)));
+        $shift = new Shift($area, $key, $label, $startsAt, $endsAt, $position);
         $this->entityManager->persist($shift);
         $this->entityManager->flush();
 

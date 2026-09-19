@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Uhifadhi\Roster\Tests\Integration;
 
+use ApiPlatform\Symfony\Bundle\ApiPlatformBundle;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Doctrine\Bundle\MigrationsBundle\DoctrineMigrationsBundle;
 use FundiStadi\PostGISBundle\FundiStadiPostGISBundle;
@@ -84,6 +85,12 @@ final class TestKernel extends Kernel
         yield new TeamBundle();
         // The station a watch is stood at, the posting that puts a person
         // there, and the check-ins presence is read from.
+        // THE FIELD API'S OWN CONDITION. The area registers the handset's
+        // check-in door only where ApiPlatform and Security both are, and
+        // the demo presence seeder writes through that door — so a kernel
+        // without this would exercise the seeder's absent-API branch and
+        // assert nothing about the one that runs in an installation.
+        yield new ApiPlatformBundle();
         yield new AreaBundle();
         yield new UhifadhiRosterBundle();
     }
@@ -209,6 +216,13 @@ final class TestKernel extends Kernel
             // READS it rather than computing a second answer beside it.
             \Uhifadhi\Contracts\Area\PresenceProviderInterface::class => 'area.presence',
             \Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService::class => 'area.checkin_statuses',
+            // The area's postings, so a demo-content test can staff its
+            // posts the way an installation does rather than by hand.
+            \Uhifadhi\Bundle\AreaBundle\Service\PostingService::class => 'area.postings',
+            // The two demo-content providers. They are tagged for devkit,
+            // which is not installed here, so a test reaches them by id.
+            \Uhifadhi\Roster\Devkit\RosterContentProvider::class => 'roster.devkit.content',
+            \Uhifadhi\Roster\Devkit\PresenceContentProvider::class => 'roster.devkit.presence_content',
             // The registry's own two, so a functional fixture can do what an
             // installation does: reconcile the catalogue, then switch this
             // module on for the area.

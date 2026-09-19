@@ -19,7 +19,9 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository;
+use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
+use Uhifadhi\Bundle\AreaBundle\Service\CheckInService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
 use Uhifadhi\Contracts\Area\StationSectionsInterface;
 use Uhifadhi\Contracts\Roster\WatchProviderInterface;
@@ -28,6 +30,8 @@ use Uhifadhi\Contracts\Shell\ModuleTabsInterface;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
 use Uhifadhi\Roster\Controller\RosterController;
 use Uhifadhi\Roster\DependencyInjection\RosterConfiguration;
+use Uhifadhi\Roster\Devkit\PresenceContentProvider;
+use Uhifadhi\Roster\Devkit\RosterContentProvider;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Module\RosterWatches;
 use Uhifadhi\Roster\Repository\DutyRepository;
@@ -248,6 +252,56 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service(ShiftRepository::class),
             ])
             ->tag(WatchProviderInterface::TAG);
+
+        /*
+         * THE DEMO CONTENT, WHICH EXISTS ONLY WHERE DEVKIT DOES.
+         *
+         * THE TAG IS A LITERAL STRING, deliberately and per the contract:
+         * naming devkit's own constant would load a class that is not
+         * installed in production, which is the whole hazard the arrangement
+         * exists to avoid. Both ends agree on the word through the contracts
+         * package they always share, and neither names the other.
+         *
+         * THE SERVICES THEMSELVES ARE INERT HERE. They are ordinary tagged
+         * services in every build; nothing collects them unless devkit — a
+         * require-dev package — is present to run `fixtures:demo`. So this
+         * costs a production container two definitions nobody calls.
+         *
+         * TWO PROVIDERS, NOT ONE, because they are two slices: the PLAN (who
+         * is due where) and the PROOF (what the handsets reported against
+         * it). The second depends on the first by key, so devkit orders them
+         * without either knowing when the other runs.
+         */
+        $services->set('roster.devkit.content', RosterContentProvider::class)
+            ->args([
+                service(AreaOfInterestRepository::class),
+                service(StationRepository::class),
+                service(PostingRepository::class),
+                service(ShiftRepository::class),
+                service(DutyRepository::class),
+                service('roster.shift_vocabulary'),
+                service('roster.station_watches'),
+                service('roster.rotation_generator'),
+                service('roster.swaps'),
+                service('doctrine.orm.entity_manager'),
+            ])
+            ->tag('uhifadhi.devkit.content_provider');
+
+        $services->set('roster.devkit.presence_content', PresenceContentProvider::class)
+            ->args([
+                service(AreaOfInterestRepository::class),
+                service(DutyRepository::class),
+                service(ShiftRepository::class),
+                // THE HANDSET'S OWN DOOR, WHICH IS CONDITIONAL. The area
+                // registers its field API only where ApiPlatform and
+                // Security both are, and an installation without it has no
+                // way for a check-in to be reported at all — so there is
+                // genuinely no presence to seed, and the provider says so
+                // rather than the container failing to compile.
+                service(CheckInService::class)->nullOnInvalid(),
+                service(CheckInStatusService::class),
+            ])
+            ->tag('uhifadhi.devkit.content_provider');
 
         // THE OVERVIEW TAB. A read, so it is registered unconditionally: an
         // installation with no firewall still has a roster to look at.
