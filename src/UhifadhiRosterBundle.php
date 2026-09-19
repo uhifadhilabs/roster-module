@@ -256,6 +256,7 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service('twig'),
                 service('roster.identity'),
                 service('roster.week_grid'),
+                service('roster.rota'),
                 service('roster.presence'),
                 service('roster.day_board'),
                 service('roster.rostered_people'),

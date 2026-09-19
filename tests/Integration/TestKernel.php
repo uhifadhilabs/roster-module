@@ -200,6 +200,7 @@ final class TestKernel extends Kernel
             \Uhifadhi\Roster\Service\RotationEditor::class => 'roster.rotation_editor',
             \Uhifadhi\Roster\Service\RotationPreview::class => 'roster.rotation_preview',
             \Uhifadhi\Roster\Service\WeekGridService::class => 'roster.week_grid',
+            \Uhifadhi\Roster\Service\RotaService::class => 'roster.rota',
             \Uhifadhi\Roster\Service\DayBoardService::class => 'roster.day_board',
             \Uhifadhi\Roster\Service\RosterCalendar::class => 'roster.calendar',
             \Uhifadhi\Roster\Service\RosteredPeople::class => 'roster.rostered_people',

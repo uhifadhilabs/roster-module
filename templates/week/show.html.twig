@@ -18,55 +18,72 @@
 
 {% block shell_page_title %}Roster{% endblock %}
 
-{% block shell_page_subtitle %}Posts down, days across. The planner&rsquo;s tab &mdash; a cell is the watch, and every hole is drawn as a hole.{% endblock %}
+{% block shell_page_subtitle %}People down, days across, a fortnight. The planner&rsquo;s tab &mdash; a cell is the watch, today&rsquo;s column carries the live state, and a swap is two cells with a cost.{% endblock %}
 
 {% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / week{% endblock %}
 
 {% block roster_page %}
     {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
 
-    <div class="c">
-        <span class="tab">The week plan<span class="src">&middot; <time datetime="{{ from.format('Y-m-d') }}" data-localtime-format="day">{{ from.format('D j')|lower }}</time> &mdash; <time datetime="{{ through.format('Y-m-d') }}" data-localtime-format="day">{{ through.format('D j M')|lower }}</time>{% for shift in shifts %} &middot; {{ shift.label|slice(0, 1)|upper }} {{ shift.label|lower }}{% endfor %}</span></span>
-        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid, from: next.format('Y-m-d')}) }}">Next week &rarr;</a>
+    {# THE FIVE FIGURES, every one measuring the same fortnight the grid
+       draws — a strip that counted a different window would be a strip
+       nobody could check against the picture under it. #}
+    <div class="grid kstrip" style="margin-bottom:12px">
+        <div class="c kpi hot"><span class="tab">Person-watches</span><b class="disp">{{ figures.personWatches }}<em>this fortnight</em></b></div>
+        <div class="c kpi"><span class="tab">Holes</span><b class="disp">{{ figures.holes }}</b><span class="sub">{{ figures.holes ? 'watches the rings asked for and nobody is on' : 'every watch is filled' }}</span></div>
+        <div class="c kpi"><span class="tab">Nights, the heaviest</span><b class="disp">{{ figures.heaviestNights }}</b><span class="sub">{{ figures.heaviestName ?: 'nobody stands a night' }}</span></div>
+        <div class="c kpi"><span class="tab">Flagged today</span><b class="disp">{{ figures.flaggedToday }}</b><span class="sub">{{ figures.flaggedToday ? 'at post, unverified' : 'no claim the positions disagree with' }}</span></div>
+        <div class="c kpi"><span class="tab">Swaps pending</span><b class="disp">{{ figures.swapsPending }}</b><span class="sub">{{ figures.swapsPending ? 'waiting on a handset' : 'nothing out' }}</span></div>
+    </div>
 
-        {% if rows is empty %}
-            <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed &mdash; the Watches section is where a post joins</em></div>
+    <div class="c">
+        <span class="tab">The rota<span class="src">&middot; <time datetime="{{ from.format('Y-m-d') }}" data-localtime-format="day">{{ from.format('D j')|lower }}</time> &ndash; <time datetime="{{ through.format('Y-m-d') }}" data-localtime-format="day">{{ through.format('D j M')|lower }}</time></span></span>
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ROTATION_ROUTE'), {uuid: area.uuid}) }}">The rotation &rarr;</a>
+
+        {% if groups is empty %}
+            <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed</em></div>
         {% else %}
-            <table class="r-week">
-                <tr>
-                    <th>post</th>
-                    {% for day in days %}
-                        <th class="{{ day.format('Y-m-d') == today.format('Y-m-d') ? 'today' : '' }}">
-                            <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j')|lower }}</time>
-                        </th>
-                    {% endfor %}
-                </tr>
-                {% for row in rows %}
+            {# A FORTNIGHT DOES NOT FIT A PHONE. It scrolls sideways inside
+               its card rather than widening the page — the house's own
+               answer for a table. #}
+            <div style="overflow-x:auto">
+                <table class="fg-rota">
+                    <colgroup><col class="who"><col class="dy" span="{{ days|length }}"></colgroup>
                     <tr>
-                        <td>{{ row.stationName }}<em>{{ row.stationCode ?: '—' }}</em></td>
+                        <th class="who">ranger</th>
                         {% for day in days %}
-                            <td>
-                                <div class="r-cell">
-                                    {%- for cell in row.on(day) %}
-                                        {%- if cell.isEmpty %}
-                                            <span class="gap">{{ cell.initial }} &mdash;</span>
-                                        {%- elseif cell.isShort %}
-                                            <span class="gap">{{ cell.initial }} {{ cell.filled }} of {{ cell.expected }}</span>
-                                        {%- else %}
-                                            <span class="{{ loop.first ? 'd' : 'n' }}">{{ cell.initial }} {{ cell.filled }}</span>
-                                        {%- endif %}
-                                    {%- else %}
-                                        <span class="off">{{ row.runsNoWatch ? 'no watch' : 'stood down' }}</span>
-                                    {%- endfor %}
-                                </div>
-                            </td>
+                            <th class="{{ day.format('Y-m-d') == today.format('Y-m-d') ? 'today ' : '' }}{{ day.format('N') == '6' ? 'sat' : '' }}">
+                                <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D')|lower }}<em>{{ day.format('d') }}</em></time>
+                            </th>
                         {% endfor %}
                     </tr>
-                {% endfor %}
-            </table>
 
-                {%- for shift in shifts %}{{ loop.first ? '' : ' · ' }}{{ shift.label|slice(0, 1)|upper }} {{ shift.label|lower }} {{ shift.startsAt }}&ndash;{{ shift.endsAt }}{% endfor %}
-                &middot; the number is how many people</em></div>
+                    {% for group in groups %}
+                        <tr><td class="sep" colspan="{{ days|length + 1 }}">
+                            <b>{{ group.stationName }}
+                                {%- if group.stationCode %} <span class="mono">{{ group.stationCode }}</span>{% endif %}
+                                <span class="mono">&middot; {{ group.asks }}</span></b>
+                        </td></tr>
+
+                        {% for row in group.rows %}
+                            <tr>
+                                <td class="who"><b>{{ row.personName }}</b><em>{{ row.nights }} night{{ row.nights == 1 ? '' : 's' }} &middot; {{ row.watches }} watch{{ row.watches == 1 ? '' : 'es' }}</em></td>
+                                {% for day in days %}
+                                    {% set cell = row.cells[day.format('Y-m-d')] %}
+                                    <td class="{{ day.format('N') == '6' ? 'sat' : '' }}">
+                                        <span class="fg-cell {{ cell.kind.value }}{{ cell.isToday ? ' now' : '' }}">
+                                            {{- cell.label }}<em>{{ cell.note ?: cell.window }}</em>
+                                            {%- if cell.isToday and cell.state %}<span class="live {{ cell.state.value }}">{{ cell.state.label }}</span>{% endif -%}
+                                        </span>
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% else %}
+                            <tr><td class="who fog">nobody in the ring</td><td class="fog" colspan="{{ days|length }}">this post is on the books and its rotation draws from nobody</td></tr>
+                        {% endfor %}
+                    {% endfor %}
+                </table>
+            </div>
         {% endif %}
     </div>
 
@@ -77,7 +94,7 @@
        watch STARTS and not by when the hole was noticed, because a hole three
        hours away outranks one next week however long it has been open. #}
     <div class="c">
-        <span class="tab">Unfilled watches<span class="src">&middot; this week &middot; {{ gaps|length }}</span></span>
+        <span class="tab">Unfilled watches<span class="src">&middot; this fortnight &middot; {{ gaps|length }}</span></span>
         {% for gap in gaps|slice(0, 8) %}
             <div class="r-pres">
                 <span class="nm">{{ gap.station }}<em><time datetime="{{ gap.day.format('Y-m-d') }}" data-localtime-format="day">{{ gap.day.format('D j M')|lower }}</time> &middot; {{ gap.label|lower }}</em></span>
@@ -91,7 +108,7 @@
                 <span class="cnt w">{{ gap.expected - gap.filled }} short</span>
             </div>
         {% else %}
-            <div class="rfrag"><b>Nothing is short this week</b><em>every watch the pattern asked for has somebody on it</em></div>
+            <div class="rfrag"><b>Nothing is short this fortnight</b><em>every watch the pattern asked for has somebody on it</em></div>
         {% endfor %}
         {% if gaps|length > 8 %}
             <div class="rfrag"><b>{{ gaps|length }} in total</b><em>the eight soonest are shown &mdash; a card never grows with its data</em></div>
@@ -138,7 +155,7 @@
         </div>
 
         <div class="c">
-            <span class="tab">Swaps<span class="src">&middot; this week &middot; latest {{ recent|length }}</span></span>
+            <span class="tab">Swaps<span class="src">&middot; this fortnight &middot; latest {{ recent|length }}</span></span>
 
             {% for swap in recent %}
                 <div class="rln">
@@ -153,7 +170,7 @@
                     </span>
                 </div>
             {% else %}
-                <div class="rfrag"><b>No swap this week</b><em>every watch is standing as the ring generated it</em></div>
+                <div class="rfrag"><b>No swap this fortnight</b><em>every watch is standing as the ring generated it</em></div>
             {% endfor %}
         </div>
 

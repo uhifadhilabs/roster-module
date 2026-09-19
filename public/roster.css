@@ -16,7 +16,7 @@
  * draws a shift.
  *
  * THIS SHEET DEFINES NO TOKEN AT ALL. Everything it spends is the shell's
- * (--tx --fog --dim --ln --ln2 --raised --cv --acc --ok --warn
+ * (--tx --fog --dim --ln --ln2 --raised --cv --acc --accT --ok --warn
  * --fail), because a token spent but defined by nobody falls back to the
  * inherited colour — which looks fine in a standalone test and broken in a
  * real installation.
@@ -105,6 +105,10 @@
 
 .r-sh:focus-within { outline: 2px solid var(--acc); outline-offset: 2px; }
 
+/* A CHIP, NOT A CONTROL. `.r-sh.on` is the shell's `.chip.acc` reading — an
+   outlined accent chip — and not the filled `.mchip.on` a picked control
+   wears. The two are different gestures: one says "this is so", the other
+   says "you chose this". */
 .r-sh.on { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 45%, transparent); }
 .r-sh.on i { background: var(--acc); }
 
@@ -146,7 +150,8 @@
  * and the page should not hide the one it did not default to. Real radios
  * underneath: keyboard and screen readers come free.
  *
- * ON is the house on-state — outlined in the accent, never filled. */
+ * ON is the house on-state: accent ground, accent-ink text — the same two
+ * tokens `.mchip.on` spends. */
 .rsw { display: inline-flex; border: 1px solid var(--ln2); border-radius: 8px; overflow: hidden; }
 
 .rsw label {
@@ -155,7 +160,7 @@
 }
 
 .rsw label:last-child { border-right: 0; }
-.rsw label.on { border-color: var(--acc); color: var(--acc); font-weight: 700; }
+.rsw label.on { background: var(--acc); color: var(--accT); border-color: var(--acc); font-weight: 700; }
 .rsw label:focus-within { outline: 2px solid var(--acc); outline-offset: -2px; }
 
 .rsw input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -517,7 +522,7 @@
 }
 
 .r-pill:hover { color: var(--tx); border-color: var(--fog); }
-.r-pill.on { color: var(--acc); border-color: var(--acc); font-weight: 700; }
+.r-pill.on { color: var(--accT); background: var(--acc); border-color: var(--acc); font-weight: 700; }
 
 .r-pill button {
     background: none; border: 0; padding: 0 2px; cursor: pointer;
@@ -535,3 +540,96 @@
 
 .r-hz b { color: var(--fog); font-weight: 700; }
 .r-hz .sp { flex: 1 1 auto; }
+
+/* ---- THE ROTA: PEOPLE DOWN, GROUPED BY POST, A FORTNIGHT ACROSS ----------
+ * The row is the point. A grid of POSTS cannot answer "who is working too
+ * many nights" — the question a planner opens this tab for — and a grid of
+ * PEOPLE can, because the answer is one row long.
+ *
+ * `table-layout: fixed` so fourteen columns share the width evenly however
+ * long a ranger's name is; a grid whose columns moved with the longest name
+ * would redraw itself every time somebody was added. */
+.fg-rota { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 6px; }
+
+.fg-rota col.who { width: 168px; }
+.fg-rota col.dy { width: auto; }
+
+.fg-rota th {
+    font: 600 8.5px ui-monospace, monospace; color: var(--dim); text-transform: uppercase;
+    letter-spacing: .08em; text-align: left; padding: 0 3px 7px 0;
+    border-bottom: 1px solid var(--ln); vertical-align: bottom;
+}
+
+.fg-rota th em { display: block; font-style: normal; font-size: 10px; color: var(--fog); }
+.fg-rota th.today { color: var(--acc); }
+.fg-rota th.today em { color: var(--acc); }
+
+/* SATURDAY IS TINTED, not ruled: a fortnight needs a rhythm the eye can
+   count in, and a line per week would cut the rows. */
+.fg-rota th.sat, .fg-rota td.sat { background: color-mix(in srgb, var(--fog) 5%, transparent); }
+
+.fg-rota td { padding: 3px 3px 3px 0; vertical-align: top; }
+
+.fg-rota td.who {
+    font-size: 11.5px; font-weight: 600; color: var(--tx); padding-right: 10px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.fg-rota td.who em {
+    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    font-style: normal; text-transform: uppercase; letter-spacing: .06em;
+}
+
+/* THE POST'S OWN HEADING ROW — what it is, and what its watch asks for. */
+.fg-rota td.sep {
+    padding: 12px 0 5px; border-bottom: 1px solid var(--ln2);
+    font-size: 11.5px; color: var(--tx);
+}
+
+.fg-rota td.sep .mono { color: var(--dim); font-weight: 500; font-size: 10px; }
+
+/* ONE CELL: what the ring says, and — on today's column only — how the day
+   actually reads. Every other column is the plan, and painting a state on
+   one would be stating a plan as a fact. */
+.fg-cell {
+    display: block; border-radius: 6px; padding: 4px 6px; min-height: 34px;
+    font: 600 9.5px ui-monospace, monospace; color: var(--fog);
+    background: var(--raised); overflow: hidden;
+}
+
+.fg-cell em {
+    display: block; font-style: normal; font-weight: 500; font-size: 8.5px;
+    color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.fg-cell.d { color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, transparent); }
+.fg-cell.n { color: var(--fog); background: color-mix(in srgb, var(--fog) 13%, transparent); }
+.fg-cell.o { color: var(--dim); background: none; border: 1px dashed var(--ln); }
+
+/* TODAY'S CELL IS OUTLINED, and it is the only column that carries a state. */
+.fg-cell.now { box-shadow: 0 0 0 1.5px var(--acc) inset; }
+
+.fg-cell .live {
+    display: block; font-size: 8px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .07em;
+}
+
+.fg-cell .live.at_post_verified { color: var(--ok); }
+.fg-cell .live.at_post_unverified { color: var(--warn); }
+.fg-cell .live.no_check_in { color: var(--fail); }
+.fg-cell .live.not_working, .fg-cell .live.working_elsewhere { color: var(--dim); }
+.fg-cell .live.special { color: var(--acc); }
+
+/* A SWAP IN FLIGHT. swapA is the watch being given up, swapB the one being
+   taken — and NEITHER DUTY HAS MOVED: until the handset answers, both stand
+   where the rotation put them, and these marks say a trade is in flight
+   rather than that anybody has been moved. */
+.fg-cell.swapA {
+    border: 1.5px solid var(--acc); color: var(--acc);
+    background: color-mix(in srgb, var(--acc) 14%, transparent);
+}
+
+.fg-cell.swapB {
+    border: 1.5px dashed var(--acc); color: var(--acc);
+    background: color-mix(in srgb, var(--acc) 7%, transparent);
+}

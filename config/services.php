@@ -31,6 +31,7 @@ use Uhifadhi\Roster\Service\RosterCalendar;
 use Uhifadhi\Roster\Service\RosteredPeople;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\RosterSettingsService;
+use Uhifadhi\Roster\Service\RotaService;
 use Uhifadhi\Roster\Service\RotationEditor;
 use Uhifadhi\Roster\Service\RotationGenerator;
 use Uhifadhi\Roster\Service\RotationPreview;
@@ -237,6 +238,23 @@ return static function (ContainerConfigurator $container): void {
     // writes nothing at all.
     $services->set('roster.rotation_preview', RotationPreview::class)
         ->args([service(RotationRepository::class), service(ShiftRepository::class), service('roster.cycle_planner')]);
+
+    /*
+     * THE ROTA — people down, grouped by post, a fortnight across. Four
+     * queries for the whole window: fourteen days across eighteen people is
+     * two hundred and fifty cells, and a planner's tab that queried per cell
+     * would be slower than the month it plans.
+     */
+    $services->set('roster.rota', RotaService::class)
+        ->args([
+            service(StationWatchRepository::class),
+            service(RotationRepository::class),
+            service(RotationPoolMemberRepository::class),
+            service(DutyRepository::class),
+            service(ShiftRepository::class),
+            service(SwapRepository::class),
+            service('roster.presence'),
+        ]);
 
     // `roster_url()` — the URL of a screen, or null where the installation did
     // not mount it. Twig's own path() THROWS on an unregistered route, so a

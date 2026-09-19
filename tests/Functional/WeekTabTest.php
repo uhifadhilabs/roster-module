@@ -29,9 +29,16 @@ use Uhifadhi\Roster\Service\StationWatchService;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
 
 /**
- * THE PLANNER'S TAB, OVER REAL HTTP — and the assertion that matters is that
- * a HOLE IS VISIBLE. A week grid that drew a tidy row over a post nobody is
- * on would be worse than no week grid.
+ * THE PLANNER'S TAB, OVER REAL HTTP.
+ *
+ * THE GEOMETRY CHANGED and these tests changed with it: the grid was posts
+ * down over a week and is now PEOPLE DOWN, GROUPED BY POST, ACROSS A
+ * FORTNIGHT. A test still asserting the old shape would be a test defending
+ * a design nobody ships.
+ *
+ * What did NOT change is what the tab is for: a hole has to be visible
+ * before the day arrives, and the figures above the grid have to measure the
+ * same fortnight the grid draws.
  */
 final class WeekTabTest extends WebTestCase
 {
@@ -123,7 +130,7 @@ final class WeekTabTest extends WebTestCase
         return $rotation;
     }
 
-    public function testTheWeekTabRendersAsAHouseCard(): void
+    public function testTheRotaRendersAsAHouseCard(): void
     {
         $this->aGateAskingForTwo(2);
         $this->signIn();
@@ -150,30 +157,79 @@ final class WeekTabTest extends WebTestCase
     }
 
     /**
-     * THE ASSERTION THE WHOLE TAB EXISTS FOR. The gate asks for two and has
-     * one, so the cell is a hole and says which.
+     * PEOPLE DOWN, GROUPED BY POST — the geometry the rebuild is about. A
+     * grid of posts cannot answer "who is working too many nights"; a grid
+     * of people can, because the answer is one row long.
      */
-    public function testAShortWatchIsDrawnAsAHole(): void
-    {
-        $this->aGateAskingForTwo(1);
-        $this->signIn();
-
-        $crawler = $this->client->request('GET', $this->url());
-
-        // Seven days, every one of them a watch short of two.
-        self::assertSame(7, $crawler->filter('.r-cell span.gap')->count(), 'A short watch has to draw a hole, every day it is short.');
-        self::assertStringContainsString('1 of 2', $crawler->filter('.r-cell span.gap')->first()->text());
-    }
-
-    /** A full watch is not a hole. */
-    public function testAFilledWatchIsNotAHole(): void
+    public function testTheGridIsPeopleDownGroupedByPost(): void
     {
         $this->aGateAskingForTwo(2);
         $this->signIn();
 
         $crawler = $this->client->request('GET', $this->url());
 
-        self::assertSame(0, $crawler->filter('.r-cell span.gap')->count());
+        // A heading row for the post, then a row per person its ring draws.
+        self::assertSame(1, $crawler->filter('.fg-rota td.sep')->count());
+        self::assertStringContainsString('north gate post', $crawler->filter('.fg-rota td.sep')->text());
+        self::assertSame(2, $crawler->filter('.fg-rota td.who')->count(), 'One row per person in the ring.');
+    }
+
+    /** A FORTNIGHT: fourteen day columns beside the ranger column. */
+    public function testTheGridDrawsAFortnight(): void
+    {
+        $this->aGateAskingForTwo(1);
+        $this->signIn();
+
+        $crawler = $this->client->request('GET', $this->url());
+
+        self::assertSame(15, $crawler->filter('.fg-rota th')->count(), 'The ranger column and fourteen days.');
+    }
+
+    /**
+     * THE ASSERTION THE WHOLE TAB EXISTS FOR — a hole is visible before the
+     * day arrives. The gate asks for two and one person stands it, so the
+     * figures say so and the unfilled list names them.
+     */
+    public function testAShortWatchIsVisibleBeforeTheDayArrives(): void
+    {
+        $this->aGateAskingForTwo(1);
+        $this->signIn();
+
+        $crawler = $this->client->request('GET', $this->url());
+        $text = $crawler->filter('body')->text();
+
+        self::assertStringContainsString('Holes', $text);
+        self::assertStringContainsString('1 short', $text);
+    }
+
+    /** Every cell of the fortnight is drawn, and a day with no watch is off. */
+    public function testADayWithNoWatchIsDrawnAsOffAndNeverLeftBlank(): void
+    {
+        $this->aGateAskingForTwo(1);
+        $this->signIn();
+
+        $crawler = $this->client->request('GET', $this->url());
+
+        self::assertGreaterThan(0, $crawler->filter('.fg-cell.o')->count(), 'A stood-down day is stated, never blank.');
+        self::assertGreaterThan(0, $crawler->filter('.fg-cell.d')->count());
+    }
+
+    /**
+     * THE FIVE FIGURES measure the same fortnight the grid draws — a strip
+     * counting a different window is a strip nobody can check against the
+     * picture under it.
+     */
+    public function testTheFiguresSitAboveTheGrid(): void
+    {
+        $this->aGateAskingForTwo(2);
+        $this->signIn();
+
+        $crawler = $this->client->request('GET', $this->url());
+        $text = $crawler->filter('body')->text();
+
+        foreach (['Person-watches', 'Holes', 'Nights, the heaviest', 'Flagged today', 'Swaps pending'] as $figure) {
+            self::assertStringContainsString($figure, $text);
+        }
     }
 
     /** The holes list names the post, the day and how short it is. */
@@ -189,14 +245,14 @@ final class WeekTabTest extends WebTestCase
         self::assertStringContainsString('north gate post', $text);
         self::assertStringContainsString('1 short', $text);
         // A card never grows with its data: eight shown, the count stated.
-        self::assertStringContainsString('this week', $text);
+        self::assertStringContainsString('this fortnight', $text);
     }
 
     /**
      * THE GRID STARTS ON A MONDAY whatever day is asked for. A week that
      * began on the day you happened to look is not a week anybody plans in.
      */
-    public function testTheWeekStartsOnAMondayWhateverDayIsAskedFor(): void
+    public function testTheFortnightStartsOnAMondayWhateverDayIsAskedFor(): void
     {
         $this->aGateAskingForTwo(2);
         $this->signIn();
@@ -204,10 +260,12 @@ final class WeekTabTest extends WebTestCase
         // Thursday 17 September 2026.
         $crawler = $this->client->request('GET', $this->url('2026-09-17'));
 
-        $headings = $crawler->filter('.r-week th')->each(static fn ($th): string => trim($th->text()));
-        self::assertSame('post', $headings[0]);
-        self::assertStringContainsString('mon 14', $headings[1]);
-        self::assertStringContainsString('sun 20', $headings[7]);
+        $headings = $crawler->filter('.fg-rota th')->each(static fn ($th): string => trim($th->text()));
+        self::assertSame('ranger', $headings[0]);
+        self::assertStringContainsString('mon', $headings[1]);
+        self::assertStringContainsString('14', $headings[1]);
+        // A fortnight, so the last column is the sunday thirteen days on.
+        self::assertStringContainsString('27', $headings[14]);
     }
 
     /** A mistyped date in a url is not worth a 500. */

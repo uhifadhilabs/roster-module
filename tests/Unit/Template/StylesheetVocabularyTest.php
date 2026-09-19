@@ -127,6 +127,10 @@ final class StylesheetVocabularyTest extends TestCase
     {
         return str_starts_with($class, 'r-')
             || str_starts_with($class, 'rb-')
+            // `fg-*` is this module's too: the rota and its cells graduated
+            // out of the design's format gallery and kept their names, so
+            // the app and the workspace stay in step.
+            || str_starts_with($class, 'fg-')
             || \in_array($class, ['rband', 'rset', 'rsw', 'rfrag', 'rstat'], true);
     }
 

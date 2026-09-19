@@ -35,6 +35,7 @@ use Uhifadhi\Roster\Service\PresenceReader;
 use Uhifadhi\Roster\Service\RosterCalendar;
 use Uhifadhi\Roster\Service\RosteredPeople;
 use Uhifadhi\Roster\Service\RosterIdentityService;
+use Uhifadhi\Roster\Service\RotaService;
 use Uhifadhi\Roster\Service\SwapCostService;
 use Uhifadhi\Roster\Service\SwapService;
 use Uhifadhi\Roster\Service\WeekGridService;
@@ -109,6 +110,7 @@ final class RosterController
         private readonly Environment $twig,
         private readonly RosterIdentityService $identity,
         private readonly WeekGridService $week,
+        private readonly RotaService $rota,
         private readonly PresenceReader $presence,
         private readonly DayBoardService $board,
         private readonly RosteredPeople $people,
@@ -204,8 +206,8 @@ final class RosterController
         #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
         Request $request,
     ): Response {
-        $from = WeekGridService::weekStart($this->askedFor($request) ?? new \DateTimeImmutable('today'));
-        $through = $from->modify('+6 days');
+        $from = RotaService::start($this->askedFor($request) ?? new \DateTimeImmutable('today'));
+        $through = $from->modify(\sprintf('+%d days', RotaService::DAYS - 1));
 
         return new Response($this->twig->render('@UhifadhiRoster/week/show.html.twig', [
             'area' => $area,
@@ -213,12 +215,12 @@ final class RosterController
             'from' => $from,
             'through' => $through,
             'today' => new \DateTimeImmutable('today'),
-            'days' => $this->week->days($from, $through),
-            'rows' => $this->week->rows($area, $from, $through),
+            'days' => $this->rota->days($from),
+            'groups' => $this->rota->groups($area, $from, $through),
+            'figures' => $this->rota->figures($area, $from, $through),
             'gaps' => $this->week->gaps($area, $from, $through),
-            'shifts' => $this->week->shiftsOf($area),
-            'previous' => $from->modify('-7 days'),
-            'next' => $from->modify('+7 days'),
+            'previous' => $from->modify(\sprintf('-%d days', RotaService::DAYS)),
+            'next' => $from->modify(\sprintf('+%d days', RotaService::DAYS)),
             // THE SWAP FLOW: the register of offers over this window, and
             // the trade being put together, if one is.
             'swaps' => $this->swaps->openBetween($area, $from, $through),

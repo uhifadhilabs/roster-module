@@ -341,6 +341,31 @@ tabs — nine of them. What was information rather than commentary moved: the
 week grid's shift key is now in the card's `.src` caption. Empty states stay,
 because "there is nothing here" is a fact.
 
+## The rota is people down, grouped by post, a fortnight across
+
+**RULED 2026-09-20** (`92ddb50`). The grid was posts down over a week; it is
+now one row per PERSON under a heading per post, across fourteen days.
+
+**The row is the whole point.** A grid of posts cannot answer "who is working
+too many nights" — the question a planner opens this tab for — and a grid of
+people can, because the answer is one row long. That is also why the five
+figures above it are per person: the heaviest is the most nights *any one
+person* stands, not a total, because a total would say the park's
+worst-loaded ranger has two when two people have one each.
+
+**A fortnight and not a week**, monday-anchored: two weeks is the window a
+swap is actually arranged in.
+
+**Only today's column carries a check-in state.** Every other column is what
+the rotation SAYS, not what happened; painting a state on a future cell would
+state a plan as a fact. So the presence read is asked for exactly one day.
+
+**An open swap marks both cells** — `swapA` on the watch being given up,
+`swapB` on the person being asked — and **neither duty has moved**. An
+answered swap marks nothing: accepted has already moved the duty, and
+declined or withdrawn changed nothing, so the grid shows the roster as it is
+rather than remembering a conversation.
+
 ## What the design asks for that nothing can answer yet
 
 These are named here rather than invented, because the honest empty state is
