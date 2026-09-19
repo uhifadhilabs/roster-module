@@ -17,7 +17,12 @@ use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
+use Uhifadhi\Bundle\TeamBundle\Entity\Department;
+use Uhifadhi\Bundle\TeamBundle\Entity\Position;
+use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Roster\Devkit\RosterContentProvider;
+use Uhifadhi\Roster\Entity\Rotation;
+use Uhifadhi\Roster\Enum\RotationScope;
 use Uhifadhi\Roster\Enum\SwapState;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
@@ -49,6 +54,9 @@ final class RosterContentProviderTest extends IntegrationTestCase
 {
     private AreaOfInterest $area;
 
+    /** @var list<User> the six the fixture posts round the area's four posts */
+    private array $people = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -60,9 +68,9 @@ final class RosterContentProviderTest extends IntegrationTestCase
         $postings = $this->service(PostingService::class);
         self::assertInstanceOf(PostingService::class, $postings);
 
-        $people = [];
+        $this->people = [];
         foreach (range(1, 6) as $n) {
-            $people[] = $this->aPerson(\sprintf('ranger%d@example.test', $n), 'Ranger'.$n);
+            $this->people[] = $this->aPerson(\sprintf('ranger%d@example.test', $n), 'Ranger'.$n);
         }
 
         foreach (range(1, 4) as $n) {
@@ -71,7 +79,7 @@ final class RosterContentProviderTest extends IntegrationTestCase
 
             // Three each, walked round the roster, so the posts share people.
             foreach ([0, 1, 2] as $offset) {
-                $postings->post($station, $people[($n - 1 + $offset) % 6], PostingSource::WrittenHere);
+                $postings->post($station, $this->people[($n - 1 + $offset) % 6], PostingSource::WrittenHere);
             }
         }
 
@@ -176,6 +184,14 @@ final class RosterContentProviderTest extends IntegrationTestCase
         self::assertInstanceOf(PostingService::class, $postings);
 
         foreach ($rotations as $rotation) {
+            if (RotationScope::Post !== $rotation->getScope()) {
+                // A SQUAD IS THE OTHER CASE ON PURPOSE: it carries a
+                // department's people to whatever post it is based at, and
+                // testing it against that post's postings would be testing
+                // the rule it exists to be an exception to.
+                continue;
+            }
+
             $station = $rotation->watchStation();
             self::assertNotNull($station, 'A per-post ring names its post.');
 
@@ -540,5 +556,118 @@ final class RosterContentProviderTest extends IntegrationTestCase
         }
 
         self::assertNotEmpty($seen);
+    }
+
+    /**
+     * A SQUAD CARRIES A RING OF ITS OWN — the second scope a rotation can
+     * have, and the one the identity band counts as "per team".
+     *
+     * ITS PEOPLE ARE A DEPARTMENT'S, not a post's postings: that is the
+     * whole difference between the two scopes, and a demo with only
+     * per-post rings draws the band's team figure as nought and never
+     * renders the scope at all.
+     *
+     * ITS PEOPLE ARE SPOKEN FOR BEFORE THE POSTS WALK, so a squad away on
+     * tour is not also standing the gate it is based at.
+     */
+    public function testASquadCarriesARingDrawnFromADepartment(): void
+    {
+        $squad = $this->aDepartmentOf('Protection Service', [0, 1]);
+
+        $this->provider()->load();
+
+        $team = array_values(array_filter(
+            $this->repository(RotationRepository::class)->findByArea($this->area),
+            static fn (Rotation $rotation): bool => RotationScope::Team === $rotation->getScope(),
+        ));
+
+        self::assertCount(1, $team, 'One squad, and only one.');
+        self::assertSame($squad->getName(), $team[0]->getTeamName());
+        self::assertNotNull($team[0]->getBaseStation(), 'A squad is counted at a base post.');
+        self::assertNotEmpty($team[0]->getPool());
+
+        $carried = [];
+        foreach ($team[0]->getPool() as $member) {
+            $carried[] = (string) $member->getPerson()->getUuidString();
+        }
+
+        foreach ($this->repository(RotationRepository::class)->findByArea($this->area) as $rotation) {
+            if (RotationScope::Team === $rotation->getScope()) {
+                continue;
+            }
+
+            foreach ($rotation->getPool() as $member) {
+                self::assertNotContains(
+                    (string) $member->getPerson()->getUuidString(),
+                    $carried,
+                    'Somebody is on tour with the squad and standing a post the same month.',
+                );
+            }
+        }
+    }
+
+    /** THE SQUAD'S TOUR IS ROSTERED, at the post it is based at. */
+    public function testTheSquadsTourProducesWatchesThisMonth(): void
+    {
+        $this->aDepartmentOf('Protection Service', [0, 1]);
+
+        $this->provider()->load();
+
+        $team = array_values(array_filter(
+            $this->repository(RotationRepository::class)->findByArea($this->area),
+            static fn (Rotation $rotation): bool => RotationScope::Team === $rotation->getScope(),
+        ));
+        self::assertCount(1, $team);
+
+        $carried = $this->repository(DutyRepository::class)->findGeneratedBy($team[0], $this->monthStart(), $this->monthEnd());
+        self::assertNotEmpty($carried, 'A squad with nothing on its tour is a scope nothing draws.');
+
+        foreach ($carried as $duty) {
+            self::assertSame($team[0]->getBaseStation()?->getId(), $duty->getStation()->getId());
+        }
+    }
+
+    /**
+     * AN AREA THAT CANNOT SPARE THE PEOPLE CARRIES NO SQUAD. Taking two
+     * people out of a park that has three leaves its posts with one, and
+     * a demo that emptied the gates to show off a second scope would be
+     * trading the page somebody opens for the one they do not.
+     */
+    public function testAnAreaTooSmallToSpareThePeopleCarriesNoSquad(): void
+    {
+        $this->aDepartmentOf('Protection Service', [0, 1]);
+
+        $small = $this->anArea('small reserve');
+        $this->aStation($small, 'small post', 'SM-01');
+        $this->em->flush();
+
+        $this->provider()->load();
+
+        foreach ($this->repository(RotationRepository::class)->findByArea($small) as $rotation) {
+            self::assertSame(RotationScope::Post, $rotation->getScope());
+        }
+    }
+
+    /**
+     * A DEPARTMENT WITH SOME OF THE AREA'S PEOPLE IN IT — a department, a
+     * position under it, and the people at that position.
+     *
+     * @param list<int> $whichPeople indexes into the six people the fixture posts
+     */
+    private function aDepartmentOf(string $name, array $whichPeople): Department
+    {
+        $department = new Department()->setName($name);
+        $this->em->persist($department);
+
+        $position = new Position()->setName('Ranger')->setDepartment($department);
+        $this->em->persist($position);
+
+        foreach ($whichPeople as $index) {
+            $this->people[$index]->setPosition($position);
+        }
+
+        $this->em->flush();
+
+        return $department;
     }
 }

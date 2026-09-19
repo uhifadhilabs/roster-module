@@ -22,6 +22,7 @@ use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
+use Uhifadhi\Bundle\TeamBundle\Repository\DepartmentRepository;
 use Uhifadhi\Bundle\TeamBundle\Repository\UserRepository;
 use Uhifadhi\Contracts\Devkit\ContentProviderInterface;
 use Uhifadhi\Contracts\Entity\UserInterface;
@@ -132,12 +133,27 @@ final readonly class RosterContentProvider implements ContentProviderInterface
      */
     private const int TRADES_READ = 50;
 
+    /**
+     * HOW MANY PEOPLE A DEMO SQUAD CARRIES. Two is the smallest number
+     * that is a squad rather than a person, and the fewest to take out of
+     * a park's gates to show the scope.
+     */
+    private const int SQUAD_SIZE = 2;
+
+    /**
+     * HOW MANY PEOPLE THE POSTS MUST BE LEFT WITH before a squad may take
+     * any. Below this the area is not staffing a tour, it is abandoning
+     * its gates to draw one.
+     */
+    private const int POSTS_KEEP_AT_LEAST = 2;
+
     public function __construct(
         private AreaOfInterestRepository $areas,
         private StationRepository $stations,
         private PostingRepository $postings,
         private PostingService $postingDesk,
         private UserRepository $people,
+        private DepartmentRepository $departments,
         private DutyRepository $duties,
         private RotationRepository $rings,
         private StationWatchRepository $rosteredPosts,
@@ -221,6 +237,16 @@ final readonly class RosterContentProvider implements ContentProviderInterface
             foreach ($standing->getPool() as $member) {
                 $ringed[(string) $member->getPerson()->getUuidString()] = true;
             }
+        }
+
+        // THE SQUAD GOES FIRST, and the order is the whole of it: it draws
+        // from a DEPARTMENT while a post draws from its own postings, so a
+        // squad formed after the walk would find every one of its people
+        // already standing a gate — and one formed without being marked
+        // here would put them on tour and on the gate the same morning.
+        $tour = $this->putASquadOnTour($area, $posts, $ringed);
+        if (null !== $tour) {
+            $rings[] = $tour;
         }
 
         foreach ($posts as $index => $post) {
@@ -449,6 +475,175 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         $this->entityManager->flush();
 
         return $rotation;
+    }
+
+    /**
+     * ONE SQUAD, CARRYING A RING OF ITS OWN — the second scope a rotation
+     * can have, and without one in the demo the identity band draws its
+     * "per team" figure as nought and {@see RotationScope::Team} renders
+     * nowhere at all.
+     *
+     * A SQUAD IS A DEPARTMENT'S PEOPLE, NOT A POST'S. That is the entire
+     * difference between the two scopes: a post rings whoever the area
+     * posts there, a squad carries whoever the organisation put in a
+     * department, and it takes them wherever it is sent. Drawing the demo's
+     * squad from postings would produce a per-post ring wearing the other
+     * scope's name.
+     *
+     * IT IS COUNTED AT A BASE POST, ruled — a squad away on tour still
+     * belongs somewhere, and its watches are recorded there. The base is
+     * the area's first post, which is the one every other page already
+     * leads with; that its own ring stands there too is not a clash but
+     * the case the board exists to draw.
+     *
+     * AN AREA THAT CANNOT SPARE THE PEOPLE CARRIES NONE. Two people out of
+     * a park that has three leaves its gates with one, and a demo that
+     * emptied the page somebody opens to show off a scope on the page they
+     * do not is a bad trade.
+     *
+     * @param list<Station>       $posts
+     * @param array<string, true> $ringed people already drawn, added to here
+     */
+    private function putASquadOnTour(AreaOfInterest $area, array $posts, array &$ringed): ?Rotation
+    {
+        foreach ($this->rings->findByArea($area) as $standing) {
+            if (RotationScope::Team === $standing->getScope()) {
+                // This area already carries one, from an earlier run or
+                // from somebody's own work. A second squad is a second
+                // squad every run.
+                return null;
+            }
+        }
+
+        $shiftKey = $this->firstShiftTheAreaNames($area);
+        $base = $posts[0] ?? null;
+
+        if (null === $shiftKey || null === $base) {
+            return null;
+        }
+
+        $spare = $this->peopleTheAreaCanSpare($area, $ringed);
+        $squad = $this->aDepartmentsPeople($area, $ringed);
+
+        if (null === $squad) {
+            return null;
+        }
+
+        [$departmentName, $carried] = $squad;
+
+        $costToThePosts = \count(array_filter(
+            $carried,
+            static fn (UserInterface $person): bool => isset($spare[(string) $person->getUuidString()]),
+        ));
+
+        if (\count($spare) - $costToThePosts < self::POSTS_KEEP_AT_LEAST) {
+            return null;
+        }
+
+        $rotation = new Rotation(
+            $area,
+            RotationScope::Team,
+            Cycle::of([$shiftKey, $shiftKey, $shiftKey, Cycle::OFF, Cycle::OFF]),
+            $this->monthStart(),
+            [$shiftKey => 1],
+            self::HORIZON_DAYS,
+        )->carriedBy($departmentName, $base);
+
+        $this->entityManager->persist($rotation);
+
+        foreach ($carried as $position => $person) {
+            $ringed[(string) $person->getUuidString()] = true;
+            $this->entityManager->persist(new RotationPoolMember($rotation, $person, $position));
+        }
+
+        $this->entityManager->flush();
+
+        return $rotation;
+    }
+
+    /**
+     * THE PEOPLE THIS AREA'S POSTS STILL HAVE TO DRAW ON, keyed by uuid —
+     * what says whether a squad is affordable. Counted through the area's
+     * own postings, because a person nobody posts here is not one of this
+     * park's gates' people whatever else they are.
+     *
+     * @param array<string, true> $ringed
+     *
+     * @return array<string, true>
+     */
+    private function peopleTheAreaCanSpare(AreaOfInterest $area, array $ringed): array
+    {
+        $spare = [];
+        foreach ($this->postings->findStandingByArea($area) as $posting) {
+            $person = $posting->getPerson();
+            if (null === $person) {
+                continue;
+            }
+
+            $uuid = (string) $person->getUuidString();
+            if (!isset($ringed[$uuid])) {
+                $spare[$uuid] = true;
+            }
+        }
+
+        return $spare;
+    }
+
+    /**
+     * THE FIRST DEPARTMENT THAT CAN FIELD A SQUAD, and the people it
+     * fields — the area's own departments before the ones it inherits,
+     * because a park's own squad is the likelier answer and a demo should
+     * show the likelier answer.
+     *
+     * A DEPARTMENT'S PEOPLE ARE THE PEOPLE AT ITS POSITIONS. Team owns
+     * that chain and this only reads it; there is no membership of a
+     * department that is not held through a position.
+     *
+     * @param array<string, true> $ringed
+     *
+     * @return array{string, non-empty-list<UserInterface>}|null
+     */
+    private function aDepartmentsPeople(AreaOfInterest $area, array $ringed): ?array
+    {
+        $everyone = $this->theInstallationsPeople();
+
+        foreach ([...$this->departments->findForArea($area), ...$this->departments->findOrgLevelOrdered()] as $department) {
+            $name = $department->getName();
+            if (!$department->isActive() || null === $name) {
+                continue;
+            }
+
+            $carried = [];
+            foreach ($everyone as $person) {
+                if (isset($ringed[(string) $person->getUuidString()])) {
+                    continue;
+                }
+
+                if ($person->getPosition()?->getDepartment()?->getId() === $department->getId()) {
+                    $carried[] = $person;
+                }
+
+                if (self::SQUAD_SIZE === \count($carried)) {
+                    return [$name, $carried];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * THE SHIFT A TOUR IS STOOD IN — the first the area names. A squad
+     * needs one shift, not a post's whole demand: what it carries is a
+     * pattern of days away, and the pattern is the point.
+     */
+    private function firstShiftTheAreaNames(AreaOfInterest $area): ?string
+    {
+        foreach ($this->vocabulary->openFor($area) as $shift) {
+            return $shift->getKey();
+        }
+
+        return null;
     }
 
     /**

@@ -24,6 +24,7 @@ use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
+use Uhifadhi\Bundle\TeamBundle\Repository\DepartmentRepository;
 use Uhifadhi\Bundle\TeamBundle\Repository\UserRepository;
 use Uhifadhi\Contracts\Area\StationSectionsInterface;
 use Uhifadhi\Contracts\Roster\WatchProviderInterface;
@@ -283,6 +284,7 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service(PostingRepository::class),
                 service(PostingService::class),
                 service(UserRepository::class),
+                service(DepartmentRepository::class),
                 service(DutyRepository::class),
                 service(RotationRepository::class),
                 service(StationWatchRepository::class),
