@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
- * This file is part of the UhifadhiLabs Rosters Module.
+ * This file is part of the UhifadhiLabs Roster Module.
  *
  * (c) Ezekiel Mjema <https://github.com/eemjema>
  *
@@ -37,7 +37,7 @@ final class RosterConfigurationTest extends TestCase
         return $processed;
     }
 
-    public function testDefaultsFileTheModuleUnderFluxWithoutDevTools(): void
+    public function testDefaultsFileTheModuleUnderOperationsWithoutDevTools(): void
     {
         $config = $this->process([]);
 
@@ -61,9 +61,141 @@ final class RosterConfigurationTest extends TestCase
     {
         $this->expectException(InvalidConfigurationException::class);
 
-        // Until the design rules on the domain model there is no shift or
-        // station vocabulary to configure; an invented key must fail loudly
-        // rather than be ignored.
         $this->process(['shift_patterns' => ['day' => ['label' => 'Day shift']]]);
+    }
+
+    /**
+     * THE FOUR NAMED WINDOWS EVERY SURFACE IS DRAWN IN. `radio` is a fourth
+     * shift and not a note on `night`, because a headquarters stands a radio
+     * watch overnight and the day board has to say which of the two a person
+     * is on.
+     */
+    public function testTheShiftVocabularyDefaultsToTheFourNamedWindows(): void
+    {
+        $shifts = $this->process([])['shifts'];
+
+        self::assertIsArray($shifts);
+        self::assertSame(['day', 'night', 'office', 'radio'], array_column($shifts, 'key'));
+        self::assertSame(['06:00', '18:00', '07:30', '18:00'], array_column($shifts, 'start'));
+        self::assertSame(['18:00', '06:00', '16:30', '06:00'], array_column($shifts, 'end'));
+    }
+
+    /**
+     * Whether a gate really runs two twelves is an operational fact a
+     * deployment owns, which is exactly why the vocabulary is config: a fifth
+     * named window is a line in a yaml file, never a release.
+     */
+    public function testADeploymentNamesItsOwnShifts(): void
+    {
+        $shifts = $this->process(['shifts' => [
+            ['key' => 'early', 'label' => 'Early', 'start' => '05:00', 'end' => '13:00'],
+            ['key' => 'late', 'label' => 'Late', 'start' => '13:00', 'end' => '21:00'],
+        ]])['shifts'];
+
+        self::assertIsArray($shifts);
+        self::assertSame(['early', 'late'], array_column($shifts, 'key'));
+    }
+
+    /**
+     * A WINDOW MAY CROSS MIDNIGHT, and that is not a mistake to validate away:
+     * a duty belongs to the calendar day its watch BEGINS on, so a night watch
+     * is one duty and two blocks on a day board.
+     */
+    public function testAWindowMayCrossMidnight(): void
+    {
+        $shifts = $this->process(['shifts' => [
+            ['key' => 'tour', 'label' => 'Overnight tour', 'start' => '22:00', 'end' => '04:00'],
+        ]])['shifts'];
+
+        self::assertIsArray($shifts);
+        self::assertSame([['key' => 'tour', 'label' => 'Overnight tour', 'start' => '22:00', 'end' => '04:00']], $shifts);
+    }
+
+    public function testAShiftWithoutAClockTimeIsRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['shifts' => [
+            ['key' => 'day', 'label' => 'Day', 'start' => 'dawn', 'end' => '18:00'],
+        ]]);
+    }
+
+    public function testAShiftKeyThatIsNotAnIdentifierIsRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['shifts' => [
+            ['key' => 'Night Watch', 'label' => 'Night', 'start' => '18:00', 'end' => '06:00'],
+        ]]);
+    }
+
+    /**
+     * A duty stores the key and nothing else, so two shifts sharing one make a
+     * STORED ROW ambiguous about the window it was stood in — and no later
+     * screen can recover the answer.
+     */
+    public function testTwoShiftsSharingAKeyAreRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['shifts' => [
+            ['key' => 'day', 'label' => 'Day', 'start' => '06:00', 'end' => '18:00'],
+            ['key' => 'day', 'label' => 'Long day', 'start' => '06:00', 'end' => '20:00'],
+        ]]);
+    }
+
+    public function testAnEmptyShiftVocabularyIsRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['shifts' => []]);
+    }
+
+    /**
+     * The starting values a new area setting, station watch or rotation is
+     * created with — never read at display time, where what a station actually
+     * runs at is its own stored value.
+     */
+    public function testTheStartingValuesAreTheDesignsOwn(): void
+    {
+        $defaults = $this->process([])['defaults'];
+
+        self::assertSame([
+            'ping_interval_minutes' => 30,
+            'silence_window_minutes' => 120,
+            'offline_after_minutes' => 1440,
+            'catchment_metres' => 1500,
+            'horizon_days' => 42,
+        ], $defaults);
+    }
+
+    public function testADeploymentOverridesOneStartingValueWithoutRestatingTheRest(): void
+    {
+        $defaults = $this->process(['defaults' => ['ping_interval_minutes' => 15]])['defaults'];
+
+        self::assertIsArray($defaults);
+        self::assertSame(15, $defaults['ping_interval_minutes']);
+        self::assertSame(120, $defaults['silence_window_minutes']);
+    }
+
+    /**
+     * Offline has to come after late, or a station would go straight from
+     * reporting to offline and "late" would name nothing.
+     */
+    public function testOfflineComingBeforeLateIsRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['defaults' => [
+            'silence_window_minutes' => 1440,
+            'offline_after_minutes' => 120,
+        ]]);
+    }
+
+    public function testAZeroPingIntervalIsRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['defaults' => ['ping_interval_minutes' => 0]]);
     }
 }

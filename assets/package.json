@@ -1,0 +1,9 @@
+{
+    "name": "@uhifadhi/roster-module",
+    "version": "1.0.0",
+    "description": "The roster module's Stimulus controllers.",
+    "symfony": {
+        "controllers": {},
+        "importmap": {}
+    }
+}

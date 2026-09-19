@@ -1,13 +1,13 @@
 {
     "name": "uhifadhi/roster-module",
-    "description": "Rosters: who is on duty, where and when — duty rosters, daily work plans, on-duty presence and the station registry those shifts are kept at.",
+    "description": "Roster: who is due on watch, where and when — rotations that generate duties, swaps and absences, and the on-duty presence read back from the area's check-ins.",
     "type": "symfony-bundle",
     "keywords": [
-        "rosters",
+        "roster",
         "duty-roster",
-        "work-plan",
+        "rotation",
         "shifts",
-        "stations",
+        "presence",
         "conservation",
         "symfony",
         "uhifadhi"
@@ -19,30 +19,52 @@
             "homepage": "https://github.com/eemjema"
         }
     ],
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/uhifadhilabs/uhifadhi"
+        }
+    ],
     "require": {
+        "php": ">=8.4",
+        "doctrine/dbal": "^4.0",
         "doctrine/doctrine-bundle": "^3.0",
         "doctrine/orm": "^3.5",
-        "php": ">=8.4",
+        "symfony/asset": "^7.3 || ^8.0",
+        "symfony/asset-mapper": "^7.3 || ^8.0",
         "symfony/config": "^7.3 || ^8.0",
         "symfony/dependency-injection": "^7.3 || ^8.0",
         "symfony/framework-bundle": "^7.3 || ^8.0",
+        "symfony/http-foundation": "^7.3 || ^8.0",
         "symfony/http-kernel": "^7.3 || ^8.0",
-        "uhifadhi/module-contracts": "dev-main"
+        "symfony/routing": "^7.3 || ^8.0",
+        "symfony/twig-bundle": "^7.3 || ^8.0",
+        "symfony/uid": "^7.3 || ^8.0",
+        "symfony/ux-icons": "^2.20 || ^3.0",
+        "uhifadhi/uhifadhi": "^1.0@dev"
+    },
+    "require-dev": {
+        "doctrine/doctrine-migrations-bundle": "^4.0",
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^13.2",
+        "symfony/browser-kit": "^7.3 || ^8.0",
+        "symfony/css-selector": "^7.3 || ^8.0",
+        "symfony/security-bundle": "^7.3 || ^8.0",
+        "symfony/security-core": "^7.3 || ^8.0",
+        "symfony/security-csrf": "^7.3 || ^8.0",
+        "symfony/stimulus-bundle": "^2.20 || ^2.30 || ^2.0"
     },
     "autoload": {
         "psr-4": {
-            "Uhifadhi\\Roster\\": "src/"
+            "Uhifadhi\\Roster\\": "src/",
+            "Uhifadhi\\Roster\\Migrations\\": "migrations/"
         }
     },
     "autoload-dev": {
         "psr-4": {
             "Uhifadhi\\Roster\\Tests\\": "tests/"
         }
-    },
-    "require-dev": {
-        "friendsofphp/php-cs-fixer": "^3.95",
-        "phpstan/phpstan": "^2.2",
-        "phpunit/phpunit": "^13.2"
     },
     "scripts": {
         "cs:fix": "php-cs-fixer fix",
@@ -64,12 +86,5 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true,
-    "repositories": [
-        {
-            "name": "module-contracts",
-            "type": "vcs",
-            "url": "https://github.com/uhifadhilabs/module-contracts"
-        }
-    ]
+    "prefer-stable": true
 }

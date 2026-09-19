@@ -20,10 +20,7 @@ jobs:
       matrix:
         php: ['8.4', '8.5']
 
-    # Real PostGIS, standing ready. The module has no entities until the roster
-    # design rules on the domain model, so today's suite only boots the kernel
-    # and never opens a connection — the service is here in the siblings' shape
-    # so the first entity needs no CI change.
+    # Real PostGIS for the integration suite (unit tests don't touch it).
     services:
       postgres:
         image: ghcr.io/fundistadi/postgis:17

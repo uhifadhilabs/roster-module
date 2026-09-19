@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
- * This file is part of the UhifadhiLabs Rosters Module.
+ * This file is part of the UhifadhiLabs Roster Module.
  *
  * (c) Ezekiel Mjema <https://github.com/eemjema>
  *
@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace Uhifadhi\Roster\Tests\Integration\Fixtures;
 
-use Uhifadhi\ModuleContracts\ModuleProviderInterface;
+use Uhifadhi\Contracts\ModuleProviderInterface;
 
 /**
  * The HOST's module catalogue, played by a fixture: it receives every service

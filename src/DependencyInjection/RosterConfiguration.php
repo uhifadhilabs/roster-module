@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
- * This file is part of the UhifadhiLabs Rosters Module.
+ * This file is part of the UhifadhiLabs Roster Module.
  *
  * (c) Ezekiel Mjema <https://github.com/eemjema>
  *
@@ -17,24 +17,98 @@ use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 
 /**
- * The bundle's semantic configuration — how a host configures the module in
- * config/packages/roster.yaml:
+ * THE BUNDLE'S SEMANTIC CONFIGURATION — what an installation writes in
+ * config/packages/roster.yaml, and nothing that belongs to an AREA.
  *
- *   roster:
- *     module_category: operations    # catalogue category for the tile
- *     dev_tools: false         # dev-only commands (when@dev / when@test)
+ * The line between the two is the one that matters here, because both look
+ * like settings from a distance:
  *
- * Deliberately small. A deployment's shift vocabulary (duty types, shift
- * patterns, station kinds) is DEPLOYMENT vocabulary and will be configured
- * here — but only once the roster design has ruled on the domain model.
- * Nothing is guessed ahead of that ruling, and the tree is closed, so an
- * invented key fails loudly.
+ *   AN INSTALLATION'S, and therefore in this tree: the SHIFT VOCABULARY — the
+ *   named windows a watch can be stood in — and the STARTING VALUES a new
+ *   station watch or a new rotation is created with. These are deployment
+ *   vocabulary: an organisation that runs three twelves rather than two names
+ *   its own shifts, and does it without a code change.
+ *
+ *   AN AREA'S, and therefore NOT here: what any individual station expects,
+ *   how long its silence may run, how wide its catchment is, and how often
+ *   the handset pings. Those are edited on a screen by a person who runs the
+ *   park, not by whoever last deployed it, and they are stored per area and
+ *   per station. What this tree holds for each of them is the value a new one
+ *   STARTS at — the default, in the honest sense of the word.
+ *
+ * NAMED SHIFTS ARE RULED (grammar 3, provisionally): a duty is stood in one of
+ * a named set of windows, and a station declares which of them it runs. The
+ * four below are the vocabulary the design is drawn in. They are a DEFAULT and
+ * not a truth about anybody's park: whether a gate really runs two twelves is
+ * an operational fact the deployment owns, which is exactly why it is config.
+ *
+ * A window may CROSS MIDNIGHT — `night` runs 18:00 to 06:00 — and that is not
+ * a mistake to be validated away. A duty belongs to the calendar day its watch
+ * BEGINS on, so a night watch is one duty and two blocks on a day board.
  *
  * Static so the tree is testable with a plain Processor and shared verbatim by
  * the bundle's configure().
  */
 final class RosterConfiguration
 {
+    /**
+     * THE SHIFT VOCABULARY AN INSTALLATION STARTS WITH — the four named
+     * windows every surface in the design is drawn in.
+     *
+     * `radio` is a real fourth shift rather than a note on `night`: a
+     * headquarters stands a radio watch overnight, and the day board, the
+     * rotation and the week grid all have to be able to say which of the two
+     * a person is on.
+     *
+     * @var list<array{key: string, label: string, start: string, end: string}>
+     */
+    public const array DEFAULT_SHIFTS = [
+        ['key' => 'day', 'label' => 'Day', 'start' => '06:00', 'end' => '18:00'],
+        ['key' => 'night', 'label' => 'Night', 'start' => '18:00', 'end' => '06:00'],
+        ['key' => 'office', 'label' => 'Office', 'start' => '07:30', 'end' => '16:30'],
+        ['key' => 'radio', 'label' => 'Radio night', 'start' => '18:00', 'end' => '06:00'],
+    ];
+
+    /**
+     * HOW OFTEN A HANDSET PINGS ITS POSITION after the morning check-in, in
+     * minutes. An AREA SETTING in the product — this is the value a park that
+     * has never touched it runs at, and the number the Settings section shows
+     * as the default beside whatever the area chose.
+     */
+    public const int DEFAULT_PING_INTERVAL_MINUTES = 30;
+
+    /**
+     * HOW LONG A STATION MAY GO QUIET BEFORE IT READS AS LATE, in minutes.
+     * Per station in the product (a gate that never closes and a rim post
+     * reached once a fortnight cannot share one); this is what a station's
+     * watch is created with.
+     */
+    public const int DEFAULT_SILENCE_WINDOW_MINUTES = 120;
+
+    /**
+     * HOW LONG BEFORE LATE BECOMES OFFLINE, in minutes. Offline is a fact
+     * about the post and not about its people, so the threshold is the
+     * station's own and this is only where a new one starts.
+     */
+    public const int DEFAULT_OFFLINE_AFTER_MINUTES = 1440;
+
+    /**
+     * HOW CLOSE A PING HAS TO BE FOR A CLAIM OF "at post" TO READ AS VERIFIED,
+     * in metres. Per station in the product; this is the starting radius.
+     *
+     * It never hides anything: a claim whose pings fall outside it is SHOWN
+     * AND FLAGGED as unverified, never corrected and never turned into an
+     * absence.
+     */
+    public const int DEFAULT_CATCHMENT_METRES = 1500;
+
+    /**
+     * HOW FAR AHEAD A NEW ROTATION GENERATES DUTIES, in days. Per rotation in
+     * the product — a rotation carries its own horizon — and this is the value
+     * the editor offers when one is created.
+     */
+    public const int DEFAULT_HORIZON_DAYS = 42;
+
     public static function define(NodeDefinition|ArrayNodeDefinition $root): void
     {
         if (!$root instanceof ArrayNodeDefinition) {
@@ -44,14 +118,119 @@ final class RosterConfiguration
         $root
             ->children()
                 ->scalarNode('module_category')
-                    ->info('Catalogue category the Rosters module is filed under in each area.')
+                    ->info('Catalogue category the Roster module is filed under in each area.')
                     ->defaultValue('operations')->cannotBeEmpty()
                 ->end()
                 ->booleanNode('dev_tools')
-                    ->info('Register dev-only tooling (seeders, fixtures). The recipe enables this via when@dev/when@test.')
+                    ->info('Register dev-only tooling. The recipe enables this via when@dev/when@test.')
                     ->defaultFalse()
+                ->end()
+                ->arrayNode('shifts')
+                    ->info('The named windows a watch can be stood in. A station declares which of them it runs; a window may cross midnight.')
+                    ->defaultValue(self::DEFAULT_SHIFTS)
+                    ->requiresAtLeastOneElement()
+                    ->arrayPrototype()
+                        ->children()
+                            ->scalarNode('key')
+                                ->info('Stable identifier stored on every duty. Lowercase letters, digits and underscores.')
+                                ->isRequired()->cannotBeEmpty()
+                                ->validate()
+                                    ->ifTrue(static fn (mixed $v): bool => !\is_string($v) || 1 !== preg_match('/^[a-z][a-z0-9_]*$/', $v))
+                                    ->thenInvalid('A shift key is lowercase letters, digits and underscores, starting with a letter; got %s.')
+                                ->end()
+                            ->end()
+                            ->scalarNode('label')
+                                ->info('What the shift is called on every surface.')
+                                ->isRequired()->cannotBeEmpty()
+                            ->end()
+                            ->scalarNode('start')
+                                ->info('When the window opens, as HH:MM in the area\'s own clock.')
+                                ->isRequired()
+                                ->validate()
+                                    ->ifTrue(self::notAClockTime(...))
+                                    ->thenInvalid('A shift starts at an HH:MM clock time; got %s.')
+                                ->end()
+                            ->end()
+                            ->scalarNode('end')
+                                ->info('When the window closes, as HH:MM. Earlier than start means the window crosses midnight.')
+                                ->isRequired()
+                                ->validate()
+                                    ->ifTrue(self::notAClockTime(...))
+                                    ->thenInvalid('A shift ends at an HH:MM clock time; got %s.')
+                                ->end()
+                            ->end()
+                        ->end()
+                    ->end()
+                    ->validate()
+                        ->ifTrue(self::hasDuplicateKeys(...))
+                        ->thenInvalid('Two shifts share a key. A duty stores the key, so a duplicate makes a stored duty ambiguous: %s')
+                    ->end()
+                ->end()
+                ->arrayNode('defaults')
+                    ->info('The values a new area setting, station watch or rotation starts at. Every one of them is edited per area, per station or per rotation afterwards — nothing here is read at display time.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->integerNode('ping_interval_minutes')
+                            ->info('How often a handset pings its position after the morning check-in.')
+                            ->min(1)->defaultValue(self::DEFAULT_PING_INTERVAL_MINUTES)
+                        ->end()
+                        ->integerNode('silence_window_minutes')
+                            ->info('How long a station may go quiet before it reads as late.')
+                            ->min(1)->defaultValue(self::DEFAULT_SILENCE_WINDOW_MINUTES)
+                        ->end()
+                        ->integerNode('offline_after_minutes')
+                            ->info('How long before late becomes offline.')
+                            ->min(1)->defaultValue(self::DEFAULT_OFFLINE_AFTER_MINUTES)
+                        ->end()
+                        ->integerNode('catchment_metres')
+                            ->info('How close a ping has to be for a claim of "at post" to read as verified.')
+                            ->min(1)->defaultValue(self::DEFAULT_CATCHMENT_METRES)
+                        ->end()
+                        ->integerNode('horizon_days')
+                            ->info('How far ahead a new rotation generates duties.')
+                            ->min(1)->defaultValue(self::DEFAULT_HORIZON_DAYS)
+                        ->end()
+                    ->end()
+                    ->validate()
+                        ->ifTrue(static fn (mixed $v): bool => \is_array($v)
+                            && \is_int($v['silence_window_minutes'] ?? null)
+                            && \is_int($v['offline_after_minutes'] ?? null)
+                            && $v['offline_after_minutes'] <= $v['silence_window_minutes'])
+                        ->thenInvalid('Offline has to come after late, or a station would go straight from reporting to offline and "late" would name nothing: %s')
+                    ->end()
                 ->end()
             ->end()
         ;
+    }
+
+    /**
+     * WHETHER A VALUE IS NOT AN HH:MM CLOCK TIME. Phrased in the negative
+     * because that is the question `ifTrue()` asks, and inverting it at the
+     * call site reads as a double negative in a place nobody looks twice.
+     */
+    private static function notAClockTime(mixed $value): bool
+    {
+        return !\is_string($value) || 1 !== preg_match('/^([01][0-9]|2[0-3]):[0-5][0-9]$/', $value);
+    }
+
+    /**
+     * WHETHER TWO SHIFTS SHARE A KEY. A duty stores the key and nothing else,
+     * so a duplicate is not untidy — it makes a stored row ambiguous about
+     * which window it was stood in, and no later screen can recover the answer.
+     */
+    private static function hasDuplicateKeys(mixed $shifts): bool
+    {
+        if (!\is_array($shifts)) {
+            return false;
+        }
+
+        $keys = [];
+        foreach ($shifts as $shift) {
+            if (\is_array($shift) && \is_string($shift['key'] ?? null)) {
+                $keys[] = $shift['key'];
+            }
+        }
+
+        return \count($keys) !== \count(array_unique($keys));
     }
 }

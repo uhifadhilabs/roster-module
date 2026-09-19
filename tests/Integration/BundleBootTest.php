@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
- * This file is part of the UhifadhiLabs Rosters Module.
+ * This file is part of the UhifadhiLabs Roster Module.
  *
  * (c) Ezekiel Mjema <https://github.com/eemjema>
  *
@@ -18,15 +18,16 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\Driver\MappingDriverChain;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Uhifadhi\Roster\DependencyInjection\RosterConfiguration;
 use Uhifadhi\Roster\UhifadhiRosterBundle;
 
 /**
- * The smoke test: registering the bundle in a real kernel compiles a real
+ * The smoke test: registering the bundle beside the real core compiles a real
  * container. Everything else in this repo rides on that.
  */
 final class BundleBootTest extends KernelTestCase
 {
-    public function testTheBundleBootsInAHostKernel(): void
+    public function testTheBundleBootsInARealInstallation(): void
     {
         $kernel = self::bootKernel();
 
@@ -38,8 +39,8 @@ final class BundleBootTest extends KernelTestCase
     }
 
     /**
-     * Config lives under "roster:", not the class-derived
-     * "uhifadhi_labs_roster:" — the alias is part of the host contract.
+     * Config lives under "roster:", not the class-derived "uhifadhi_roster:"
+     * — the alias is part of the installation contract.
      */
     public function testItsConfigurationIsKeyedByTheRosterAlias(): void
     {
@@ -50,9 +51,8 @@ final class BundleBootTest extends KernelTestCase
     }
 
     /**
-     * Zero-config persistence: the bundle maps its own entity directory, so a
-     * host never writes a doctrine mappings block for roster tables. The
-     * mapping is registered now and stays empty until the domain lands.
+     * Zero-config persistence: the bundle maps its own entity directory, so an
+     * installation never writes a doctrine mappings block for roster tables.
      */
     public function testItMapsItsOwnEntityDirectory(): void
     {
@@ -71,9 +71,26 @@ final class BundleBootTest extends KernelTestCase
 
         self::assertInstanceOf(MappingDriverChain::class, $driver);
         self::assertArrayHasKey('Uhifadhi\Roster\Entity', $driver->getDrivers());
-        // Nothing mapped yet, and that is the point: the seam is wired, the
-        // domain arrives with the design ruling.
-        self::assertSame([], $em->getMetadataFactory()->getAllMetadata());
+    }
+
+    /**
+     * THE SHIFT VOCABULARY REACHES THE CONTAINER, not just the config tree. A
+     * parameter nobody sets is the failure mode a tree test cannot see: the
+     * defaults pass their own unit test and the services that read them get
+     * nothing.
+     */
+    public function testTheShiftVocabularyAndStartingValuesBecomeParameters(): void
+    {
+        self::bootKernel();
+        $container = self::getContainer();
+
+        self::assertSame(RosterConfiguration::DEFAULT_SHIFTS, $container->getParameter('roster.shifts'));
+        self::assertSame(30, $container->getParameter('roster.default_ping_interval_minutes'));
+        self::assertSame(120, $container->getParameter('roster.default_silence_window_minutes'));
+        self::assertSame(1440, $container->getParameter('roster.default_offline_after_minutes'));
+        self::assertSame(1500, $container->getParameter('roster.default_catchment_metres'));
+        self::assertSame(42, $container->getParameter('roster.default_horizon_days'));
+        self::assertFalse($container->getParameter('roster.dev_tools'));
     }
 
     protected function tearDown(): void

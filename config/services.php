@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
- * This file is part of the UhifadhiLabs Rosters Module.
+ * This file is part of the UhifadhiLabs Roster Module.
  *
  * (c) Ezekiel Mjema <https://github.com/eemjema>
  *

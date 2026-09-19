@@ -8,14 +8,15 @@
          failOnNotice="true"
          failOnWarning="true">
     <php>
-        <env name="KERNEL_CLASS" value="Uhifadhi\Roster\Tests\Integration\TestKernel"/>
         <!--
-            No database yet: the module has no entities until the roster design
-            rules on the domain model, so the integration suite only boots the
-            kernel. This URL is never connected to — it exists because
-            DoctrineBundle requires a DBAL url to compile, and it is the shape
-            the real one will take (the fundi cluster, port 5434).
+            The suite states the memory it needs rather than inheriting whatever
+            a developer's php.ini happens to say: every integration test boots a
+            debug kernel, which collects every query of every request, and one
+            process running the whole suite accumulates.
         -->
+        <ini name="memory_limit" value="-1"/>
+        <env name="KERNEL_CLASS" value="Uhifadhi\Roster\Tests\Integration\TestKernel"/>
+        <!-- Real PostGIS for integration tests (fundi-postgis-test container). -->
         <env name="ROSTER_TEST_DATABASE_URL"
              value="postgresql://app:app@127.0.0.1:5434/roster_bundle_test?serverVersion=17&amp;charset=utf8"/>
     </php>
