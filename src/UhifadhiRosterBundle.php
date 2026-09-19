@@ -311,6 +311,8 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service(RotationRepository::class),
                 service(AbsenceRepository::class),
                 service(ShiftRepository::class),
+                service('roster.live'),
+                service(LivePositionsInterface::class),
             ]);
 
         // THE AGENDA — which posts and people a filtered day shows, and the

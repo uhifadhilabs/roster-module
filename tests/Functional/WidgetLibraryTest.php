@@ -142,6 +142,25 @@ use Uhifadhi\Roster\Widget\RosterWidgets;
         }
     }
 
+    /**
+     * THE LIBRARY'S PREVIEW OF THE MAP WIDGET IS A REAL MAP, and the page
+     * links the sheet that styles it. A library that drew a picture of a
+     * plate would be a library whose previews stop matching what gets
+     * added.
+     */
+    public function testTheLibraryPreviewsTheMapWidgetAsARealPlate(): void
+    {
+        $crawler = $this->open();
+
+        self::assertGreaterThan(0, $crawler->filter('.map-plate, .viewer')->count(), 'The plate is previewed, not described.');
+        self::assertStringNotContainsString('Waiting on', $crawler->text());
+
+        $sheets = $crawler->filter('link[rel="stylesheet"]')->each(
+            static fn (\Symfony\Component\DomCrawler\Crawler $link): string => (string) $link->attr('href'),
+        );
+        self::assertNotEmpty(array_filter($sheets, static fn (string $href): bool => str_contains($href, 'map')));
+    }
+
     /** THE FIVE DESIGNS ARE OFFERED AS PRESETS, with the shipped one leading. */
     public function testTheFiveDirectionsAreOfferedAsDesignsToStartFrom(): void
     {

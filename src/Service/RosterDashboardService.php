@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Uhifadhi\Roster\Service;
 
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
+use Uhifadhi\Contracts\Area\LivePositionsInterface;
 use Uhifadhi\Roster\Model\RosterDashboard;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
@@ -48,6 +49,8 @@ final readonly class RosterDashboardService
         private RotationRepository $rotations,
         private AbsenceRepository $absences,
         private ShiftRepository $shifts,
+        private RosterLiveService $liveService,
+        private LivePositionsInterface $positions,
     ) {
     }
 
@@ -59,6 +62,15 @@ final readonly class RosterDashboardService
 
         $posts = $this->presence->postsOn($area, $day, $now);
         $gaps = $this->week->gaps($area, $from, $through);
+
+        // WHERE EVERYBODY IS, ONCE, FOR THE WHOLE SURFACE. The plate widget
+        // draws the real map on the dashboard and in the library alike —
+        // the preview IS the widget — so the live answer is part of the one
+        // context both build from rather than a read the map card makes for
+        // itself. The instant is the one every other figure on the page is
+        // answering, so the caption under the plate cannot disagree with
+        // the strip above it.
+        $live = $this->positions->liveIn((string) $area->getUuidString(), $now);
 
         $shiftLabels = [];
         foreach ($this->shifts->findByArea($area) as $shift) {
@@ -80,6 +92,8 @@ final readonly class RosterDashboardService
             load: $this->loadThisMonth($area, $day),
             checkIns: self::checkInsNewestFirst($posts),
             shiftLabels: $shiftLabels,
+            plate: $this->liveService->plate($area, $live),
+            live: $this->liveService->figures($live, $posts),
         );
     }
 

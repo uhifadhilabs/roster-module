@@ -199,18 +199,44 @@ final class OverviewSurfaceTest extends WebTestCase
     }
 
     /**
-     * THE PLATE SAYS WHAT IT IS WAITING FOR rather than drawing an empty
-     * park. An empty plate claims nobody is out; a flagged fragment claims
-     * only that we cannot answer yet, which is the true one.
+     * THE PLATE WIDGET DRAWS THE REAL MAP, on the dashboard exactly as on
+     * the Live tab — the preview IS the widget, so a picture of a map here
+     * and a map there would be two things that drift.
+     *
+     * AND IT IS BOUNDED. A card never grows with its data: the plate has a
+     * fixed height, like a list bounded to latest-N and a calendar cell to
+     * its pills. A map that grew with the park would own the dashboard.
      */
-    public function testThePlateStatesTheSeamItWaitsOnRatherThanDrawingNobody(): void
+    public function testThePlateWidgetDrawsTheMapBoundedWithItsDoor(): void
     {
         $crawler = $this->open();
 
         $card = $crawler->filter('[data-w="map"]');
         self::assertCount(1, $card);
-        self::assertCount(1, $card->filter('.rfrag.flagged'));
-        self::assertStringContainsString('live positions', $card->text());
+
+        self::assertGreaterThan(0, $card->filter('.map-plate, .viewer')->count(), 'The atlas plate itself, not a description of one.');
+        self::assertStringContainsString('--map-plate-height', $card->html(), 'Bounded: the plate is a fixed height.');
+        self::assertStringContainsString('The live plate', $card->text(), 'And the door into the tab that is only this.');
+
+        // THE WAITING COPY IS GONE, because the seam it waited on landed.
+        // A card that goes on stating a gap the product has closed is worse
+        // than one that never mentioned it.
+        self::assertStringNotContainsString('Waiting on', $card->text());
+    }
+
+    /**
+     * THE PAGE LINKS THE MAP SHEET, because it composes a widget that
+     * draws a plate and the plate's styles do not travel with it.
+     */
+    public function testTheComposedSurfaceLinksTheMapSheet(): void
+    {
+        $crawler = $this->open();
+
+        $sheets = $crawler->filter('link[rel="stylesheet"]')->each(
+            static fn (\Symfony\Component\DomCrawler\Crawler $link): string => (string) $link->attr('href'),
+        );
+
+        self::assertNotEmpty(array_filter($sheets, static fn (string $href): bool => str_contains($href, 'map')));
     }
 
     /** THE CATALOGUE AND THE PAGE AGREE ABOUT WHAT IS SHIPPED ON. */

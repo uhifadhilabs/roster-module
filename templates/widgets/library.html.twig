@@ -19,6 +19,16 @@
 
 {% block title %}Roster · widget library{% endblock %}
 
+{# THE MAP SHEET IS THE PAGE'S TO LINK. This surface composes a widget that
+   draws a plate, and the plate's styles do not travel with it the way the
+   calendar's and the chart's do — a page that renders one and forgets this
+   gets the map as a collapsed strip with its key inlined, and nothing
+   errors. Leaflet's own sheet is not linked: the UX Map bridge imports it. #}
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset(constant('Uhifadhi\\Bundle\\AtlasBundle\\AtlasBundle::STYLESHEET')) }}">
+{% endblock %}
+
 {% block javascripts %}
     {{ parent() }}
     {# type="module" is deferred by definition, so the library is armed after

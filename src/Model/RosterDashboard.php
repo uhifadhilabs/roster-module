@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Uhifadhi\Roster\Model;
 
+use Uhifadhi\Bundle\AtlasBundle\Model\AtlasMap;
 use Uhifadhi\Roster\Entity\Absence;
 use Uhifadhi\Roster\Entity\Rotation;
 
@@ -63,6 +64,10 @@ final readonly class RosterDashboard
         public array $load,
         public array $checkIns,
         public array $shiftLabels,
+        /** The area's ground with this module's presence markers on it. */
+        public AtlasMap $plate,
+        /** What is true this minute, for the plate's own caption. */
+        public LiveFigures $live,
     ) {
     }
 
