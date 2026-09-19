@@ -120,7 +120,7 @@ final class RosterModuleProvider implements ModuleProviderInterface
                 RosterController::PLAN_PERMISSION,
                 'Roster',
                 'Plan',
-                'Offer a watch to somebody else, and take an offer back before it is answered.',
+                'Fill the day\'s watches and publish them, offer a watch to somebody else, and take an offer back before it is answered.',
             ),
         ];
     }
