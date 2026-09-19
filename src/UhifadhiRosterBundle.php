@@ -34,9 +34,11 @@ use Uhifadhi\Roster\Devkit\PresenceContentProvider;
 use Uhifadhi\Roster\Devkit\RosterContentProvider;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Module\RosterWatches;
+use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
+use Uhifadhi\Roster\Repository\StationWatchRepository;
 use Uhifadhi\Roster\Shell\RosterConfigurationSections;
 use Uhifadhi\Roster\Shell\RosterModuleTabs;
 use Uhifadhi\Roster\Shell\RosterStationSections;
@@ -277,8 +279,9 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service(AreaOfInterestRepository::class),
                 service(StationRepository::class),
                 service(PostingRepository::class),
-                service(ShiftRepository::class),
                 service(DutyRepository::class),
+                service(StationWatchRepository::class),
+                service(AbsenceRepository::class),
                 service('roster.shift_vocabulary'),
                 service('roster.station_watches'),
                 service('roster.rotation_generator'),

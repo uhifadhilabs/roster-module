@@ -28,8 +28,9 @@ use Uhifadhi\Roster\Entity\RotationPoolMember;
 use Uhifadhi\Roster\Enum\AbsenceKind;
 use Uhifadhi\Roster\Enum\RotationScope;
 use Uhifadhi\Roster\Model\Cycle;
+use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
-use Uhifadhi\Roster\Repository\ShiftRepository;
+use Uhifadhi\Roster\Repository\StationWatchRepository;
 use Uhifadhi\Roster\Service\RotationGenerator;
 use Uhifadhi\Roster\Service\ShiftVocabularyService;
 use Uhifadhi\Roster\Service\StationWatchService;
@@ -110,8 +111,9 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         private AreaOfInterestRepository $areas,
         private StationRepository $stations,
         private PostingRepository $postings,
-        private ShiftRepository $shifts,
         private DutyRepository $duties,
+        private StationWatchRepository $rosteredPosts,
+        private AbsenceRepository $absences,
         private ShiftVocabularyService $vocabulary,
         private StationWatchService $watches,
         private RotationGenerator $generator,
@@ -162,18 +164,26 @@ final readonly class RosterContentProvider implements ContentProviderInterface
             return;
         }
 
-        if ([] !== $this->shifts->findByArea($area)) {
-            // BEEN HERE BEFORE. The vocabulary is the first thing seeded and
-            // the last thing anybody would delete, so it is the honest mark
-            // of an area this provider has already filled.
-            return;
-        }
+        // IDEMPOTENCE IS PER THING, NOT PER AREA, and that is a correction
+        // worth stating. The first cut skipped a whole area that already
+        // had anything on its roster — and the one area the module was
+        // actually switched on for had a SINGLE post configured by hand,
+        // so it stayed empty through every run. Each post, each absence
+        // and each trade is now asked for separately: what somebody has
+        // configured is left exactly as it is, and what nobody has is
+        // filled in beside it.
 
         $this->seedVocabulary($area);
 
         $rings = [];
+
+        // WHO IS ALREADY IN SOMEBODY ELSE'S RING. A person may be posted
+        // at several posts, so without this two rings both draw them and
+        // the same ranger stands two watches on one morning.
+        $ringed = [];
+
         foreach ($posts as $index => $post) {
-            $rotation = $this->putOnTheRoster($post, $index);
+            $rotation = $this->putOnTheRoster($post, $index, $ringed);
             if (null !== $rotation) {
                 $rings[] = $rotation;
             }
@@ -212,9 +222,20 @@ final readonly class RosterContentProvider implements ContentProviderInterface
      * would be a ring that quietly produces no duties — which reads on
      * every page as a bug rather than as the deliberate state it is.
      */
-    private function putOnTheRoster(Station $post, int $index): ?Rotation
+    /**
+     * @param array<string, true> $ringed people already drawn by an earlier post, added to here
+     */
+    private function putOnTheRoster(Station $post, int $index, array &$ringed): ?Rotation
     {
         $demands = self::DEMANDS[$index % \count(self::DEMANDS)];
+
+        if (null !== $this->rosteredPosts->findOneForStation($post)) {
+            // SOMEBODY'S OWN WORK, OR THIS SEEDER'S FROM AN EARLIER RUN.
+            // Either way the post already says what it asks for, and
+            // saying it again would either change nothing or overwrite a
+            // decision with a demo.
+            return null;
+        }
 
         $watch = $this->watches->addToRoster($post);
         $this->watches->save(
@@ -229,20 +250,40 @@ final readonly class RosterContentProvider implements ContentProviderInterface
             return null;
         }
 
-        $pool = [];
+        $posted = [];
         foreach ($this->postings->findStandingByStation($post) as $posting) {
             $person = $posting->getPerson();
             if ($person instanceof UserInterface) {
-                $pool[] = $person;
+                $posted[] = $person;
             }
         }
 
+        // ONE PERSON, ONE POST — in the demo, where nothing forces it.
+        //
+        // A ranger is often POSTED at more than one post, and each post's
+        // ring draws from the people posted there, so two rings sharing a
+        // person put them on two watches the same morning: Today showed
+        // one ranger "watch 1 of 2" at two posts and twenty-four hours on
+        // duty in a twenty-four hour day. Nothing in the product forbids
+        // it — two independent per-post rings genuinely can double-book
+        // somebody, which is worth knowing — but a DEMO that shows it is
+        // showing a roster no park would publish. So a post takes the
+        // people nobody has ringed yet.
+        $pool = array_values(array_filter(
+            $posted,
+            static fn (UserInterface $person): bool => !isset($ringed[(string) $person->getUuidString()]),
+        ));
+
         if ([] === $pool) {
-            // A POST WITH NOBODY POSTED AT IT is a hole, and the pages draw
-            // it as one. Ringing nobody would say the same thing less
-            // clearly, and a rotation with an empty pool is a row somebody
-            // has to explain on the configure page.
+            // NOBODY LEFT, OR NOBODY POSTED HERE AT ALL. Both are a post
+            // without a ring, and the pages draw it as the hole it is —
+            // which is better than borrowing somebody already spoken for
+            // and calling the result a roster.
             return null;
+        }
+
+        foreach ($pool as $person) {
+            $ringed[(string) $person->getUuidString()] = true;
         }
 
         $ring = self::RINGS[$index % \count(self::RINGS)];
@@ -303,6 +344,12 @@ final readonly class RosterContentProvider implements ContentProviderInterface
             return;
         }
 
+        if ([] !== $this->absences->findOverlapping($area, $this->monthStart(), $this->monthEnd())) {
+            // SOMEBODY IS ALREADY DOWN AS AWAY THIS MONTH. Three more would
+            // be three more on every run.
+            return;
+        }
+
         $script = [
             [AbsenceKind::Leave, 2, 8],
             [AbsenceKind::Sick, 11, 13],
@@ -333,6 +380,12 @@ final readonly class RosterContentProvider implements ContentProviderInterface
      */
     private function seedSwaps(AreaOfInterest $area): void
     {
+        if ([] !== $this->swaps->recentBetween($area, $this->monthStart(), $this->monthEnd(), 1)) {
+            // A TRADE IS ALREADY ON THE BOOKS this month, so the card reads
+            // and a second pair would be a second pair every run.
+            return;
+        }
+
         $duties = $this->duties->findByAreaBetween($area, new \DateTimeImmutable('today'), new \DateTimeImmutable('today')->modify('+10 days'));
         if (\count($duties) < 2) {
             return;

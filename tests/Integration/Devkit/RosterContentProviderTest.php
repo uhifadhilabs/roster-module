@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Uhifadhi\Roster\Tests\Integration\Devkit;
 
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
+use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
 use Uhifadhi\Roster\Devkit\RosterContentProvider;
@@ -208,6 +209,37 @@ final class RosterContentProviderTest extends IntegrationTestCase
         self::assertGreaterThan(20, \count($days), 'Nearly every day of the month carries a watch.');
     }
 
+    /**
+     * NOBODY STANDS TWO WATCHES IN ONE DAY AT TWO DIFFERENT POSTS.
+     *
+     * Caught by opening Today, not by a test: one ranger was showing
+     * "watch 1 of 2" at Alpha Gate and again at Outer Marker, adding up
+     * to twenty-four hours on duty in a twenty-four hour day. The cause
+     * is real and worth naming — a person may be POSTED at several posts,
+     * every post's ring draws from the people posted there, and two rings
+     * that share a person will both put them on the same morning. The
+     * demo therefore hands each post its own people where the area has
+     * enough of them to go round.
+     */
+    public function testNobodyIsRosteredAtTwoPostsOnTheSameDay(): void
+    {
+        $this->provider()->load();
+
+        $seen = [];
+        foreach ($this->repository(DutyRepository::class)->findByAreaBetween($this->area, $this->monthStart(), $this->monthEnd()) as $duty) {
+            $key = $duty->getOnDay()->format('Y-m-d').'/'.$duty->getPerson()->getUuidString();
+            $station = (string) $duty->getStation()->getUuidString();
+
+            if (isset($seen[$key]) && $seen[$key] !== $station) {
+                self::fail(\sprintf('%s is due at two posts on %s.', $duty->getPerson()->getFullName(), $duty->getOnDay()->format('Y-m-d')));
+            }
+
+            $seen[$key] = $station;
+        }
+
+        self::assertNotEmpty($seen);
+    }
+
     /** NOTHING IS ROSTERED OUTSIDE THE MONTH the tabs are looking at. */
     public function testItRostersNothingOutsideTheCurrentMonth(): void
     {
@@ -271,6 +303,64 @@ final class RosterContentProviderTest extends IntegrationTestCase
         ];
 
         self::assertSame($before, $after);
+    }
+
+    /**
+     * AN AREA SOMEBODY HAS MERELY LOOKED AT IS STILL SEEDED.
+     *
+     * The regression for a bug that passed every test and was caught only
+     * by opening the page: the "have I been here before" mark was the
+     * shift vocabulary, and the module SEEDS THAT LAZILY the first time
+     * any page reads it. So every area anybody had ever opened counted as
+     * already done, and the demo silently skipped it — on the one area
+     * the roster was actually switched on for. The mark is now a post on
+     * the roster, which nothing creates by accident.
+     */
+    public function testAnAreaWhoseVocabularyWasAlreadyReadIsStillSeeded(): void
+    {
+        // What merely opening a roster page does.
+        $vocabulary = $this->service(\Uhifadhi\Roster\Service\ShiftVocabularyService::class);
+        self::assertInstanceOf(\Uhifadhi\Roster\Service\ShiftVocabularyService::class, $vocabulary);
+        self::assertNotEmpty($vocabulary->forArea($this->area), 'Reading the vocabulary seeds it.');
+
+        $this->provider()->load();
+
+        self::assertNotEmpty($this->repository(StationWatchRepository::class)->findByArea($this->area));
+        self::assertNotEmpty($this->repository(DutyRepository::class)->findByAreaBetween($this->area, $this->monthStart(), $this->monthEnd()));
+    }
+
+    /**
+     * A POST SOMEBODY HAS CONFIGURED IS LEFT EXACTLY AS IT IS — AND THE
+     * REST OF THE AREA IS STILL FILLED IN.
+     *
+     * The second half is the correction, and it cost a render to find.
+     * Idempotence was first written per AREA: anything already on the
+     * roster meant "been here, skip". The one area the module was
+     * actually switched on for had a SINGLE post configured by hand, so
+     * every tab on it stayed at nought through run after run while the
+     * seeder reported success. What a person configured is theirs; the
+     * seven posts beside it were nobody's and are now seeded.
+     */
+    public function testAConfiguredPostIsUntouchedAndTheRestOfTheAreaIsStillSeeded(): void
+    {
+        $watches = $this->service(\Uhifadhi\Roster\Service\StationWatchService::class);
+        self::assertInstanceOf(\Uhifadhi\Roster\Service\StationWatchService::class, $watches);
+
+        $posts = $this->em->getRepository(Station::class)->findBy(['area' => $this->area], ['code' => 'ASC']);
+        self::assertNotEmpty($posts);
+        $byHand = $watches->addToRoster($posts[0]);
+        $watches->save($byHand, ['radio'], 45, 180, 900);
+
+        $this->provider()->load();
+
+        // Untouched: still the one shift somebody chose, not the demo's.
+        self::assertSame(['radio'], $byHand->getExpects());
+        self::assertSame(900, $byHand->getCatchmentMetres());
+
+        // And the area is not empty because of it.
+        self::assertGreaterThan(1, \count($this->repository(StationWatchRepository::class)->findByArea($this->area)));
+        self::assertNotEmpty($this->repository(RotationRepository::class)->findByArea($this->area));
+        self::assertNotEmpty($this->repository(DutyRepository::class)->findByAreaBetween($this->area, $this->monthStart(), $this->monthEnd()));
     }
 
     /** AN AREA WITH NO POSTS IS LEFT ALONE, rather than seeded into nothing. */
