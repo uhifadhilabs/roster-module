@@ -1,0 +1,110 @@
+{# ============================================================================
+   PLAN THE DAY — the design's modules/roster/plan.html.
+
+   THE GENERATED PLAN AS SLOTS TO FILL. Every slot came from a post's
+   rotation; filling one writes a duty row, and a duty row is what presence
+   is derived from later. NOTHING HERE MARKS ANYBODY PRESENT — that is the
+   handset's job, on the day.
+
+   IT OPENS ON TOMORROW, because that is the day somebody plans: today is
+   already being worked and the agenda is the screen for it.
+
+   THE WHOLE SHEET IS ONE FORM and publishes in one post. Picks are ticked
+   and untucked with no JavaScript at all — a pill is a label round a
+   checkbox — so an installation whose assets did not compile still has a
+   working planner rather than a row of dead buttons.
+   ========================================================================== #}
+{% extends '@UhifadhiRoster/base.html.twig' %}
+
+{% block title %}{{ area.name }} · Roster · plan the day{% endblock %}
+
+{% block shell_page_title %}Plan the day &mdash; <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j F')|lower }}</time>{% endblock %}
+
+{% block shell_page_subtitle %}
+    The generated plan, as slots to fill. Every slot came from the post&rsquo;s
+    <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ROTATION_ROUTE'), {uuid: area.uuid}) }}">rotation</a>;
+    filling one writes a duty, and a duty is what presence is derived from. Nothing here marks anybody present &mdash; that is the handset&rsquo;s job, on the day.
+{% endblock %}
+
+{% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / plan the day{% endblock %}
+
+{% block shell_page_actions %}
+    <a class="tgl" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ROTATION_ROUTE'), {uuid: area.uuid}) }}">The rotation</a>
+    {% if mayPlan %}
+        <button type="submit" form="roster-plan" class="cta">{{ ux_icon('roster:check') }} Publish the day</button>
+    {% endif %}
+{% endblock %}
+
+{% block roster_page %}
+    {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
+
+    <form id="roster-plan" method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::PUBLISH_ROUTE'), {uuid: area.uuid}) }}">
+        <input type="hidden" name="_token" value="{{ csrfToken }}">
+        <input type="hidden" name="day" value="{{ day.format('Y-m-d') }}">
+
+        <h2 class="zone">The watches to fill</h2>
+
+        {% set dayFilled = 0 %}{% set dayAsks = 0 %}{% set dayShort = 0 %}
+        {% for slot in daylight %}{% set dayFilled = dayFilled + slot.filled %}{% set dayAsks = dayAsks + slot.asks %}{% set dayShort = dayShort + slot.shortfall %}{% endfor %}
+        {{ include('@UhifadhiRoster/plan/_slots.html.twig', {
+            card: 'daylight', title: 'Day &amp; office watch', slots: daylight,
+            filled: dayFilled, asks: dayAsks, short: dayShort, mayPlan: mayPlan,
+        }, with_context: false) }}
+
+        {% set nightFilled = 0 %}{% set nightAsks = 0 %}{% set nightShort = 0 %}
+        {% for slot in nights %}{% set nightFilled = nightFilled + slot.filled %}{% set nightAsks = nightAsks + slot.asks %}{% set nightShort = nightShort + slot.shortfall %}{% endfor %}
+        {{ include('@UhifadhiRoster/plan/_slots.html.twig', {
+            card: 'night', title: 'Night watch', slots: nights,
+            filled: nightFilled, asks: nightAsks, short: nightShort, mayPlan: mayPlan,
+        }, with_context: false) }}
+    </form>
+
+    <div class="grid g2">
+        {# WHO COULD TAKE A WATCH NOBODY IS ON. Only the slots that are
+           short are asked, because a list of everybody free is a list
+           nobody needs on a day that is fully staffed. #}
+        <div class="c" data-card="free">
+            <span class="tab">Who is free<span class="src">&middot; for the watches nobody is on</span></span>
+            {% for candidate in free|slice(0, 6) %}
+                <div class="rset">
+                    <span class="lb"><b>{{ candidate.personName }}</b><em>{{ candidate.isBlocked ? 'blocked' : 'available' }}</em></span>
+                    <span class="ct"><span class="r-sh {{ candidate.isBlocked ? 'st-fail' : 'st-ok' }}"><i></i>{{ candidate.isBlocked ? 'cannot' : 'can take it' }}</span></span>
+                    <span class="why">{{ candidate.blockedBy ?: (candidate.warning ?: 'no rule stands in the way') }}</span>
+                </div>
+            {% else %}
+                <div class="rfrag"><b>Every watch the pattern asked for is filled</b><em>there is nothing to find somebody for</em></div>
+            {% endfor %}
+        </div>
+
+        {# THE RULES THIS SHEET ENFORCES, and the one it only warns about.
+           Stated on the page rather than left to somebody's memory: a
+           screen that refuses a pick silently teaches nobody why. #}
+        <div class="c" data-card="rules">
+            <span class="tab">The rules this sheet enforces<span class="src">&middot; and the one it only warns about</span></span>
+            <div class="rln"><span class="fog">Rest between watches</span><span class="mono">{{ constant('Uhifadhi\\Roster\\Service\\DayPlanService::REST_HOURS') }} h &middot; blocks the pick</span></div>
+            <div class="rln"><span class="fog">Two watches in one day</span><span class="mono">never &middot; blocks the pick</span></div>
+            <div class="rln"><span class="fog">Somebody who is away</span><span class="mono">out of the ring &middot; blocks the pick</span></div>
+            <div class="rln"><span class="fog">Nights in a row</span><span class="mono">{{ constant('Uhifadhi\\Roster\\Service\\DayPlanService::NIGHTS_IN_A_ROW_WARNS_AT') }} &middot; warns, and lets you</span></div>
+            <div class="rfrag"><b>The rest rule is the rotation&rsquo;s</b><em>a park may hold its gate to {{ constant('Uhifadhi\\Roster\\Service\\DayPlanService::REST_HOURS') }} hours and its office to nothing, so each ring carries the rule it runs under</em></div>
+        </div>
+    </div>
+
+    <h2 class="zone">Who is away</h2>
+    <div class="c" data-card="away">
+        <span class="tab">Who is away<span class="src">&middot; {{ away|length }} over the fortnight</span></span>
+        {% for absence in away|slice(0, 8) %}
+            <div class="rset">
+                <span class="lb"><b>{{ absence.person.fullName }}</b><em>{{ absence.kind.label|lower }}</em></span>
+                <span class="ct"><span class="r-sh st-warn"><i></i>{{ absence.kind.label|lower }}</span></span>
+                <span class="why">
+                    <time datetime="{{ absence.startsOn.format('Y-m-d') }}" data-localtime-format="day">{{ absence.startsOn.format('j M')|lower }}</time>
+                    &ndash;
+                    <time datetime="{{ absence.endsOn.format('Y-m-d') }}" data-localtime-format="day">{{ absence.endsOn.format('j M')|lower }}</time>
+                    &middot; the ring steps over these days, and this sheet refuses them
+                </span>
+            </div>
+        {% else %}
+            <div class="rfrag"><b>Nobody is away over the fortnight</b><em>every person in every ring is available to be picked</em></div>
+        {% endfor %}
+    </div>
+{% endblock %}

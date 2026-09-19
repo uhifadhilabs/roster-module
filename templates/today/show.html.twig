@@ -56,7 +56,7 @@
     <h2 class="zone">{{ isToday ? 'Today' : 'The day' }}</h2>
     <div class="c">
         <span class="tab">{{ isToday ? 'Today' : 'The day' }}<span class="src">&middot; <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j M')|lower }}</time> &middot; {{ figures.onTheWatchNow }} on the watch &middot; {{ figures.day.checkedIn }} check-ins in</span></span>
-        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::BOARD_ROUTE'), {uuid: area.uuid}) }}">The day board &rarr;</a>
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::PLAN_ROUTE'), {uuid: area.uuid, day: day.format('Y-m-d')}) }}">Edit the day &rarr;</a>
 
         {% if not filter.isEverything %}
             <div class="rfrag"><b>{{ posts|length }} post{{ posts|length == 1 ? '' : 's' }} match</b><em>the figures above are the whole day&rsquo;s, not this selection&rsquo;s</em></div>

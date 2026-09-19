@@ -46,10 +46,12 @@ use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Module\RosterWatches;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
+use Uhifadhi\Roster\Repository\RotationPoolMemberRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
 use Uhifadhi\Roster\Service\AgendaService;
+use Uhifadhi\Roster\Service\DayPlanService;
 use Uhifadhi\Roster\Service\RosterDashboardService;
 use Uhifadhi\Roster\Service\RosterFiguresService;
 use Uhifadhi\Roster\Service\RosterLiveService;
@@ -287,6 +289,20 @@ final class UhifadhiRosterBundle extends AbstractBundle
             ])
             ->tag(WatchProviderInterface::TAG);
 
+        // THE DAY AS SLOTS TO FILL, and the one write that fills them. The
+        // rules live here and nowhere else: the template renders what this
+        // says and decides nothing.
+        $services->set('roster.day_plan', DayPlanService::class)
+            ->args([
+                service(StationWatchRepository::class),
+                service(RotationRepository::class),
+                service(RotationPoolMemberRepository::class),
+                service(DutyRepository::class),
+                service(AbsenceRepository::class),
+                service('roster.shift_vocabulary'),
+                service('doctrine.orm.entity_manager'),
+            ]);
+
         // WHERE EVERYBODY IS, FED TO THE ATLAS. The plate, the ground and
         // the posts are other people's; this contributes the marker layers
         // and the legend group over them, and draws nothing itself.
@@ -423,6 +439,8 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service(DutyRepository::class),
                 service(LivePositionsInterface::class),
                 service('roster.live'),
+                service('roster.day_plan'),
+                service(AbsenceRepository::class),
                 service(WidgetService::class),
                 service('router'),
                 // Null where the installation runs no security: the week tab

@@ -766,3 +766,58 @@
     display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
     font-style: normal; text-transform: uppercase; letter-spacing: .07em;
 }
+
+/* ---- THE PLAN SHEET: SLOTS AND THE PILLS THAT FILL THEM ------------------
+ * A slot is the question the pattern asks — "the gate asks two tomorrow
+ * night, who?" — and it is drawn whether or not anybody has answered it.
+ *
+ * A PILL IS A LABEL ROUND A CHECKBOX, which is what lets the whole sheet
+ * work with no JavaScript: tick, untick, publish. The checkbox itself is
+ * taken out of the flow rather than hidden, so it keeps its focus ring and
+ * a keyboard reaches every pick. */
+.r-slot {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    padding: 8px 0; border-bottom: 1px dashed var(--ln);
+}
+
+.r-slot:last-child { border-bottom: 0; }
+
+.r-slot > .lbl { font-size: 12px; font-weight: 600; color: var(--tx); flex: 0 0 auto; min-width: 190px; }
+.r-slot > .lbl em {
+    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    font-style: normal; text-transform: uppercase; letter-spacing: .07em;
+}
+
+.r-slot > .pick { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0; }
+
+.r-pill {
+    display: inline-flex; align-items: center; gap: 6px; position: relative;
+    padding: 4px 10px 4px 5px; border-radius: 99px; cursor: pointer;
+    border: 1px solid var(--ln2); color: var(--fog);
+    font-size: 11px; font-weight: 600; line-height: 1.2;
+}
+
+.r-pill input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.r-pill:focus-within { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+/* CHOSEN IS THE HOUSE'S ON-STATE and nothing of this module's: the accent,
+   the same as every other chip in the product wears when it is picked. */
+.r-pill:has(input:checked), .r-pill.on { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 45%, transparent); }
+
+/* A BLOCKED PILL IS SHOWN, NOT HIDDEN. A picker that omitted the people it
+   will not take answers "who can I put here" and leaves "why not her" to
+   somebody's memory of the rules. */
+.r-pill.blocked { color: var(--dim); border-style: dashed; cursor: not-allowed; }
+.r-pill.blocked .av { opacity: .6; }
+.r-pill.empty { color: var(--fail); border-style: dashed; border-color: color-mix(in srgb, var(--fail) 45%, transparent); }
+
+.r-pill > .av {
+    flex: none; width: 20px; height: 20px; border-radius: 99px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font: 700 8.5px ui-monospace, monospace; letter-spacing: .04em;
+    color: var(--fog); background: var(--p2); border: 1px solid var(--ln2);
+}
+
+/* THE RULE THAT REFUSED IT, on the pill that it refused. */
+.r-pill em.why { font: 500 9px ui-monospace, monospace; font-style: normal; color: var(--fail); }
+.r-pill em.warn { font: 500 9px ui-monospace, monospace; font-style: normal; color: var(--warn); }

@@ -1,0 +1,47 @@
+{# THE WATCHES OF ONE FAMILY, AS SLOTS TO FILL.
+
+   A SLOT IS THE QUESTION THE PATTERN ASKS — "the gate asks two tomorrow
+   night, who?" — and it is drawn whether or not anybody has answered it.
+   A card built on duties alone can only show what somebody already decided.
+
+   EVERY CANDIDATE IS A PILL, INCLUDING THE ONES THE RULES REFUSE. A picker
+   that omitted them would answer "who can I put here" and leave "why not
+   her" to somebody's memory of the rules; a blocked pill is disabled and
+   carries the rule that refused it.
+
+   A PILL IS A LABEL ROUND A CHECKBOX, so the sheet works with no
+   JavaScript at all: tick, untick, publish. #}
+<div class="c" data-card="{{ card }}">
+    <span class="tab">{{ title }}<span class="src">&middot; {{ filled }} of {{ asks }} filled{% if short %} &middot; <span class="fail">{{ short }} short</span>{% endif %}</span></span>
+
+    {% for slot in slots %}
+        <div class="r-slot">
+            <span class="lbl">{{ slot.stationName }}<em>{{ slot.shiftLabel|lower }} &middot; asks {{ slot.asks }}</em></span>
+            <span class="pick">
+                {% for candidate in slot.candidates %}
+                    <label class="r-pill{{ candidate.chosen ? ' on' : '' }}{{ candidate.isBlocked ? ' blocked' : '' }}"
+                           title="{{ candidate.isBlocked ? candidate.blockedBy : (candidate.warning ?: candidate.personName) }}">
+                        <input type="checkbox"
+                        {# THE FIELD NAME CARRIES THE SLOT — the post and the shift —
+                           so the server reads a sheet rather than a flat list of
+                           people whose slots it would have to guess. The prefix is
+                           the controller's own constant; the separator is a doubled
+                           underscore, which a uuid never contains. #}
+                               name="{{ constant('Uhifadhi\\Roster\\Controller\\RosterController::SLOT_FIELD') ~ slot.stationUuid ~ '__' ~ slot.shiftKey }}[]"
+                               value="{{ candidate.personUuid }}"
+                               {{ candidate.chosen ? 'checked' : '' }}
+                               {{ candidate.isBlocked or not mayPlan ? 'disabled' : '' }}>
+                        <span class="av">{{ candidate.initials }}</span>{{ candidate.personName }}
+                        {%- if candidate.isBlocked %}<em class="why">{{ candidate.blockedBy }}</em>
+                        {%- elseif candidate.warning %}<em class="warn">{{ candidate.warning }}</em>{% endif %}
+                    </label>
+                {% else %}
+                    <span class="r-pill empty">no ring at this post &mdash; nobody to offer</span>
+                {% endfor %}
+                {% if slot.isShort %}<span class="r-pill empty">+ {{ slot.shortfall }} unfilled</span>{% endif %}
+            </span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>Nothing of this kind is asked for</b><em>no post on the books stands a watch in these hours</em></div>
+    {% endfor %}
+</div>

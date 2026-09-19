@@ -20,6 +20,13 @@
 
 {% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / day board{% endblock %}
 
+{% block shell_page_actions %}
+    {# THE DAY BOARD READS AND THE PLAN SHEET WRITES, and the way from one
+       to the other is a header action rather than a door in a card: it is
+       about the whole page, not about any one of its posts. #}
+    <a class="cta" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::PLAN_ROUTE'), {uuid: area.uuid, day: day.format('Y-m-d')}) }}">{{ ux_icon('roster:check') }} Plan the day</a>
+{% endblock %}
+
 {% block roster_page %}
     {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
 

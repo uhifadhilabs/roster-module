@@ -42,10 +42,12 @@ use Uhifadhi\Roster\Model\AgendaFilter;
 use Uhifadhi\Roster\Model\PostPresence;
 use Uhifadhi\Roster\Model\PostState;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
+use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Service\AgendaService;
 use Uhifadhi\Roster\Service\DayBoardService;
+use Uhifadhi\Roster\Service\DayPlanService;
 use Uhifadhi\Roster\Service\PresenceReader;
 use Uhifadhi\Roster\Service\RosterCalendar;
 use Uhifadhi\Roster\Service\RosterDashboardService;
@@ -124,6 +126,12 @@ final class RosterController
     /** What is true this minute. */
     public const string LIVE_ROUTE = 'roster_live';
 
+    /** The generated plan for a day, as slots to fill. */
+    public const string PLAN_ROUTE = 'roster_plan';
+
+    /** Writing the sheet's picks as duties. */
+    public const string PUBLISH_ROUTE = 'roster_plan_publish';
+
     /**
      * HOW MANY ROWS A DASHBOARD CARD SHOWS BEFORE IT SAYS HOW MANY THERE
      * WERE. A card's height never grows with its data (ruled): the rest are
@@ -150,6 +158,8 @@ final class RosterController
         private readonly DutyRepository $duties,
         private readonly LivePositionsInterface $positions,
         private readonly RosterLiveService $liveService,
+        private readonly DayPlanService $plans,
+        private readonly AbsenceRepository $absences,
         private readonly WidgetService $widgetService,
         private readonly UrlGeneratorInterface $router,
         /*
@@ -704,6 +714,127 @@ final class RosterController
         }
 
         return $labels;
+    }
+
+    /**
+     * PLAN THE DAY — the generated plan as slots to fill.
+     *
+     * IT OPENS ON TOMORROW, because that is the day a duty officer plans:
+     * today is already being worked and the agenda is the screen for it.
+     * `?day=` moves it.
+     *
+     * NOTHING HERE MARKS ANYBODY PRESENT. Filling a slot writes a DUTY,
+     * and presence is derived later from what the handsets report against
+     * these rows — the line this screen must not cross.
+     */
+    #[Route('/areas/{uuid}/modules/roster/plan', name: self::PLAN_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['GET'])]
+    public function plan(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $day = self::dayAsked($request) ?? new \DateTimeImmutable('tomorrow');
+        $sheet = $this->plans->sheetFor($area, $day);
+        $windows = $this->shifts->windowsFor($area);
+
+        // THE TWO CARDS THE DESIGN DRAWS: the watches that run in daylight,
+        // then the ones that cross midnight — the order the day happens in.
+        $daylight = [];
+        $nights = [];
+        foreach ($sheet as $slot) {
+            // Every slot on the sheet names a shift the area still has a
+            // window for — the sheet drops the ones it does not — so this
+            // lookup always answers.
+            if ($windows[$slot->shiftKey]->crossesMidnight()) {
+                $nights[] = $slot;
+            } else {
+                $daylight[] = $slot;
+            }
+        }
+
+        return new Response($this->twig->render('@UhifadhiRoster/plan/show.html.twig', [
+            'area' => $area,
+            'band' => $this->identity->bandFor($area),
+            'day' => $day,
+            'daylight' => $daylight,
+            'nights' => $nights,
+            'free' => DayPlanService::whoIsFree($sheet),
+            'away' => $this->absences->findOverlapping($area, $day, $day->modify(\sprintf('+%d days', RotaService::DAYS - 1))),
+            'mayPlan' => null !== $this->authorization && $this->authorization->isGranted(self::PLAN_PERMISSION, $area),
+            'csrfToken' => $this->csrfTokenManager?->getToken(self::CSRF_TOKEN_ID)->getValue() ?? '',
+        ]));
+    }
+
+    /**
+     * PUBLISH THE SHEET. The picks become duties; anything the sheet no
+     * longer holds is taken off it.
+     *
+     * THE RULES ARE ASKED AGAIN HERE. A blocked pill is disabled in the
+     * markup and markup is a suggestion — a form can be posted by
+     * anything — so a pick that breaks a rule is refused with a sentence
+     * rather than written.
+     */
+    #[Route('/areas/{uuid}/modules/roster/plan/publish', name: self::PUBLISH_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function publishThePlan(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardPlan($area, $request);
+
+        $day = self::dayAsked($request, $request->request->get('day')) ?? new \DateTimeImmutable('tomorrow');
+
+        $picks = [];
+        foreach ($request->request->all() as $field => $value) {
+            if (str_starts_with($field, self::SLOT_FIELD) && \is_array($value)) {
+                $picks[self::slotKeyOf($field)] = array_values(array_filter($value, \is_string(...)));
+            }
+        }
+
+        $refused = $this->plans->publish($area, $day, $picks);
+
+        foreach ($refused as $sentence) {
+            $this->flash($request, 'error', $sentence);
+        }
+
+        if ([] === $refused) {
+            $this->flash($request, 'success', \sprintf('The day is published — %s is the plan the handsets will report against.', $day->format('D j M')));
+        }
+
+        return new RedirectResponse($this->router->generate(self::PLAN_ROUTE, [
+            'uuid' => (string) $area->getUuidString(),
+            'day' => $day->format('Y-m-d'),
+        ]));
+    }
+
+    /**
+     * THE FIELD A SLOT'S PILLS POST UNDER. One field per slot, carrying the
+     * post and the shift, so the server reads a sheet rather than a flat
+     * list of people it would have to guess the slots of.
+     */
+    public const string SLOT_FIELD = 'slot_';
+
+    /** The "<station uuid>|<shift key>" a field name carries. */
+    private static function slotKeyOf(string $field): string
+    {
+        return str_replace('__', '|', substr($field, \strlen(self::SLOT_FIELD)));
+    }
+
+    /** The field name a slot's pills are posted under. */
+    public static function slotField(string $stationUuid, string $shiftKey): string
+    {
+        return self::SLOT_FIELD.$stationUuid.'__'.$shiftKey;
+    }
+
+    /** A day from the url or the form, or null where neither reads. */
+    private static function dayAsked(Request $request, mixed $posted = null): ?\DateTimeImmutable
+    {
+        $raw = $posted ?? $request->query->get('day');
+        if (!\is_string($raw)) {
+            return null;
+        }
+
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $raw);
+
+        return false === $parsed ? null : $parsed;
     }
 
     /**
