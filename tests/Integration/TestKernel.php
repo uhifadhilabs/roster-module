@@ -16,7 +16,6 @@ namespace Uhifadhi\Roster\Tests\Integration;
 use ApiPlatform\Symfony\Bundle\ApiPlatformBundle;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Doctrine\Bundle\MigrationsBundle\DoctrineMigrationsBundle;
-use FundiStadi\PostGISBundle\FundiStadiPostGISBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
@@ -38,6 +37,7 @@ use Uhifadhi\Bundle\TeamBundle\TeamBundle;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\CollectedModules;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
 use Uhifadhi\Roster\UhifadhiRosterBundle;
+use UtafitiLabs\PostGISBundle\UtafitiLabsPostGISBundle;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
 
@@ -72,7 +72,7 @@ final class TestKernel extends Kernel
         // An installation has this, and this module ships a history for it to
         // run. Without it the bundle's migrations_paths block is guarded out.
         yield new DoctrineMigrationsBundle();
-        yield new FundiStadiPostGISBundle();
+        yield new UtafitiLabsPostGISBundle();
         yield new SecurityBundle();
         // The per-area catalogue this module registers itself in.
         yield new RegistryBundle();
