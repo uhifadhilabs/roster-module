@@ -141,7 +141,7 @@
                         <input type="hidden" name="_token" value="{{ csrfToken }}">
                         <input type="hidden" name="duty" value="{{ offering.duty.uuid }}">
                         <input type="hidden" name="taking" value="{{ offering.taking.uuidString }}">
-                        <div class="save-row">
+                        <div class="staddrow"><span class="sp"></span>
                             <a class="btn sm" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid, from: from.format('Y-m-d')}) }}">Cancel</a>
                             <button type="submit" class="cta">Send the offer</button>
                         </div>

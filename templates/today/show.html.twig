@@ -49,6 +49,7 @@
                             <em>
                                 {{- person.shiftLabel|lower }}
                                 {%- if person.watchCount > 1 %} &middot; watch {{ loop.index }} of {{ person.watchCount }}{% endif -%}
+                                {%- if loop.first and person.watchCount > 1 %} &middot; {{ (person.minutesOnDuty // 60) }}h{% if person.minutesOnDuty % 60 %}{{ person.minutesOnDuty % 60 }}m{% endif %}{% if person.isStillOut %}, still out{% endif %}{% endif -%}
                             </em>
                         </span>
                         <span class="why">

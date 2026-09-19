@@ -117,22 +117,20 @@ final readonly class PresenceReader
     }
 
     /**
-     * THE AREA'S READING OF THE DAY, GROUPED BY PERSON — a LIST per person,
-     * never one row.
+     * THE AREA'S READING OF THE DAY, BY PERSON.
      *
-     * A DAY HOLDS ANY NUMBER OF WATCHES (ruled): a ranger may check in and
-     * out more than once, so `dayIn()` may legitimately return two or three
-     * rows for the same person. This used to key them by person uuid, which
-     * kept whichever came last and silently dropped the rest — a morning at
-     * the gate vanishing the moment somebody checked in on an escort.
+     * A DAY HOLDS ANY NUMBER OF WATCHES (ruled), and the contract carries
+     * them INSIDE the day: `dayIn()` answers one row per person, holding
+     * the list of check-ins they made. So keying by person uuid is right
+     * here and loses nothing — it is the list within that a surface walks.
      *
-     * @return array<string, list<PersonDay>>
+     * @return array<string, PersonDay>
      */
     private function reportedByPerson(AreaOfInterest $area, \DateTimeImmutable $day): array
     {
         $byPerson = [];
         foreach ($this->presence->dayIn((string) $area->getUuidString(), $day->format('Y-m-d')) as $personDay) {
-            $byPerson[$personDay->personUuid][] = $personDay;
+            $byPerson[$personDay->personUuid] = $personDay;
         }
 
         return $byPerson;
@@ -141,7 +139,7 @@ final readonly class PresenceReader
     /**
      * WHO IS DUE WHERE, with the area's reading of each of them attached.
      *
-     * @param array<string, list<PersonDay>> $reported
+     * @param array<string, PersonDay> $reported
      *
      * @return array<string, list<RosteredPerson>> station uuid => the people due there
      */
@@ -164,7 +162,7 @@ final readonly class PresenceReader
                 personName: $duty->getPerson()->getFullName(),
                 shiftKey: $duty->getShiftKey(),
                 shiftLabel: $labels[$duty->getShiftKey()] ?? $duty->getShiftKey(),
-                watches: $reported[$personUuid] ?? [],
+                day: $reported[$personUuid] ?? null,
             );
         }
 

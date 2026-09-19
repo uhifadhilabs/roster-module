@@ -18,6 +18,7 @@ use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Contracts\Area\DayState;
 use Uhifadhi\Contracts\Area\PersonDay;
+use Uhifadhi\Contracts\Area\PersonWatch;
 use Uhifadhi\Contracts\Area\PresenceProviderInterface;
 use Uhifadhi\Contracts\Area\UnverifiedReason;
 use Uhifadhi\Roster\Entity\Duty;
@@ -91,19 +92,50 @@ final class PresenceReaderTest extends IntegrationTestCase
         return $repository;
     }
 
-    private function aDay(string $at, DayState $state, ?UnverifiedReason $why = null, ?string $lastPing = null): PersonDay
+    /** ONE STRETCH OF DUTY — a check-in, what it claimed, and what the positions said. */
+    private function aWatch(string $at, DayState $state, ?UnverifiedReason $why = null, ?string $lastPing = null, ?string $until = null): PersonWatch
     {
-        return new PersonDay(
-            personUuid: (string) $this->ada->getUuidString(),
-            personName: 'Ada Example',
-            localDate: '2026-09-19',
+        return new PersonWatch(
+            clientRef: 'w-'.$at,
             state: $state,
             stationUuid: (string) $this->gate->getUuidString(),
             stationName: 'north gate post',
             unverifiedReason: $why,
             occurredAt: new \DateTimeImmutable($at),
+            endedAt: null === $until ? null : new \DateTimeImmutable($until),
             lastPingAt: null === $lastPing ? null : new \DateTimeImmutable($lastPing),
             pings: null === $lastPing ? 0 : 3,
+        );
+    }
+
+    /**
+     * ADA'S WHOLE DAY, built the way the AREA builds it: the day's state
+     * is the LAST watch's reading, and its totals are the watches' summed.
+     * The stub must impersonate the contract faithfully or the tests pass
+     * against a shape no installation produces.
+     */
+    private function aDay(PersonWatch $first, PersonWatch ...$rest): PersonDay
+    {
+        $watches = [$first, ...$rest];
+        $last = $watches[\count($watches) - 1];
+        $pings = 0;
+        $lastPing = null;
+        foreach ($watches as $watch) {
+            $pings += $watch->pings;
+            if (null !== $watch->lastPingAt && (null === $lastPing || $watch->lastPingAt > $lastPing)) {
+                $lastPing = $watch->lastPingAt;
+            }
+        }
+
+        return new PersonDay(
+            personUuid: (string) $this->ada->getUuidString(),
+            personName: 'Ada Example',
+            localDate: '2026-09-19',
+            state: $last->state,
+            watches: array_values($watches),
+            occurredAt: $first->occurredAt,
+            lastPingAt: $lastPing,
+            pings: $pings,
         );
     }
 
@@ -117,10 +149,10 @@ final class PresenceReaderTest extends IntegrationTestCase
      */
     public function testADayHoldsAnyNumberOfWatchesAndKeepsAllOfThem(): void
     {
-        $reader = $this->readerSeeing([
-            $this->aDay('2026-09-19 06:02', DayState::AtPostVerified, lastPing: '2026-09-19 11:40'),
-            $this->aDay('2026-09-19 14:10', DayState::WorkingElsewhere, lastPing: '2026-09-19 16:20'),
-        ]);
+        $reader = $this->readerSeeing([$this->aDay(
+            $this->aWatch('2026-09-19 06:02', DayState::AtPostVerified, lastPing: '2026-09-19 11:40', until: '2026-09-19 12:00'),
+            $this->aWatch('2026-09-19 14:10', DayState::WorkingElsewhere, lastPing: '2026-09-19 16:20', until: '2026-09-19 16:40'),
+        )]);
 
         $posts = $reader->postsOn($this->area, new \DateTimeImmutable('2026-09-19'), new \DateTimeImmutable('2026-09-19 17:00'));
 
@@ -128,25 +160,37 @@ final class PresenceReaderTest extends IntegrationTestCase
         $person = $posts[0]->rostered[0];
 
         self::assertSame(2, $person->watchCount(), 'Both check-ins are the day; neither replaces the other.');
-        self::assertSame(DayState::AtPostVerified, $person->watches[0]->state);
-        self::assertSame(DayState::WorkingElsewhere, $person->watches[1]->state);
+        self::assertSame(DayState::AtPostVerified, $person->watches()[0]->state);
+        self::assertSame(DayState::WorkingElsewhere, $person->watches()[1]->state);
+        // AND THE DAY ADDS UP: 358 minutes at the gate and 150 on the
+        // escort are one person's 508, which no single watch can state
+        // and which the row showing only the latest would report as 150.
+        self::assertSame(508, $person->minutesOnDuty());
+        self::assertFalse($person->isStillOut(), 'Both watches closed.');
     }
 
     /**
-     * THE ROW LEADS WITH THE FIRST WATCH, not the latest: a summary that
-     * showed the newest would make a morning at the gate disappear as soon
-     * as somebody checked in somewhere else.
+     * THE SUMMARY READS THE DAY'S STATE, WHICH IS THE LAST WATCH'S.
+     *
+     * The contract states it: what somebody is doing now — or finished the
+     * day doing — is what a board asks when it colours a name. So the
+     * module does NOT re-fold the list into a second verdict; a row that
+     * chose the first watch while the band beside it read the area's day
+     * would give two answers to one question.
      */
-    public function testTheSummaryLeadsWithTheFirstWatchOfTheDay(): void
+    public function testTheSummaryReadsTheDaysStateAndDoesNotReFoldTheWatches(): void
     {
-        $reader = $this->readerSeeing([
-            $this->aDay('2026-09-19 06:02', DayState::AtPostVerified),
-            $this->aDay('2026-09-19 14:10', DayState::NotWorking),
-        ]);
+        $reader = $this->readerSeeing([$this->aDay(
+            $this->aWatch('2026-09-19 06:02', DayState::AtPostVerified),
+            $this->aWatch('2026-09-19 14:10', DayState::NotWorking),
+        )]);
 
         $person = $reader->postsOn($this->area, new \DateTimeImmutable('2026-09-19'))[0]->rostered[0];
 
-        self::assertSame(DayState::AtPostVerified, $person->state());
+        self::assertSame(DayState::NotWorking, $person->state());
+        // And the morning has NOT vanished: it is a row of its own.
+        self::assertSame(2, $person->watchCount());
+        self::assertSame(DayState::AtPostVerified, $person->watches()[0]->state);
     }
 
     /**
@@ -157,10 +201,10 @@ final class PresenceReaderTest extends IntegrationTestCase
      */
     public function testAPersonIsPresentIfAnyOfTheDaysWatchesCounts(): void
     {
-        $reader = $this->readerSeeing([
-            $this->aDay('2026-09-19 06:02', DayState::NotWorking),
-            $this->aDay('2026-09-19 14:10', DayState::AtPostVerified),
-        ]);
+        $reader = $this->readerSeeing([$this->aDay(
+            $this->aWatch('2026-09-19 06:02', DayState::NotWorking),
+            $this->aWatch('2026-09-19 14:10', DayState::AtPostVerified),
+        )]);
 
         self::assertTrue($reader->postsOn($this->area, new \DateTimeImmutable('2026-09-19'))[0]->rostered[0]->isPresent());
     }
@@ -172,15 +216,15 @@ final class PresenceReaderTest extends IntegrationTestCase
      */
     public function testAPersonIsFlaggedIfAnyOfTheDaysWatchesIs(): void
     {
-        $reader = $this->readerSeeing([
-            $this->aDay('2026-09-19 06:02', DayState::AtPostVerified),
-            $this->aDay('2026-09-19 14:10', DayState::AtPostUnverified, UnverifiedReason::OutsideRing),
-        ]);
+        $reader = $this->readerSeeing([$this->aDay(
+            $this->aWatch('2026-09-19 06:02', DayState::AtPostVerified),
+            $this->aWatch('2026-09-19 14:10', DayState::AtPostUnverified, UnverifiedReason::OutsideRing),
+        )]);
 
         $person = $reader->postsOn($this->area, new \DateTimeImmutable('2026-09-19'))[0]->rostered[0];
 
         self::assertTrue($person->isFlagged());
-        self::assertSame(UnverifiedReason::OutsideRing, $person->watches[1]->unverifiedReason);
+        self::assertSame(UnverifiedReason::OutsideRing, $person->watches()[1]->unverifiedReason);
     }
 
     /**
@@ -191,10 +235,10 @@ final class PresenceReaderTest extends IntegrationTestCase
      */
     public function testThePostsSilenceIsMeasuredFromTheNewestWatch(): void
     {
-        $reader = $this->readerSeeing([
-            $this->aDay('2026-09-19 06:02', DayState::AtPostVerified, lastPing: '2026-09-19 06:30'),
-            $this->aDay('2026-09-19 14:10', DayState::AtPostVerified, lastPing: '2026-09-19 16:45'),
-        ]);
+        $reader = $this->readerSeeing([$this->aDay(
+            $this->aWatch('2026-09-19 06:02', DayState::AtPostVerified, lastPing: '2026-09-19 06:30'),
+            $this->aWatch('2026-09-19 14:10', DayState::AtPostVerified, lastPing: '2026-09-19 16:45'),
+        )]);
 
         $post = $reader->postsOn($this->area, new \DateTimeImmutable('2026-09-19'), new \DateTimeImmutable('2026-09-19 17:00'))[0];
 
