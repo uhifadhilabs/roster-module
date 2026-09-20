@@ -21,6 +21,7 @@ use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Bundle\TwigBundle\TwigBundle;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
@@ -59,6 +60,19 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_it
 final class TestKernel extends Kernel
 {
     use MicroKernelTrait;
+
+    /**
+     * THE HOUR THIS SUITE RUNS AT, whenever it actually runs.
+     *
+     * THE DAY IS TODAY AND THE HOUR IS NOT. The demo rosters the current
+     * fortnight, so a fixed DATE would seed a month the suite then looks
+     * for in the wrong place; what broke CI was the TIME OF DAY — which
+     * watches have begun, which are still running, how old a ping is. So
+     * the date moves with the calendar and the clock is pinned to
+     * mid-morning: after the day and office watches begin, long before the
+     * night one, which is the state these tests are about.
+     */
+    public const string NOW = 'today 10:30';
 
     public function registerBundles(): iterable
     {
@@ -178,6 +192,20 @@ final class TestKernel extends Kernel
         // something has to decide who holds it. Tagged by hand — a
         // reusable-bundle test kernel does not autoconfigure.
         $container->services()->set(FixedManageVoter::class)->tag('security.voter');
+
+        // THE CLOCK IS FIXED IN THIS SUITE, and that is the whole point of
+        // it being a collaborator. What the presence seeder writes depends
+        // on the time of day — which watches have begun, which are still
+        // running, how old a ping is — so a suite reading the wall clock
+        // asserts a different thing every hour, and passes on one CI leg
+        // while failing on the next for no reason but when they ran.
+        //
+        // A test that cares about the hour moves this itself; everything
+        // else simply gets a stable mid-morning.
+        $container->services()
+            ->set('clock', MockClock::class)
+            ->args([self::NOW])
+            ->public();
 
         // Public aliases so tests can hold the bundle's private services,
         // keyed by class name for readability (see IntegrationTestCase). They

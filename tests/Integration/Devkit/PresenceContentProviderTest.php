@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Uhifadhi\Roster\Tests\Integration\Devkit;
 
+use Symfony\Component\Clock\MockClock;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
@@ -93,6 +94,27 @@ final class PresenceContentProviderTest extends IntegrationTestCase
         self::assertInstanceOf(PresenceProviderInterface::class, $presence);
 
         return $presence;
+    }
+
+    /**
+     * PIN THE HOUR, because these readings are about the day in front of
+     * the reader and the day has hours in it.
+     *
+     * THE SCRIPTS GO TO THE WATCHES ACTUALLY STANDING, so how many of them
+     * there are — and therefore how far down the list the seeder gets —
+     * depends on the time of day. At ten in the morning this fixture has
+     * the day and office watches out, which is two, which reaches the
+     * stale mark. At a quarter to midnight it has one, and "a handset has
+     * gone quiet" is then not a state the park is in.
+     *
+     * THIS IS WHAT BROKE CI. Not a wrong assertion — the same assertion,
+     * true at the hour one leg ran and false at the hour the other did.
+     */
+    private function atMidMorning(): void
+    {
+        $clock = self::getContainer()->get('clock');
+        self::assertInstanceOf(MockClock::class, $clock);
+        $clock->modify('today 10:30');
     }
 
     private function positions(): LivePositionsInterface
@@ -255,6 +277,7 @@ final class PresenceContentProviderTest extends IntegrationTestCase
      */
     public function testTodayIsScriptedSoTheDaySomebodyOpensIsWorthReading(): void
     {
+        $this->atMidMorning();
         $this->provider()->load();
 
         $today = $this->presence()->dayIn((string) $this->area->getUuidString(), new \DateTimeImmutable('today')->format('Y-m-d'));
@@ -280,11 +303,49 @@ final class PresenceContentProviderTest extends IntegrationTestCase
      */
     public function testOneHandsetOnTodaysWatchHasGoneQuiet(): void
     {
+        $this->atMidMorning();
         $this->provider()->load();
 
         $live = $this->positions()->liveIn((string) $this->area->getUuidString(), new \DateTimeImmutable());
 
         self::assertNotSame([], $live->positions, 'The plate is not empty.');
         self::assertGreaterThan(0, $live->staleCount(), 'No mark on the plate is stale.');
+    }
+
+    /**
+     * AND BEFORE ANY WATCH HAS BEGUN, NOTHING ON TODAY IS SCRIPTED.
+     *
+     * "DUE LATER" IS ITS OWN READING AND THE CLOCK OWNS IT. At four in the
+     * morning the day watch has not started and the night one began
+     * yesterday: scripting a claim onto a watch that starts at six would
+     * be the demo reporting the future, and a board drawn at that hour
+     * should show people due rather than people present.
+     *
+     * THIS IS THE CASE THAT BROKE CI. The same code seeded one thing in
+     * the morning and another in the afternoon, so the suite was green on
+     * one leg and red on the next — not because either was wrong, but
+     * because the seeder read a wall clock nobody could pin. It is a
+     * collaborator now, and this test moves it on purpose.
+     */
+    public function testBeforeTheFirstWatchBeginsNothingOnTodayIsScripted(): void
+    {
+        $clock = self::getContainer()->get('clock');
+        self::assertInstanceOf(MockClock::class, $clock);
+        $clock->modify('today 04:00');
+
+        $this->provider()->load();
+
+        foreach ($this->presence()->dayIn((string) $this->area->getUuidString(), $clock->now()->format('Y-m-d')) as $day) {
+            self::assertNotSame(
+                DayState::Special,
+                $day->state,
+                'A watch that has not started cannot have been claimed against.',
+            );
+        }
+
+        // AND THE PLATE IS HONEST ABOUT IT: nobody is standing yet, so
+        // nothing is stale either — the state that exists at four in the
+        // morning is "due", and the demo says so by writing nothing.
+        self::assertSame(0, $this->positions()->liveIn((string) $this->area->getUuidString(), $clock->now())->staleCount());
     }
 }

@@ -427,6 +427,10 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 // rather than the container failing to compile.
                 service(CheckInService::class)->nullOnInvalid(),
                 service(CheckInStatusService::class),
+                // THE INSTANT, as a collaborator. What this seeder writes
+                // depends on the time of day, so a wall clock inside it is
+                // a demo nobody can test twice and get the same answer.
+                service('clock'),
             ])
             ->tag('uhifadhi.devkit.content_provider');
 

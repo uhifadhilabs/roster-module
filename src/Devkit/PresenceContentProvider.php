@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Uhifadhi\Roster\Devkit;
 
+use Psr\Clock\ClockInterface;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\CheckInStatus;
 use Uhifadhi\Bundle\AreaBundle\Enum\CheckInStatusKind;
@@ -75,6 +76,18 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         private ShiftRepository $shifts,
         private ?CheckInService $checkIns,
         private CheckInStatusService $statuses,
+        /**
+         * THE INSTANT THIS DEMO IS BUILT AT.
+         *
+         * A SEEDER THAT READS THE WALL CLOCK IS A SEEDER NOBODY CAN TEST.
+         * What it writes depends on the time of day — which watches have
+         * begun, which are still running, how old a ping is — so the same
+         * code seeded one thing at ten in the morning and another at four,
+         * and a suite that asserted either was green on one CI leg and red
+         * on the next. The clock is a collaborator here, like everything
+         * else.
+         */
+        private ClockInterface $clock,
     ) {
     }
 
@@ -122,7 +135,8 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         // report that started at the first would have nothing to report on
         // during the first days of a month, which is precisely when a
         // freshly seeded park is most likely to be looked at.
-        $today = new \DateTimeImmutable('today');
+        $now = $this->clock->now();
+        $today = $now->setTime(0, 0);
         $fortnight = RotaService::start($today);
         $month = new \DateTimeImmutable('first day of this month')->setTime(0, 0);
         $from = $fortnight < $month ? $fortnight : $month;
@@ -138,7 +152,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         }
 
         $windows = $this->shifts->windowsFor($area);
-        $scripted = self::script($duties, $windows, $today) + self::scriptToday($duties, $windows, $today);
+        $scripted = self::script($duties, $windows, $today) + self::scriptToday($duties, $windows, $now);
 
         foreach ($duties as $duty) {
             $window = $windows[$duty->getShiftKey()] ?? null;
@@ -146,7 +160,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
                 continue;
             }
 
-            $this->workTheWatch($area, $duty, $window, $statuses, $today, $scripted[(string) $duty->getUuid()] ?? null);
+            $this->workTheWatch($area, $duty, $window, $statuses, $now, $scripted[(string) $duty->getUuid()] ?? null);
         }
     }
 
@@ -256,15 +270,29 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
      *
      * @return array<string, DemoWatchScript> by duty uuid
      */
-    private static function scriptToday(array $duties, array $windows, \DateTimeImmutable $today): array
+    private static function scriptToday(array $duties, array $windows, \DateTimeImmutable $now): array
     {
-        $minute = (int) (new \DateTimeImmutable())->format('G') * 60 + (int) (new \DateTimeImmutable())->format('i');
+        $today = $now->setTime(0, 0);
+        $minute = (int) $now->format('G') * 60 + (int) $now->format('i');
 
+        // THE WATCHES ACTUALLY STANDING, which is not the same as the ones
+        // that have begun. A watch that ended at four is history: the live
+        // plate draws nobody for it, so scripting "this handset has gone
+        // quiet" onto it produces a stale mark on a plate that is not
+        // showing that person at all. What these readings are FOR is the
+        // day in front of the reader, so they go to the people on it now.
         $begun = array_values(array_filter(
             $duties,
-            static fn (Duty $duty): bool => $duty->getOnDay()->format('Y-m-d') === $today->format('Y-m-d')
-                && isset($windows[$duty->getShiftKey()])
-                && $windows[$duty->getShiftKey()]->startsAtMinuteOfDay() <= $minute,
+            static function (Duty $duty) use ($windows, $today, $minute): bool {
+                if ($duty->getOnDay()->format('Y-m-d') !== $today->format('Y-m-d') || !isset($windows[$duty->getShiftKey()])) {
+                    return false;
+                }
+
+                $window = $windows[$duty->getShiftKey()];
+
+                return $window->startsAtMinuteOfDay() <= $minute
+                    && ($window->crossesMidnight() || $window->endsAtMinuteFromItsDay() > $minute);
+            },
         ));
 
         usort($begun, static fn (Duty $a, Duty $b): int => [
@@ -308,11 +336,11 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
      *
      * @param array<string, CheckInStatus> $statuses
      */
-    private function workTheWatch(AreaOfInterest $area, Duty $duty, ShiftWindow $window, array $statuses, \DateTimeImmutable $today, ?DemoWatchScript $script = null): void
+    private function workTheWatch(AreaOfInterest $area, Duty $duty, ShiftWindow $window, array $statuses, \DateTimeImmutable $now, ?DemoWatchScript $script = null): void
     {
         $draw = DemoDraw::of('watch', (string) $duty->getUuid());
         $day = $duty->getOnDay();
-        $isToday = $day->format('Y-m-d') === $today->format('Y-m-d');
+        $isToday = $day->format('Y-m-d') === $now->format('Y-m-d');
 
         // A FEW WATCHES ARE SIMPLY NOT REPORTED, and that is the "no
         // check-in" a board draws against somebody who was due. A demo
@@ -342,7 +370,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         // are simply still running, which is a different thing — and the
         // clock, never the script, settles those.
         $stillOut = $isToday
-            ? $endsAt > new \DateTimeImmutable()
+            ? $endsAt > $now
             : (null !== $script ? !$script->closed : $draw->oneIn(9));
 
         $this->claim(
@@ -354,6 +382,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
             $startedAt,
             $stillOut ? null : $endsAt,
             $draw,
+            $now,
             $script,
         );
 
@@ -368,7 +397,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
             // A SECOND WATCH THAT DOES NOT FIT ITS OWN DAY IS NOT ONE. The
             // scripted day is chosen from the shifts that do not cross
             // midnight precisely so this holds.
-            if ($resumedAt < new \DateTimeImmutable() && $resumedAt->format('Y-m-d') === $day->format('Y-m-d')) {
+            if ($resumedAt < $now && $resumedAt->format('Y-m-d') === $day->format('Y-m-d')) {
                 $this->claim(
                     $area,
                     $duty,
@@ -378,6 +407,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
                     $resumedAt,
                     $resumedAt->modify(\sprintf('+%d minutes', $secondDraw->between(90, 240))),
                     $secondDraw,
+                    $now,
                 );
             }
         }
@@ -402,6 +432,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         \DateTimeImmutable $startedAt,
         ?\DateTimeImmutable $endedAt,
         DemoDraw $draw,
+        \DateTimeImmutable $now,
         ?DemoWatchScript $script = null,
     ): void {
         $status = $statuses[$kind->value] ?? null;
@@ -470,7 +501,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
             return;
         }
 
-        $this->ping($area, $duty, $ref, $startedAt, $endedAt, $stray, $draw, null !== $script && $script->quiet);
+        $this->ping($area, $duty, $ref, $startedAt, $endedAt, $stray, $draw, $now, null !== $script && $script->quiet);
     }
 
     /**
@@ -486,6 +517,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         ?\DateTimeImmutable $endedAt,
         bool $stray,
         DemoDraw $draw,
+        \DateTimeImmutable $now,
         bool $quiet = false,
     ): void {
         $fix = $this->fixNear($duty, $stray);
@@ -498,7 +530,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         // reporting and the last one is old enough for the plate to draw
         // it stale — "where they WERE", which is the state that sends
         // somebody to the radio.
-        $until = $endedAt ?? new \DateTimeImmutable();
+        $until = $endedAt ?? $now;
         if ($quiet) {
             $until = $startedAt->modify(\sprintf('+%d minutes', max(10, (int) floor(($until->getTimestamp() - $startedAt->getTimestamp()) / 60 / 4))));
         }
@@ -513,7 +545,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         $rows = [];
         for ($n = 1; $n <= $count; ++$n) {
             $at = $startedAt->modify(\sprintf('+%d minutes', $step * $n));
-            if ($at > new \DateTimeImmutable()) {
+            if ($at > $now) {
                 break;
             }
 
