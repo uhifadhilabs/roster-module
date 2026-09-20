@@ -17,6 +17,7 @@ Each deliberate modelling choice, **why**, and **the trigger that reopens it**
 - [Leave has no approval in v1](#leave-has-no-approval-in-v1)
 - [A preset is a shape, and the post's own watches fill it](#a-preset-is-a-shape-and-the-posts-own-watches-fill-it)
 - [Two doors put a post on the books, and neither is the seeder](#two-doors-put-a-post-on-the-books-and-neither-is-the-seeder)
+- [A seeder reads the injected clock; a screen reads the wall](#a-seeder-reads-the-injected-clock-a-screen-reads-the-wall)
 - [What the design asks for that nothing can answer yet](#what-the-design-asks-for-that-nothing-can-answer-yet)
 
 ## The scaffold was reconciled, not preserved
@@ -413,6 +414,45 @@ route name, never from a submitted address.
 when the area first posts somebody at it. It is deliberately NOT that today:
 the area may register twelve posts and mean to work four, and an accidental
 row would put a post on the books nobody meant to be watching.
+
+## A seeder reads the injected clock; a screen reads the wall
+
+**Decision.** Everything under `src/Devkit/` takes `Psr\Clock\ClockInterface`
+and derives every day, month and instant from it. Nothing else in this module
+is held to that yet. A test enforces the rule where it is absolute
+(`SeedersReadTheInjectedClockTest`), and it is deliberately scoped to that
+directory rather than to `src/`.
+
+**Why the seeders are different in kind.** A controller reading "today" is
+reading the day a person is looking at the screen, and there is no other clock
+for it to read. A seeder is only ever run against a clock somebody CHOSE — a
+suite's pinned instant, or a demo being built for a particular day — and its
+whole output is a function of that instant. Two seeders that disagree about
+what day it is produce a park whose duties are on Monday and whose check-ins
+are on Tuesday, and every figure derived from the pair is wrong in a way no
+single test can see. That is not hypothetical: the roster seeder wrote its
+fortnight from the wall clock while the presence seeder beside it worked those
+duties against the injected one.
+
+**What is still on the wall clock**, so nobody has to grep for it:
+
+| Where | Sites | Note |
+|---|---|---|
+| `Controller/RosterController` | 11 | mostly `?day=` falling back to today |
+| `Controller/RosterWidgetsController` | 3 | |
+| `Controller/RosterConfigureController`, `Controller/RosterOrgController` | 2 | |
+| `Service/RosterCalendar`, `Service/RotaService` | 4 | no way to inject an instant today |
+| `Service/RosteredPeople`, `Service/RotationEditor`, `Shell/RosterStationSections` | 3 | |
+| `Entity/Trait/TimestampableTrait` | 2 | lifecycle callbacks; Doctrine constructs the entity |
+
+`AgendaService`, `PresenceReader` and `RosterDashboardService` are already
+testable at a chosen instant — they take `?\DateTimeImmutable $now = null` and
+default it — which is the cheaper half of the same discipline.
+
+**Reopens when** a screen has to be rendered at an instant that is not now —
+an "as at" reading, or a snapshot for a report. That is the change that makes
+the controllers' clock worth injecting, and it should be done in one pass with
+the services above rather than one controller at a time.
 
 ## What the design asks for that nothing can answer yet
 

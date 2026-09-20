@@ -448,6 +448,10 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service('roster.rotation_generator'),
                 service('roster.swaps'),
                 service('doctrine.orm.entity_manager'),
+                // THE SAME CLOCK THE PRESENCE SEEDER READS. One writes the
+                // duties and the other works them, so the two must agree
+                // about what day it is.
+                service('clock'),
             ])
             ->tag('uhifadhi.devkit.content_provider');
 

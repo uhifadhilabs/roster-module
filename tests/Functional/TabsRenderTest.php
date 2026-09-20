@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace Uhifadhi\Roster\Tests\Functional;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
@@ -28,6 +27,7 @@ use Uhifadhi\Roster\Enum\RotationScope;
 use Uhifadhi\Roster\Model\Cycle;
 use Uhifadhi\Roster\Service\StationWatchService;
 use Uhifadhi\Roster\Shell\RosterModuleTabs;
+use Uhifadhi\Roster\Tests\FreshDatabase;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
 
 /**
@@ -45,6 +45,7 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
 final class TabsRenderTest extends WebTestCase
 {
     use EveryAreaRunsTheRoster;
+    use FreshDatabase;
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
@@ -57,10 +58,7 @@ final class TabsRenderTest extends WebTestCase
         $em = static::getContainer()->get('doctrine.orm.entity_manager');
         $this->em = $em;
 
-        $schemaTool = new SchemaTool($this->em);
-        $metadata = $this->em->getMetadataFactory()->getAllMetadata();
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
+        self::freshDatabase($this->em);
 
         $this->area = new AreaOfInterest()->setSource('test fixture')->setName('demo reserve')->setGeom(
             '{"type":"MultiPolygon","coordinates":[[[[12.2,-5.8],[12.5,-5.8],[12.5,-5.5],[12.2,-5.5],[12.2,-5.8]]]]}',

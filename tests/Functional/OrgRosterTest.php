@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace Uhifadhi\Roster\Tests\Functional;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -25,6 +24,7 @@ use Uhifadhi\Roster\Controller\RosterOrgController;
 use Uhifadhi\Roster\Entity\Duty;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Service\StationWatchService;
+use Uhifadhi\Roster\Tests\FreshDatabase;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
 
 /**
@@ -42,6 +42,7 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
 final class OrgRosterTest extends WebTestCase
 {
     use EveryAreaRunsTheRoster;
+    use FreshDatabase;
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
@@ -56,10 +57,7 @@ final class OrgRosterTest extends WebTestCase
         $em = static::getContainer()->get('doctrine.orm.entity_manager');
         $this->em = $em;
 
-        $schemaTool = new SchemaTool($this->em);
-        $metadata = $this->em->getMetadataFactory()->getAllMetadata();
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
+        self::freshDatabase($this->em);
 
         $this->em->persist(new User()->setPassword('x')->setEmail(FixedManageVoter::MANAGER_EMAIL)->setFirstName('Mara')->setLastName('Manager'));
 

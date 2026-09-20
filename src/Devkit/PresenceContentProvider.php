@@ -138,7 +138,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         $now = $this->clock->now();
         $today = $now->setTime(0, 0);
         $fortnight = RotaService::start($today);
-        $month = new \DateTimeImmutable('first day of this month')->setTime(0, 0);
+        $month = $now->modify('first day of this month')->setTime(0, 0);
         $from = $fortnight < $month ? $fortnight : $month;
 
         $duties = $this->duties->findByAreaBetween($area, $from, $today);

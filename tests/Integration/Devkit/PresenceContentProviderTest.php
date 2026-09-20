@@ -363,9 +363,54 @@ final class PresenceContentProviderTest extends IntegrationTestCase
         // order. What cannot vary is that nothing was written FOR today.
         self::assertSame(0, $this->claimsRecordedOn($clock->now()), 'A watch that has not started cannot have been claimed against.');
 
-        // AND THE PLATE IS HONEST ABOUT IT: nobody who started today is
-        // standing yet, so nothing of today's is stale either.
-        self::assertSame(0, $this->positions()->liveIn((string) $this->area->getUuidString(), $clock->now())->staleCount());
+        // AND THE PLATE IS HONEST ABOUT IT: every mark on it belongs to a
+        // watch of an EARLIER day.
+        //
+        // THE WHOLE PLATE IS NOT THE CLAIM, and asserting it was is what
+        // made this test flaky — the reasoning three lines above, applied
+        // to the claims count and then forgotten for the plate. A night
+        // watch that began yesterday at six and runs to six this morning
+        // is still out at four, legitimately live, and legitimately quiet
+        // if its handset has not pinged for a while; about one watch in
+        // nine is left open on purpose, and which ones depends on a draw
+        // taken from the duty's uuid. So "no mark is stale" was true on
+        // most runs and false on roughly one in ten, and true for no
+        // reason either time.
+        //
+        // WHAT CANNOT VARY is that nothing which STARTS TODAY is on the
+        // plate, because nothing that starts today has begun. That is the
+        // fact this test is about, and it is stronger than the count it
+        // replaces: a seeder that claimed today's watches early would be
+        // caught by it, and was not caught by a zero.
+        foreach ($this->positions()->liveIn((string) $this->area->getUuidString(), $clock->now())->positions as $mark) {
+            self::assertLessThan(
+                $clock->now()->setTime(0, 0),
+                $this->watchDayOf($mark->clientRef),
+                'A watch that has not started cannot be standing on the plate.',
+            );
+        }
+    }
+
+    /**
+     * THE DAY THE WATCH BEHIND A MARK BELONGS TO. The seeder's own client
+     * reference carries the duty it claimed against — `demo-<uuid>-1` —
+     * which is the only handle a live mark offers back to the roster.
+     */
+    private function watchDayOf(?string $clientRef): \DateTimeImmutable
+    {
+        self::assertIsString($clientRef);
+
+        $em = self::getContainer()->get('doctrine.orm.entity_manager');
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        $day = $em->getConnection()->fetchOne(
+            'SELECT local_date FROM duty_checkin WHERE client_ref = ?',
+            [$clientRef],
+        );
+
+        self::assertIsString($day);
+
+        return new \DateTimeImmutable($day);
     }
 
     /**

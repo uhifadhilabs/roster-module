@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Uhifadhi\Roster\Devkit;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Clock\ClockInterface;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
@@ -163,7 +164,26 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         private RotationGenerator $generator,
         private SwapService $swaps,
         private EntityManagerInterface $entityManager,
+        /*
+         * THE CLOCK IS A COLLABORATOR HERE, exactly as it is in the
+         * presence seeder beside it.
+         *
+         * THE TWO SEEDERS HAVE TO AGREE ABOUT WHAT DAY IT IS. This one
+         * writes the duties and that one works them; if one reads a
+         * pinned clock and the other the wall, a suite that pins ten
+         * past midnight seeds a fortnight starting on one date and
+         * reports against another, and every figure in between is off by
+         * a day. It cost a flaky CI leg once already, in the service
+         * these two feed.
+         */
+        private ClockInterface $clock,
     ) {
+    }
+
+    /** Midnight of the day this seeder is running for. */
+    private function today(): \DateTimeImmutable
+    {
+        return $this->clock->now()->setTime(0, 0);
     }
 
     public function key(): string
@@ -765,7 +785,7 @@ final readonly class RosterContentProvider implements ContentProviderInterface
      */
     private function seedSwaps(AreaOfInterest $area): void
     {
-        $from = RotaService::start(new \DateTimeImmutable('today'));
+        $from = RotaService::start($this->today());
         $through = $from->modify(\sprintf('+%d days', RotaService::DAYS - 1));
 
         $alreadyIn = [];
@@ -796,7 +816,7 @@ final readonly class RosterContentProvider implements ContentProviderInterface
             $spokenFor[(string) $open->getDuty()->getUuid()] = true;
         }
 
-        $answeredOn = new \DateTimeImmutable('today');
+        $answeredOn = $this->today();
         $cursor = 0;
 
         foreach (SwapState::cases() as $state) {
@@ -901,7 +921,7 @@ final readonly class RosterContentProvider implements ContentProviderInterface
      */
     private function windowStart(): \DateTimeImmutable
     {
-        $fortnight = RotaService::start(new \DateTimeImmutable('today'));
+        $fortnight = RotaService::start($this->today());
         $month = $this->monthStart();
 
         return $fortnight < $month ? $fortnight : $month;
@@ -909,12 +929,12 @@ final readonly class RosterContentProvider implements ContentProviderInterface
 
     private function monthStart(): \DateTimeImmutable
     {
-        return new \DateTimeImmutable('first day of this month')->setTime(0, 0);
+        return $this->clock->now()->modify('first day of this month')->setTime(0, 0);
     }
 
     private function monthEnd(): \DateTimeImmutable
     {
-        return new \DateTimeImmutable('last day of this month')->setTime(0, 0);
+        return $this->clock->now()->modify('last day of this month')->setTime(0, 0);
     }
 
     /** A day of THIS month, clamped to a month that has fewer of them. */
