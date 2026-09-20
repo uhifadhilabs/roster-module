@@ -39,14 +39,6 @@ final class StylesheetVocabularyTest extends TestCase
 {
     private const string MODULE_SHEET = __DIR__.'/../../../public/roster.css';
 
-    /**
-     * THE ORGANISATION SHEET, which this module also ships and the org
-     * pages link themselves. It is separate because only the three pages
-     * at that scope need it, and it holds exactly the marks the wider
-     * scope adds: which area a row is about.
-     */
-    private const string ORG_SHEET = __DIR__.'/../../../public/roster-org.css';
-
     private const string SHELL_SHEET = __DIR__.'/../../../vendor/uhifadhi/uhifadhi/src/Uhifadhi/Bundle/ShellBundle/public/shell.css';
 
     /**
@@ -87,7 +79,6 @@ final class StylesheetVocabularyTest extends TestCase
     public function testEveryClassTheTemplatesUseIsShippedBySomebody(): void
     {
         $shipped = self::selectorsIn(self::read(self::MODULE_SHEET))
-            + self::selectorsIn(self::read(self::ORG_SHEET))
             + self::selectorsIn(self::read(self::SHELL_SHEET))
             + self::selectorsIn(self::read(self::WIDGET_SHEET))
             + self::selectorsIn(self::read(self::MAP_SHEET));
@@ -125,9 +116,7 @@ final class StylesheetVocabularyTest extends TestCase
             + self::selectorsIn(self::read(self::MAP_SHEET));
 
         $restated = [];
-        $ours = [...self::selectorListIn(self::read(self::MODULE_SHEET)), ...self::selectorListIn(self::read(self::ORG_SHEET))];
-
-        foreach ($ours as $selector) {
+        foreach (self::selectorListIn(self::read(self::MODULE_SHEET)) as $selector) {
             preg_match_all('/\.(-?[_a-zA-Z][\w-]*)/', $selector, $matches);
             $classes = $matches[1];
 
@@ -164,14 +153,7 @@ final class StylesheetVocabularyTest extends TestCase
             // out of the design's format gallery and kept their names, so
             // the app and the workspace stay in step.
             || str_starts_with($class, 'fg-')
-            // `org*` is this module's organisation vocabulary, declared in
-            // its own sheet and written only in its own org templates. It is
-            // named for the SCOPE rather than for the module because that is
-            // what the marks are about — which area a row is — and a second
-            // module at that scope will want the same three, at which point
-            // they graduate to the shell rather than being copied.
-            || str_starts_with($class, 'org')
-            || \in_array($class, ['rband', 'rset', 'rsw', 'rfrag', 'rstat', 'lfilt-n'], true);
+            || \in_array($class, ['rband', 'rset', 'rsw', 'rfrag', 'rstat'], true);
     }
 
     /**
