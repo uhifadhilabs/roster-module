@@ -120,16 +120,16 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
         return $crawler;
     }
 
-    /** THE FIVE KPI CARDS the design names, in its order. */
-    public function testTheStripDrawsTheDesignsFiveCards(): void
+    /** THE FOUR KPI CARDS the design names, in its order — four, never five. */
+    public function testTheStripDrawsTheDesignsFourCards(): void
     {
         $crawler = $this->open();
 
         $cards = $crawler->filter('.kstrip .c.kpi');
-        self::assertCount(5, $cards);
+        self::assertCount(4, $cards, 'A KPI row is four cards, never five.');
 
         self::assertSame(
-            ['watches', 'verified', 'unverified', 'no-check-in', 'nights-in-a-row'],
+            ['watches', 'verified', 'needs-an-answer', 'nights-in-a-row'],
             $cards->each(static fn (\Symfony\Component\DomCrawler\Crawler $card): string => (string) $card->attr('data-kpi')),
         );
     }

@@ -227,9 +227,16 @@ final class WeekTabTest extends WebTestCase
         $crawler = $this->client->request('GET', $this->url());
         $text = $crawler->filter('body')->text();
 
-        foreach (['Person-watches', 'Holes', 'Nights, the heaviest', 'Flagged today', 'Swaps pending'] as $figure) {
+        foreach (['Person-watches', 'Holes', 'Nights, the heaviest', 'Swaps pending'] as $figure) {
             self::assertStringContainsString($figure, $text);
         }
+
+        // AND "FLAGGED TODAY" IS NOT ONE OF THEM. A row is four cards
+        // (ruled), and this is the PLANNER's tab: a flag is today's
+        // problem, which the agenda and the day board both lead with. A
+        // fortnight's strip carrying a figure that changes every morning
+        // would be the one thing on this page not about the fortnight.
+        self::assertStringNotContainsString('Flagged today', $text);
     }
 
     /** The holes list names the post, the day and how short it is. */

@@ -164,16 +164,20 @@ final class TodayAgendaTest extends WebTestCase
         );
     }
 
-    /** THE FIVE KPI CARDS the design names, in its order. */
-    public function testTheStripDrawsTheDesignsFiveCards(): void
+    /**
+     * THE FOUR KPI CARDS the design names, in its order — four and never
+     * five, ruled. Verified is a FRAGMENT of check-ins in here: how many
+     * came in and how many of them the pings bore out is one thought.
+     */
+    public function testTheStripDrawsTheDesignsFourCards(): void
     {
         $crawler = $this->open();
 
         $cards = $crawler->filter('.kstrip .c.kpi');
-        self::assertCount(5, $cards);
+        self::assertCount(4, $cards, 'A KPI row is four cards, never five.');
 
         self::assertSame(
-            ['on-the-watch', 'check-ins-in', 'verified', 'needs-an-answer', 'holes'],
+            ['on-the-watch', 'check-ins-in', 'needs-an-answer', 'holes'],
             $cards->each(static fn (\Symfony\Component\DomCrawler\Crawler $card): string => (string) $card->attr('data-kpi')),
         );
     }

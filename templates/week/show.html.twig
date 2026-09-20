@@ -32,9 +32,15 @@
         here: constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'),
     }, with_context: false) }}
 
-    {# THE FIVE FIGURES, every one measuring the same fortnight the grid
+    {# THE FOUR FIGURES, every one measuring the same fortnight the grid
        draws — a strip that counted a different window would be a strip
-       nobody could check against the picture under it. #}
+       nobody could check against the picture under it.
+
+       FLAGGED TODAY IS NOT ONE OF THEM, and its absence is the point: this
+       is the PLANNER's tab and a flag is today's problem, which the agenda
+       and the day board both lead with. A fortnight's card that changed
+       every morning would be the one thing on this page that is not about
+       the fortnight. #}
     <div class="grid kstrip" style="margin-bottom:12px">
         <div class="c kpi hot" data-kpi="person-watches">
             <span class="tab">Person-watches</span>
@@ -53,11 +59,6 @@
             <span class="tab">Nights, the heaviest</span>
             <b class="disp">{{ figures.heaviestNights }}<em>of {{ days|length }}</em></b>
             <span class="sub">{{ figures.heaviestName ? figures.heaviestName ~ ' · the ring gives them the most' : 'nobody stands a night' }}</span>
-        </div>
-        <div class="c kpi{{ figures.flaggedToday > 0 ? ' bad' : '' }}" data-kpi="flagged-today">
-            <span class="tab">Flagged today</span>
-            <b class="disp">{{ figures.flaggedToday }}</b>
-            <span class="sub">{% if figures.flaggedToday %}<span class="r">at post, and the pings disagree</span>{% else %}no claim the positions disagree with{% endif %}</span>
         </div>
         <div class="c kpi" data-kpi="swaps-pending">
             <span class="tab">Swaps pending</span>

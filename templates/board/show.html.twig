@@ -47,15 +47,17 @@
             <b class="disp">{{ figures.day.verified }}<em>of {{ figures.day.verified + figures.day.flagged }}</em></b>
             <span class="sub">pings inside the station&rsquo;s catchment</span>
         </div>
-        <div class="c kpi{{ figures.day.flagged > 0 ? ' bad' : '' }}" data-kpi="flagged">
-            <span class="tab">Flagged</span>
-            <b class="disp">{{ figures.day.flagged }}</b>
-            <span class="sub">{% if figures.day.flagged > 0 %}<span class="r">a claim the pings do not bear out</span>{% else %}every claim at a post is borne out{% endif %}</span>
-        </div>
-        <div class="c kpi" data-kpi="no-check-in">
-            <span class="tab">No check-in</span>
-            <b class="disp">{{ figures.day.noCheckIn }}</b>
-            <span class="sub">{% if figures.day.noCheckIn > 0 %}<span class="r">due, and nothing arrived</span>{% else %}everybody due has reported{% endif %}</span>
+        {# FLAGGED AND NO CHECK-IN ARE ONE CARD — a row is four, never
+           five — and the fragment keeps them apart, because a claim the
+           pings disagree with and a claim nobody made are answered by
+           different people in different ways. #}
+        <div class="c kpi{{ figures.needingAnAnswer > 0 ? ' bad' : '' }}" data-kpi="needs-an-answer">
+            <span class="tab">Needs an answer</span>
+            <b class="disp">{{ figures.needingAnAnswer }}</b>
+            <span class="sub">
+                {%- if figures.needingAnAnswer > 0 %}<span class="r">{{ figures.day.flagged }} unverified &middot; {{ figures.day.noCheckIn }} no check-in</span>
+                {%- else %}every claim is borne out and everybody due has reported{% endif -%}
+            </span>
         </div>
         <div class="c kpi" data-kpi="posts-reporting">
             <span class="tab">Posts reporting</span>

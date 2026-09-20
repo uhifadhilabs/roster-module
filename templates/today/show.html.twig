@@ -31,15 +31,14 @@
             <b class="disp">{{ figures.onTheWatchNow }}<em>now</em></b>
             <span class="sub">+{{ figures.onTheWatchTomorrow }} tomorrow &middot; {{ figures.dueLaterToday }} later today</span>
         </div>
+        {# VERIFIED IS A FRAGMENT OF CHECK-INS IN, not a card of its own —
+           a row is four cards, never five. It reads better folded: how
+           many came in, and how many of them the pings bore out, is one
+           thought and two numbers. #}
         <div class="c kpi" data-kpi="check-ins-in">
             <span class="tab">Check-ins in</span>
             <b class="disp">{{ figures.day.checkedIn }}<em>of {{ figures.day.expected }} expected</em></b>
-            <span class="sub">{{ figures.dueLaterToday }} are not due until their watch begins</span>
-        </div>
-        <div class="c kpi" data-kpi="verified">
-            <span class="tab">Verified at a post</span>
-            <b class="disp">{{ figures.day.verified }}</b>
-            <span class="sub">the pings agreed with the claim</span>
+            <span class="sub">{{ figures.day.verified }} verified at a post &middot; {{ figures.dueLaterToday }} not due until their watch begins</span>
         </div>
         <div class="c kpi{{ figures.needingAnAnswer > 0 ? ' bad' : '' }}" data-kpi="needs-an-answer">
             <span class="tab">Needs an answer</span>

@@ -55,6 +55,20 @@ final readonly class MonthFigures
     ) {
     }
 
+    /**
+     * WHAT NEEDS AN ANSWER IN THIS MONTH: a claim the pings disagreed with
+     * and a past watch nothing arrived for.
+     *
+     * THEY ARE ONE FIGURE AND TWO FACTS. The strip is four cards, so the
+     * two share one; the fragment beneath keeps them apart, because
+     * "unverified" is a conversation with somebody and "never explained"
+     * is a conversation about them.
+     */
+    public function needsAnAnswer(): int
+    {
+        return $this->unverified + $this->noCheckIn;
+    }
+
     /** Whether there is anything to say about this month at all. */
     public function hasAMonth(): bool
     {

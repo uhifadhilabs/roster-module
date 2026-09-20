@@ -119,16 +119,20 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
         return $crawler;
     }
 
-    /** THE FIVE FIGURES the design names, in its order. */
-    public function testTheStripDrawsTheDesignsFiveFigures(): void
+    /**
+     * THE FOUR FIGURES the design names, in its order — four, never five.
+     * "Flagged today" is deliberately not among them: this is the PLANNER's
+     * tab, and a flag is today's problem, which two other tabs lead with.
+     */
+    public function testTheStripDrawsTheDesignsFourFigures(): void
     {
         $crawler = $this->open();
 
         $cards = $crawler->filter('.kstrip .c.kpi');
-        self::assertCount(5, $cards);
+        self::assertCount(4, $cards, 'A KPI row is four cards, never five.');
 
         self::assertSame(
-            ['person-watches', 'holes', 'heaviest-nights', 'flagged-today', 'swaps-pending'],
+            ['person-watches', 'holes', 'heaviest-nights', 'swaps-pending'],
             $cards->each(static fn (\Symfony\Component\DomCrawler\Crawler $card): string => (string) $card->attr('data-kpi')),
         );
 

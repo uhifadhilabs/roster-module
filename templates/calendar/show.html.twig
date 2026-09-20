@@ -42,15 +42,17 @@
                 <b class="disp">{{ figures.verified }}<em>of {{ figures.worked }} worked</em></b>
                 <span class="sub">the pings agreed with the post</span>
             </div>
-            <div class="c kpi{{ figures.unverified > 0 ? ' bad' : '' }}" data-kpi="unverified">
-                <span class="tab">Unverified</span>
-                <b class="disp">{{ figures.unverified }}</b>
-                <span class="sub">{% if figures.unverified > 0 %}<span class="r">a claim the pings did not bear out</span>{% else %}every claim at a post was borne out{% endif %}</span>
-            </div>
-            <div class="c kpi" data-kpi="no-check-in">
-                <span class="tab">No check-in</span>
-                <b class="disp">{{ figures.noCheckIn }}</b>
-                <span class="sub">{% if figures.noCheckIn > 0 %}<span class="r">a past watch nothing arrived for</span>{% else %}every past watch was reported{% endif %}</span>
+            {# UNVERIFIED AND NO CHECK-IN ARE ONE CARD — a row is four,
+               never five — and the fragment says which is which, because
+               a claim the pings disagreed with and a day nothing arrived
+               for are two different conversations to have. #}
+            <div class="c kpi{{ figures.needsAnAnswer > 0 ? ' bad' : '' }}" data-kpi="needs-an-answer">
+                <span class="tab">Needs an answer</span>
+                <b class="disp">{{ figures.needsAnAnswer }}</b>
+                <span class="sub">
+                    {%- if figures.needsAnAnswer > 0 %}<span class="r">{{ figures.unverified }} unverified &middot; {{ figures.noCheckIn }} never explained</span>
+                    {%- else %}every past watch was reported and borne out{% endif -%}
+                </span>
             </div>
             <div class="c kpi" data-kpi="nights-in-a-row">
                 <span class="tab">Nights in a row, most</span>

@@ -27,15 +27,18 @@
         <b class="disp">{{ dash.figures.day.verified }}<em>of {{ dash.figures.day.verified + dash.figures.day.flagged }} claiming</em></b>
         <span class="sub">the pings sit inside the catchment</span>
     </div>
-    <div class="c kpi{{ dash.figures.day.flagged > 0 ? ' bad' : '' }}" data-kpi="flagged">
-        <span class="tab">Flagged</span>
-        <b class="disp">{{ dash.figures.day.flagged }}</b>
-        <span class="sub">{% if dash.figures.day.flagged > 0 %}<span class="r">a claim the pings do not bear out</span>{% else %}every claim at a post is borne out{% endif %}</span>
-    </div>
-    <div class="c kpi" data-kpi="no-check-in">
-        <span class="tab">No check-in</span>
-        <b class="disp">{{ dash.figures.day.noCheckIn }}</b>
-        <span class="sub">{% if dash.figures.day.noCheckIn > 0 %}<span class="r">due, and nothing arrived</span>{% else %}everybody due has reported{% endif %}</span>
+    {# FLAGGED AND NO CHECK-IN ARE ONE CARD, and the fold is the ruling's:
+       a row is four cards, never five. They belong together anyway — both
+       are a person somebody has to go and ask about — and the fragment
+       keeps the two apart, because a claim the pings disagree with and a
+       claim nobody made are answered differently. #}
+    <div class="c kpi{{ dash.figures.needingAnAnswer > 0 ? ' bad' : '' }}" data-kpi="needs-an-answer">
+        <span class="tab">Needs an answer</span>
+        <b class="disp">{{ dash.figures.needingAnAnswer }}</b>
+        <span class="sub">
+            {%- if dash.figures.needingAnAnswer > 0 %}<span class="r">{{ dash.figures.day.flagged }} unverified &middot; {{ dash.figures.day.noCheckIn }} no check-in</span>
+            {%- else %}every claim is borne out and everybody due has reported{% endif -%}
+        </span>
     </div>
     <div class="c kpi" data-kpi="posts-reporting">
         <span class="tab">Posts reporting</span>

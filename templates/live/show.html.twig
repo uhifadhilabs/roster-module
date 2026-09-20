@@ -51,15 +51,17 @@
             <b class="disp">{{ live.positions }}<em>of {{ live.expected }} expected</em></b>
             <span class="sub">{{ live.stale }} stale &middot; {{ live.withoutAFix }} with none at all</span>
         </div>
+        {# AWAY FROM A POST IS A FRAGMENT OF VERIFIED, not a card — a row
+           is four, never five. Both are readings of the same set of live
+           fixes, so one card carrying "8 of 11 · 3 away" says in one line
+           what two cards said in two. #}
         <div class="c kpi" data-kpi="verified">
             <span class="tab">Verified at a post</span>
-            <b class="disp">{{ live.verified }}</b>
-            <span class="sub">the pings sit inside the catchment</span>
-        </div>
-        <div class="c kpi" data-kpi="away">
-            <span class="tab">Away from a post</span>
-            <b class="disp">{{ live.awayFromAPost }}</b>
-            <span class="sub">on an escort, outside the park, or not working</span>
+            <b class="disp">{{ live.verified }}<em>of {{ live.positions }}</em></b>
+            <span class="sub">
+                {%- if live.awayFromAPost > 0 %}{{ live.awayFromAPost }} away from a post
+                {%- else %}every live fix is a claim to be at a post{% endif -%}
+            </span>
         </div>
         <div class="c kpi{{ live.stale > 0 ? ' bad' : '' }}" data-kpi="oldest-ping">
             <span class="tab">Oldest ping</span>

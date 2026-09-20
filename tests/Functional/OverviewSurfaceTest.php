@@ -136,8 +136,14 @@ final class OverviewSurfaceTest extends WebTestCase
         self::assertSame(['kpis', 'decisions', 'stations', 'map'], $drawn);
     }
 
-    /** THE FIVE KPI CARDS, in one strip, each with its figure. */
-    public function testTheFigureStripDrawsTheDesignsFiveCards(): void
+    /**
+     * THE FOUR KPI CARDS, in one strip, each with its figure.
+     *
+     * FOUR AND NEVER FIVE, ruled: flagged and no-check-in share one card
+     * here, because both are a person somebody has to go and ask about and
+     * the fragment beneath keeps them apart.
+     */
+    public function testTheFigureStripDrawsTheDesignsFourCards(): void
     {
         $crawler = $this->open();
 
@@ -145,10 +151,10 @@ final class OverviewSurfaceTest extends WebTestCase
         self::assertCount(1, $strip, 'One strip, the house idiom — never a bespoke row.');
 
         $cards = $strip->filter('.c.kpi');
-        self::assertCount(5, $cards);
+        self::assertCount(4, $cards, 'A KPI row is four cards, never five.');
 
         self::assertSame(
-            ['checked-in', 'verified', 'flagged', 'no-check-in', 'posts-reporting'],
+            ['checked-in', 'verified', 'needs-an-answer', 'posts-reporting'],
             $cards->each(static fn (\Symfony\Component\DomCrawler\Crawler $card): string => (string) $card->attr('data-kpi')),
         );
 
@@ -172,7 +178,7 @@ final class OverviewSurfaceTest extends WebTestCase
         self::assertStringContainsString('0', $checkedIn);
         self::assertStringContainsString('of 2', $checkedIn, 'The POST expects two — a day and a night.');
 
-        self::assertSame('1', trim($crawler->filter('[data-kpi="no-check-in"] .disp')->text()));
+        self::assertSame('1', trim($crawler->filter('[data-kpi="needs-an-answer"] .disp')->text()), 'One due and nothing reported is one thing to answer.');
     }
 
     /** WHAT NEEDS A DECISION SAYS WHICH, and the row names the person. */
