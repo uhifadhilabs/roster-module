@@ -562,6 +562,11 @@ final class RosterController
                 'total' => \count($shown),
                 'mayCompose' => $mayCompose,
                 'centre' => $centre,
+                // THE RAIL'S OWN CHROME, asked for by the rail. The same
+                // partial renders in the widget library without either, and
+                // is then the list and nothing else.
+                'cell' => ' rl-cell',
+                'head' => true,
             ];
             $context = match ($id) {
                 'stations' => ['stations' => $stations, ...$common],

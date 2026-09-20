@@ -119,10 +119,12 @@
                 </div>
 
                 <div class="rl-body">
+                    {# THE LIST BRINGS ITS OWN ROOT. `.fg-lst` is the widget
+                       and `.rl-cell` is the rail's chrome around it — one
+                       element, so a twin in the library is this markup with
+                       the chrome left off rather than a second shape. #}
                     {% for cell in railLists %}
-                        <div class="fg-lst rl-cell" data-list="{{ cell.id }}">
-                            {{ include('@UhifadhiRoster/rail/_' ~ cell.id ~ '.html.twig', cell.context, with_context: false) }}
-                        </div>
+                        {{ include('@UhifadhiRoster/rail/_' ~ cell.id ~ '.html.twig', cell.context, with_context: false) }}
                     {% else %}
                         <div class="rfrag"><b>The rail carries no list</b><em>every list has been taken out of it &mdash; the widget library puts one back</em></div>
                     {% endfor %}

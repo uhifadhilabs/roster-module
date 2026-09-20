@@ -20,6 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
+use Uhifadhi\Roster\Controller\RosterController;
 use Uhifadhi\Roster\Controller\RosterWidgetsController;
 use Uhifadhi\Roster\Entity\Duty;
 use Uhifadhi\Roster\Entity\Rotation;
@@ -192,7 +193,7 @@ use Uhifadhi\Roster\Widget\RosterWidgets;
         $router = static::getContainer()->get('router');
         self::assertInstanceOf(\Symfony\Component\Routing\RouterInterface::class, $router);
 
-        $overview = $this->client->request('GET', $router->generate(\Uhifadhi\Roster\Controller\RosterController::OVERVIEW_ROUTE, ['uuid' => (string) $this->area->getUuidString()]));
+        $overview = $this->client->request('GET', $router->generate(RosterController::OVERVIEW_ROUTE, ['uuid' => (string) $this->area->getUuidString()]));
         self::assertResponseIsSuccessful();
 
         self::assertCount(0, $overview->filter('.w-act'), 'Editing never happens on the surface being edited.');
@@ -321,5 +322,64 @@ use Uhifadhi\Roster\Widget\RosterWidgets;
         self::assertCount(1, $crawler->filter('[data-widget-reset="'.RosterWidgets::SURFACE.'"]'));
         self::assertCount(1, $crawler->filter('[data-widget-reset="'.RosterRailWidgets::SURFACE.'"]'));
         self::assertCount(0, $crawler->filter('[data-widget-reset=""]'), 'No bare reset on a page with two libraries.');
+    }
+
+    /**
+     * THE TWIN IS THE ROW, not a second shape of it.
+     *
+     * A RAIL WIDGET IS A LIST AND `.fg-lst` IS THE WIDGET ROOT, so the same
+     * partial renders in the rail beside the plate and at full size here,
+     * and the only difference between the two is the chrome the RAIL wraps
+     * it in. This compares the two renderings element for element: same
+     * root, same row classes, same inner parts. Computed layout is yours to
+     * see in a browser; what a test can hold is that both sides are handed
+     * the identical markup for the sheet to work on — and the companion
+     * unit test holds that no rule the row needs is scoped to the rail.
+     */
+    public function testAListRendersIdenticallyInTheLibraryAndInTheRail(): void
+    {
+        // THE LIBRARY DRAWS EACH WIDGET THREE TIMES — into the canvas, into
+        // the template its script previews from, and onto the picker's
+        // stage — from one render. Any of them is the twin; they are the
+        // same string.
+        $twins = $this->open()->filter('.fg-lst[data-list="stations"]');
+        self::assertCount(3, $twins, 'The widget root IS the list, in the library too.');
+        $library = $twins->first();
+
+        $router = static::getContainer()->get('router');
+        self::assertInstanceOf(\Symfony\Component\Routing\RouterInterface::class, $router);
+        $rail = $this->client
+            ->request('GET', $router->generate(RosterController::LIVE_ROUTE, ['uuid' => (string) $this->area->getUuidString()]))
+            ->filter('.fg-lst[data-list="stations"]');
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $rail);
+
+        // THE RAIL ADDS ITS CHROME TO THE SAME ELEMENT and nothing else:
+        // one root, one extra class, so a twin is this markup with the
+        // chrome left off rather than a shape of its own.
+        self::assertSame('fg-lst', (string) $library->attr('class'));
+        self::assertSame('fg-lst rl-cell', (string) $rail->attr('class'));
+
+        self::assertSame(self::shapeOf($library), self::shapeOf($rail), 'The same list, drawn the same way.');
+    }
+
+    /**
+     * Every element of a list's rows as class chains, so two renderings can
+     * be compared without comparing the data in them — the library and the
+     * tab read the same minute, but they are two reads and a count may tick
+     * between them.
+     *
+     * @return list<string>
+     */
+    private static function shapeOf(\Symfony\Component\DomCrawler\Crawler $list): array
+    {
+        return $list->filter('.fg-stn')->each(static fn (\Symfony\Component\DomCrawler\Crawler $row): string => \sprintf(
+            '%s[%s]: %s',
+            $row->nodeName(),
+            (string) $row->attr('class'),
+            implode(' ', $row->filter('*')->each(
+                static fn (\Symfony\Component\DomCrawler\Crawler $part): string => $part->nodeName().'.'.(string) $part->attr('class'),
+            )),
+        ));
     }
 }

@@ -3,7 +3,15 @@
    THE SWATCH IS A CATEGORY POSITION AND NEVER A COLOUR: the zone's place in
    the set picks the house's nth category token, so the same position gives
    the same token here and on the plate. This module names no value. #}
-{{ include('@UhifadhiRoster/rail/_cell.html.twig', {id: zones.id, label: zones.label, count: zones.count, position: position, total: total, mayCompose: mayCompose}, with_context: false) }}
+{# THE LIST IS THE WIDGET, AND THE LIST IS THE ROOT.
+   Everything this list draws is scoped to `.fg-lst`, never to the rail that
+   happens to hold it: the same markup is rendered in the rail beside the
+   plate AND at full size in the widget library, and a rule scoped to the
+   rail would make the library show raw text. The rail's own chrome — the
+   cell, its head, the scroller — stays on `.fg-side`, and the rail passes
+   `cell` and `head` to ask for it. #}
+<div class="fg-lst{{ cell|default('') }}" data-list="zones">
+{% if head|default(false) %}{{ include('@UhifadhiRoster/rail/_cell.html.twig', {id: zones.id, label: zones.label, count: zones.count, position: position, total: total, mayCompose: mayCompose}, with_context: false) }}{% endif %}
 {% for section in zones.sections %}
     <div class="grp gsub">{{ section.label }}</div>
     {% for row in section.rows %}
@@ -21,3 +29,4 @@
         {% if row.centres %}</a>{% else %}</div>{% endif %}
     {% endfor %}
 {% endfor %}
+</div>

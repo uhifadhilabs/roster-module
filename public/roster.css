@@ -777,26 +777,38 @@
 .fg-side .rl-cell .rl-cellhd em { font: 700 8.5px ui-monospace, monospace; font-style: normal; color: var(--acc); }
 .fg-side .rl-cell .rl-cellhd .sp { flex: 1 1 auto; }
 
+/* ---- WHAT A LIST DRAWS BELONGS TO THE LIST -------------------------------
+ * A RAIL WIDGET IS A LIST, AND `.fg-lst` IS THE WIDGET ROOT. The same markup
+ * is rendered in the rail beside the plate AND at full size in the widget
+ * library, so every rule a list needs is scoped to the list. A rule scoped to
+ * `.fg-side` instead would leave the library showing raw text, which is what
+ * the library twin is FOR catching.
+ *
+ * What stays on `.fg-side` is only the RAIL itself — its head, its preset
+ * strip, its scrolling body, its foot, and the cell chrome it wraps a list
+ * in. Those have no meaning anywhere else.
+ */
+
 /* A SUB-HEAD INSIDE A LIST. Sticky, so a reader thirty rows down still
    knows which half of the list they are in. */
-.fg-side .grp {
+.fg-lst .grp {
     font: 700 8.5px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase;
     color: var(--dim); padding: 9px 0 5px; border-bottom: 1px solid var(--ln);
     position: sticky; top: 0; background: var(--p1); z-index: 1;
 }
 
-.fg-side .grp:first-child { padding-top: 0; }
-.fg-side .grp.gsub { letter-spacing: .09em; color: var(--fog); border-bottom: 1px dashed var(--ln); font-size: 8px; padding: 7px 0 4px; }
-.fg-side .grp.st-ok { color: var(--ok); }
-.fg-side .grp.st-warn { color: var(--warn); }
-.fg-side .grp.st-fail { color: var(--fail); }
+.fg-lst .grp:first-child { padding-top: 0; }
+.fg-lst .grp.gsub { letter-spacing: .09em; color: var(--fog); border-bottom: 1px dashed var(--ln); font-size: 8px; padding: 7px 0 4px; }
+.fg-lst .grp.st-ok { color: var(--ok); }
+.fg-lst .grp.st-warn { color: var(--warn); }
+.fg-lst .grp.st-fail { color: var(--fail); }
 
 .fg-lst { display: flex; flex-direction: column; }
 
 /* A PERSON ROW. */
-.fg-side .pr { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--ln); }
-.fg-side .pr .nm { flex: 1 1 auto; min-width: 0; font-size: 12px; font-weight: 600; color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fg-side .pr .nm em { display: block; font: 500 8.5px ui-monospace, monospace; font-style: normal; color: var(--dim); }
+.fg-lst .pr { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--ln); }
+.fg-lst .pr .nm { flex: 1 1 auto; min-width: 0; font-size: 12px; font-weight: 600; color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg-lst .pr .nm em { display: block; font: 500 8.5px ui-monospace, monospace; font-style: normal; color: var(--dim); }
 
 /* A POST ROW, and a ZONE ROW. Name and detail, how many are live, and the
    one thing wrong with that count.
