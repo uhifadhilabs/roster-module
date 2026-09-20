@@ -224,6 +224,10 @@ final class TestKernel extends Kernel
             // The area's postings, so a demo-content test can staff its
             // posts the way an installation does rather than by hand.
             \Uhifadhi\Bundle\AreaBundle\Service\PostingService::class => 'area.postings',
+            // AND THE POSTINGS THEMSELVES, so a fixture that MOVES somebody
+            // can find the posting to end first: one person stands at one
+            // post, so a move is two acts and not one.
+            \Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository::class => \Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository::class,
             // The two demo-content providers. They are tagged for devkit,
             // which is not installed here, so a test reaches them by id.
             \Uhifadhi\Roster\Devkit\RosterContentProvider::class => 'roster.devkit.content',

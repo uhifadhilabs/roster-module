@@ -309,20 +309,55 @@ final readonly class RosterContentProvider implements ContentProviderInterface
             return;
         }
 
-        $people = $this->theInstallationsPeople();
+        // AND ONLY THE PEOPLE WHO STAND NOWHERE YET.
+        //
+        // ONE POSTING A PERSON IS ONE AREA TOO. A demo installation with a
+        // second area cannot staff it with the rangers already standing in
+        // the first — the area refuses them, rightly, because a person
+        // works in one place. So the roll this method draws from is the
+        // people nobody has posted, and an installation whose rangers are
+        // all spoken for gets an area the demo leaves unstaffed rather
+        // than an exception.
+        $spokenFor = [];
+        foreach ($this->postings->findAllStanding() as $standing) {
+            $person = $standing->getPerson();
+            $uuid = $person?->getUuidString();
+            if (null !== $uuid) {
+                $spokenFor[$uuid] = true;
+            }
+        }
+
+        $people = array_values(array_filter(
+            $this->theInstallationsPeople(),
+            static fn (User $person): bool => !isset($spokenFor[(string) $person->getUuidString()]),
+        ));
+
         $headcount = \count($people);
         if (0 === $headcount) {
             return;
         }
 
+        // EACH PERSON ONCE, AND THEN THE PEOPLE RUN OUT.
+        //
+        // SOMEBODY STANDS AT ONE POST AT A TIME (ruled, and the area
+        // refuses the second). So the number of postings a demo can make is
+        // the HEADCOUNT and not the number of posts: a cursor that wrapped
+        // round would come back to somebody who already stands somewhere,
+        // and the area would refuse them — rightly, because there is no
+        // second person there to post.
+        //
+        // A PARK WITH TWELVE POSTS AND SIX RANGERS HAS UNSTAFFED POSTS, and
+        // the demo says so rather than inventing staff. That is the same
+        // state this method already protects above: one post nobody stands
+        // at is something the board has to draw.
         $next = 0;
         foreach ($posts as $post) {
-            // CONSECUTIVE PEOPLE, WALKED ROUND, and never more than there
-            // are: taking fewer than the headcount from a cursor that only
-            // moves forward hands each post distinct people, so the area's
-            // own "already posted here" refusal is never reached.
-            foreach (range(1, min(self::POSTED_PER_POST, $headcount)) as $ignored) {
-                $this->postingDesk->post($post, $people[$next % $headcount], PostingSource::WrittenHere);
+            foreach (range(1, self::POSTED_PER_POST) as $ignored) {
+                if ($next >= $headcount) {
+                    return;
+                }
+
+                $this->postingDesk->post($post, $people[$next], PostingSource::WrittenHere);
                 ++$next;
             }
         }

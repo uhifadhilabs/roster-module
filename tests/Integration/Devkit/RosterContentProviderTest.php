@@ -16,6 +16,7 @@ namespace Uhifadhi\Roster\Tests\Integration\Devkit;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
+use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
 use Uhifadhi\Bundle\TeamBundle\Entity\Department;
 use Uhifadhi\Bundle\TeamBundle\Entity\Position;
@@ -68,18 +69,25 @@ final class RosterContentProviderTest extends IntegrationTestCase
         $postings = $this->service(PostingService::class);
         self::assertInstanceOf(PostingService::class, $postings);
 
+        // ONE STANDING POSTING A PERSON (ruled, and the area refuses the
+        // second). The posts used to share people by walking a cursor
+        // round six of them; now each post has its own three, and the
+        // fixture brings the twelve rangers that needs. A park staffs its
+        // posts with the people it has, and this is what that looks like.
         $this->people = [];
-        foreach (range(1, 6) as $n) {
+        foreach (range(1, 12) as $n) {
             $this->people[] = $this->aPerson(\sprintf('ranger%d@example.test', $n), 'Ranger'.$n);
         }
 
+        $next = 0;
         foreach (range(1, 4) as $n) {
             $station = $this->aStation($this->area, \sprintf('post %d', $n), \sprintf('ST-0%d', $n));
             $this->em->flush();
 
-            // Three each, walked round the roster, so the posts share people.
-            foreach ([0, 1, 2] as $offset) {
-                $postings->post($station, $this->people[($n - 1 + $offset) % 6], PostingSource::WrittenHere);
+            // Three each, and each of them somewhere exactly once.
+            foreach ([0, 1, 2] as $ignored) {
+                $postings->post($station, $this->people[$next], PostingSource::WrittenHere);
+                ++$next;
             }
         }
 
@@ -494,6 +502,16 @@ final class RosterContentProviderTest extends IntegrationTestCase
         foreach (range(1, 3) as $n) {
             $this->aStation($quiet, \sprintf('quiet post %d', $n), \sprintf('QT-0%d', $n));
         }
+
+        // AND RANGERS WHO STAND NOWHERE YET. One posting a person is one
+        // AREA too, so a second area is staffed by the people the first
+        // one did not take — an installation whose whole roll is already
+        // posted has nobody to open a new reserve with, and the demo says
+        // so rather than double-posting somebody.
+        foreach (range(1, 4) as $n) {
+            $this->aPerson(\sprintf('spare%d@example.test', $n), 'Spare'.$n);
+        }
+
         $this->em->flush();
 
         $this->provider()->load();
@@ -584,8 +602,19 @@ final class RosterContentProviderTest extends IntegrationTestCase
         $later = $this->aStation($this->area, 'late post', 'ST-09');
         $this->em->flush();
 
+        // MOVING SOMEBODY IS TWO ACTS AND NOT ONE. They already stand at
+        // the post their ring belongs to, and one person stands at one
+        // post — so the posting they have ends before the one they are
+        // going to is made. Posting them without that is the write the
+        // area now refuses, and rightly.
+        $standing = $this->repository(PostingRepository::class);
         foreach ($this->repository(RotationRepository::class)->findByArea($this->area)[0]->getPool() as $member) {
-            $postings->post($later, $member->getPerson(), PostingSource::WrittenHere);
+            $person = $member->getPerson();
+            foreach ($standing->findStandingByPerson($person) as $posting) {
+                $postings->end($posting);
+            }
+
+            $postings->post($later, $person, PostingSource::WrittenHere);
         }
 
         $this->provider()->load();
@@ -699,7 +728,7 @@ final class RosterContentProviderTest extends IntegrationTestCase
      * A DEPARTMENT WITH SOME OF THE AREA'S PEOPLE IN IT — a department, a
      * position under it, and the people at that position.
      *
-     * @param list<int> $whichPeople indexes into the six people the fixture posts
+     * @param list<int> $whichPeople indexes into the twelve people the fixture posts
      */
     private function aDepartmentOf(string $name, array $whichPeople): Department
     {
@@ -716,5 +745,57 @@ final class RosterContentProviderTest extends IntegrationTestCase
         $this->em->flush();
 
         return $department;
+    }
+
+    /**
+     * THE DEMO SEEDS UNDER THE RULE: ONE STANDING POSTING A PERSON.
+     *
+     * A POSTING IS WHERE SOMEBODY WORKS, AND THEY WORK IN ONE PLACE
+     * (ruled; the area refuses the second). Two standing postings make a
+     * roll that cannot be read, a head count that double-counts, and a
+     * handset that cannot say which post its check-in is against — so a
+     * demo that produced one would be demonstrating a state the product
+     * does not allow.
+     *
+     * THIS IS ASSERTED OVER EVERY POSTING IN THE INSTALLATION and not only
+     * this area's, because one posting a person is one AREA too: the way
+     * this breaks is a second area staffed with the first one's rangers,
+     * which no per-area check would ever see.
+     */
+    public function testTheDemoLeavesEverybodyStandingAtOnePostAtMost(): void
+    {
+        $quiet = $this->anArea('quiet reserve');
+        foreach (range(1, 3) as $n) {
+            $this->aStation($quiet, \sprintf('quiet post %d', $n), \sprintf('QT-0%d', $n));
+        }
+        foreach (range(1, 4) as $n) {
+            $this->aPerson(\sprintf('spare%d@example.test', $n), 'Spare'.$n);
+        }
+        $this->em->flush();
+
+        $this->provider()->load();
+        // TWICE, because a second run is where a demo repeats itself: the
+        // first pass is the one everybody writes and the second is the one
+        // that posts somebody who is already standing.
+        $this->provider()->load();
+
+        $where = [];
+        foreach ($this->repository(PostingRepository::class)->findAllStanding() as $posting) {
+            $person = $posting->getPerson();
+            self::assertNotNull($person);
+
+            $name = $person->getFullName();
+            $station = $posting->getStation()?->getName() ?? 'nowhere';
+
+            self::assertArrayNotHasKey(
+                $name,
+                $where,
+                \sprintf('%s stands at %s and at %s.', $name, $where[$name] ?? '?', $station),
+            );
+
+            $where[$name] = $station;
+        }
+
+        self::assertNotEmpty($where, 'And the demo did staff the park.');
     }
 }

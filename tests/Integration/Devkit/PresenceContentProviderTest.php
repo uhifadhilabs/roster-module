@@ -51,16 +51,23 @@ final class PresenceContentProviderTest extends IntegrationTestCase
         $postings = $this->service(PostingService::class);
         self::assertInstanceOf(PostingService::class, $postings);
 
+        // ONE STANDING POSTING A PERSON (ruled, and the area refuses the
+        // second), so the park is staffed by bringing enough rangers for
+        // the posts rather than by posting the same six people round and
+        // round. Four posts, two each, eight people, everybody somewhere
+        // exactly once — which is also what a real park's roll looks like.
         $people = [];
-        foreach (range(1, 6) as $n) {
+        foreach (range(1, 8) as $n) {
             $people[] = $this->aPerson(\sprintf('ranger%d@example.test', $n), 'Ranger'.$n);
         }
 
+        $next = 0;
         foreach (range(1, 4) as $n) {
             $station = $this->aStation($this->area, \sprintf('post %d', $n), \sprintf('ST-0%d', $n));
             $this->em->flush();
-            foreach ([0, 1, 2] as $offset) {
-                $postings->post($station, $people[($n - 1 + $offset) % 6], PostingSource::WrittenHere);
+            foreach ([0, 1] as $ignored) {
+                $postings->post($station, $people[$next], PostingSource::WrittenHere);
+                ++$next;
             }
         }
 
