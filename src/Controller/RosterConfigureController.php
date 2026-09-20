@@ -32,6 +32,7 @@ use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
+use Uhifadhi\Bundle\AreaBundle\Service\StationService;
 use Uhifadhi\Roster\Entity\Rotation;
 use Uhifadhi\Roster\Entity\RotationPoolMember;
 use Uhifadhi\Roster\Entity\StationWatch;
@@ -109,6 +110,9 @@ final class RosterConfigureController
         private readonly ShiftVocabularyService $shifts,
         private readonly StationWatchService $watches,
         private readonly StationRepository $stations,
+        // THE POST'S OWN CATCHMENT is the column verification measures a
+        // ping against, and the area owns the verb that writes it.
+        private readonly StationService $stationDesk,
         private readonly CheckInStatusService $checkInStatuses,
         private readonly RosteredPeople $people,
         private readonly RotationEditor $editor,
@@ -280,15 +284,27 @@ final class RosterConfigureController
         $this->guardWrite($area, $request);
 
         foreach ($this->watches->forArea($area) as $watch) {
-            $id = (string) $watch->getStation()->getId();
+            $station = $watch->getStation();
+            $id = (string) $station->getId();
+            $catchment = $this->positiveInt($request, 'catchment_'.$id, $watch->getCatchmentMetres());
 
             $this->watches->save(
                 $watch,
                 $this->shiftKeys($request, 'expects_'.$id),
                 $this->positiveInt($request, 'silence_'.$id, $watch->getSilenceWindowMinutes()),
                 $this->positiveInt($request, 'offline_'.$id, $watch->getOfflineAfterMinutes()),
-                $this->positiveInt($request, 'catchment_'.$id, $watch->getCatchmentMetres()),
+                $catchment,
             );
+
+            // AND THROUGH TO THE COLUMN VERIFICATION ACTUALLY READS.
+            //
+            // A claim is verified against the POST's catchment, not the
+            // watch's, and until the area grew a verb for it this page
+            // edited a number nothing measured — a field that looked like
+            // a setting and was a note. The verb exists now, so the value
+            // goes where it is read, through the area's own service: this
+            // module states the distance and computes no presence with it.
+            $this->stationDesk->setCatchment($station, $catchment);
         }
 
         return $this->backTo(self::WATCHES_ROUTE, $area);

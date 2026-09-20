@@ -224,6 +224,9 @@ final class TestKernel extends Kernel
             // needs somebody off today tells the AREA rather than writing
             // a presence row this module is ruled never to own.
             \Uhifadhi\Bundle\AreaBundle\Service\CheckInService::class => 'area.checkins',
+            // The post's own catchment — the ring a claim is measured
+            // against, and the verb this module writes it through.
+            \Uhifadhi\Bundle\AreaBundle\Service\StationService::class => 'area.stations',
             // The area's postings, so a demo-content test can staff its
             // posts the way an installation does rather than by hand.
             \Uhifadhi\Bundle\AreaBundle\Service\PostingService::class => 'area.postings',

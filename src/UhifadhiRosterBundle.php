@@ -26,6 +26,7 @@ use Uhifadhi\Bundle\AreaBundle\Service\AreaPlateService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
+use Uhifadhi\Bundle\AreaBundle\Service\StationService;
 use Uhifadhi\Bundle\AreaBundle\Service\ZoneSetService;
 use Uhifadhi\Bundle\ShellBundle\Widget\Registry\WidgetSurfaceInterface;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetEndpoint;
@@ -497,6 +498,7 @@ final class UhifadhiRosterBundle extends AbstractBundle
                     service('roster.shift_vocabulary'),
                     service('roster.station_watches'),
                     service(StationRepository::class),
+                    service(StationService::class),
                     service(CheckInStatusService::class),
                     service('roster.rostered_people'),
                     service('roster.rotation_editor'),
