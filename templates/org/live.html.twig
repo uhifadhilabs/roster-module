@@ -1,0 +1,43 @@
+{# EVERY AREA, LIVE — one plate, every boundary, every position.
+
+   THE PLATE IS FIRST and what needs an answer is underneath it, which is
+   the area tab's shape read one scope wider. #}
+{% extends '@UhifadhiRoster/org/base.html.twig' %}
+
+{% block title %}Roster · live · {{ scope.label }}{% endblock %}
+
+{% block roster_org_trail_tail %} live{% endblock %}
+
+{# THE MAP SHEET IS THE PAGE'S TO LINK. It does not travel with the
+   component, and a page that draws a plate without it gets a collapsed
+   strip with its key inlined — an unstyled component, not a broken one. #}
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset(constant('Uhifadhi\\Bundle\\AtlasBundle\\AtlasBundle::STYLESHEET')) }}">
+{% endblock %}
+
+{% block roster_org_page %}
+    <h2 class="zone">The plate first</h2>
+    <div class="c">
+        <span class="tab">Every area, live<span class="src">&middot; <time datetime="{{ now.format('c') }}" data-localtime-format="time">{{ now.format('H:i') }}</time> &middot; {{ areas|length }} area{{ areas|length == 1 ? '' : 's' }}</span></span>
+
+        {% if plate %}
+            <div>{{ render_map(plate, {"--map-plate-height": "min(64vh, 560px)"}) }}</div>
+        {% else %}
+            <div class="rfrag"><b>No area has a boundary to draw</b><em>a plate is the area&rsquo;s ground; without one there is nothing to put the positions on</em></div>
+        {% endif %}
+    </div>
+
+    <h2 class="zone">Needs an answer, everywhere</h2>
+    <div class="c">
+        <span class="tab">Needs an answer<span class="src">&middot; {{ decisions|length }} of {{ figures.expected }}</span></span>
+        {% for row in decisions %}
+            <div class="rln">
+                <span><span class="orgarea sm" data-cat="{{ row.position }}"><i></i>{{ row.areaName }}</span> &middot; <b>{{ row.decision.who }}</b><em>&middot; {{ row.decision.where }}</em></span>
+                <span class="chip {{ row.decision.tone }}">{{ row.decision.fact }}</span>
+            </div>
+        {% else %}
+            <div class="rfrag"><b>Nothing needs an answer in any area</b><em>every watch that is due has been checked into, and no post has gone quiet</em></div>
+        {% endfor %}
+    </div>
+{% endblock %}

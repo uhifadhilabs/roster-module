@@ -38,9 +38,11 @@ use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Bundle\TeamBundle\TeamBundle;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\CollectedModules;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
+use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedScopeSource;
 use Uhifadhi\Roster\UhifadhiRosterBundle;
 use UtafitiLabs\PostGISBundle\UtafitiLabsPostGISBundle;
 
+use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
 
 /**
@@ -192,6 +194,14 @@ final class TestKernel extends Kernel
         // something has to decide who holds it. Tagged by hand — a
         // reusable-bundle test kernel does not autoconfigure.
         $container->services()->set(FixedManageVoter::class)->tag('security.voter');
+
+        // WHAT THIS VIEWER MAY LOOK AT. The shell holds no areas and no
+        // voters, so the scope list is the application's — and there is no
+        // application here, so a fixture stands where one would.
+        $container->services()
+            ->set(FixedScopeSource::class)
+            ->args([service(\Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository::class)])
+            ->tag('shell.scope_source');
 
         // THE CLOCK IS FIXED IN THIS SUITE, and that is the whole point of
         // it being a collaborator. What the presence seeder writes depends
@@ -349,7 +359,39 @@ final class TestKernel extends Kernel
      */
     private static function keyedBy(string $what): string
     {
-        return \sprintf('%s/roster-module-tests/%s/%s', sys_get_temp_dir(), self::coreReference(), $what);
+        return \sprintf('%s/roster-module-tests/%s-%s/%s', sys_get_temp_dir(), self::coreReference(), self::ourOwnStamp(), $what);
+    }
+
+    /**
+     * AND THIS MODULE'S OWN FILES ARE IN THE KEY TOO.
+     *
+     * A CONTAINER REMEMBERS WHICH TEMPLATES EXIST. Debug mode recompiles a
+     * template whose mtime moved, but a template that did not exist when
+     * the container was built is not in the list at all — so adding one and
+     * running the suite gets the cache's answer, which is that there is no
+     * such file. That is a false red with nothing wrong in the diff, and it
+     * cost one the hour after the core half of this key was written.
+     *
+     * THE NEWEST MTIME IS ENOUGH and it is cheap: adding a file moves its
+     * directory's mtime, so a new template changes the stamp exactly as an
+     * edited one does.
+     */
+    private static function ourOwnStamp(): string
+    {
+        $newest = 0;
+
+        foreach ([__DIR__.'/../../src', __DIR__.'/../../templates', __DIR__.'/../../config'] as $root) {
+            if (!is_dir($root)) {
+                continue;
+            }
+
+            /** @var \SplFileInfo $file */
+            foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)) as $file) {
+                $newest = max($newest, $file->getMTime());
+            }
+        }
+
+        return (string) $newest;
     }
 
     /**

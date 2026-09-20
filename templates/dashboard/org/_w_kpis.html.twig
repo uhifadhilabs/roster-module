@@ -1,0 +1,28 @@
+{# four figures, and four is the ruled width of a KPI row. Every one
+   is the area query with the area filter widened: no number here is
+   computed for this scope, they are the areas' own figures folded. #}
+<div class="grid kstrip">
+    <div class="c kpi hot" data-kpi="checked-in">
+        <span class="tab">Checked in</span>
+        <b class="disp">{{ figures.checkedIn }}<em>of {{ figures.expected }} due</em></b>
+        <span class="sub">{{ areas|length }} area{{ areas|length == 1 ? '' : 's' }} counted</span>
+    </div>
+    <div class="c kpi" data-kpi="verified">
+        <span class="tab">At post &middot; verified</span>
+        <b class="disp">{{ figures.verified }}<em>of {{ figures.checkedIn }} claiming</em></b>
+        <span class="sub">the pings sit inside the catchment</span>
+    </div>
+    <div class="c kpi{{ figures.needingADecision > 0 ? ' bad' : '' }}" data-kpi="needs-an-answer">
+        <span class="tab">Needs an answer</span>
+        <b class="disp">{{ figures.needingADecision }}</b>
+        <span class="sub">
+            {%- if figures.noCheckIn > 0 %}<span class="r">{{ figures.noCheckIn }} with no check-in</span>
+            {%- else %}nobody is unaccounted for{% endif -%}
+        </span>
+    </div>
+    <div class="c kpi" data-kpi="posts-reporting">
+        <span class="tab">Posts reporting</span>
+        <b class="disp">{{ figures.postsReporting }}<em>of {{ figures.postsOnTheBooks }}</em></b>
+        <span class="sub">measured against each post&rsquo;s own silence window</span>
+    </div>
+</div>

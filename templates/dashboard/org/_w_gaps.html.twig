@@ -1,0 +1,15 @@
+{# off by default. The same list as the area tab, with the area
+   named on each row. #}
+<div class="c">
+    <span class="tab">Unfilled watches<span class="src">&middot; next seven days</span></span>
+
+    {% set holes = decisions|filter(row => row.decision.kind == constant('Uhifadhi\\Roster\\Model\\Decision::HOLE')) %}
+    {% for row in holes|slice(0, 6) %}
+        <div class="rln">
+            <span><span class="orgarea sm" data-cat="{{ row.position }}"><i></i>{{ row.areaName }}</span> &middot; <b>{{ row.decision.where }}</b></span>
+            <span class="chip {{ row.decision.tone }}">{{ row.decision.fact }}</span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>Every watch in every area is filled</b><em>nobody is short over the next seven days</em></div>
+    {% endfor %}
+</div>

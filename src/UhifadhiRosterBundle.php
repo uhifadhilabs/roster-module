@@ -40,6 +40,7 @@ use Uhifadhi\Contracts\Shell\ConfigurationSectionsInterface;
 use Uhifadhi\Contracts\Shell\ModuleTabsInterface;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
 use Uhifadhi\Roster\Controller\RosterController;
+use Uhifadhi\Roster\Controller\RosterOrgController;
 use Uhifadhi\Roster\Controller\RosterWidgetsController;
 use Uhifadhi\Roster\DependencyInjection\RosterConfiguration;
 use Uhifadhi\Roster\Devkit\PresenceContentProvider;
@@ -57,10 +58,12 @@ use Uhifadhi\Roster\Service\DayPlanService;
 use Uhifadhi\Roster\Service\RosterDashboardService;
 use Uhifadhi\Roster\Service\RosterFiguresService;
 use Uhifadhi\Roster\Service\RosterLiveService;
+use Uhifadhi\Roster\Service\RosterOrgService;
 use Uhifadhi\Roster\Service\RosterWidgetUrls;
 use Uhifadhi\Roster\Shell\RosterConfigurationSections;
 use Uhifadhi\Roster\Shell\RosterModuleTabs;
 use Uhifadhi\Roster\Shell\RosterStationSections;
+use Uhifadhi\Roster\Widget\RosterOrgWidgets;
 use Uhifadhi\Roster\Widget\RosterRailWidgets;
 use Uhifadhi\Roster\Widget\RosterWidgets;
 
@@ -217,7 +220,11 @@ final class UhifadhiRosterBundle extends AbstractBundle
         $category = \is_string($config['module_category'] ?? null) ? $config['module_category'] : 'operations';
         $services->set('roster.module_provider', RosterModuleProvider::class)
             ->args([$category])
-            ->tag('uhifadhi.module');
+            ->tag('uhifadhi.module')
+            // AND IT ANSWERS AT ORGANISATION LEVEL TOO. The same provider
+            // names the screens this module contributes once across every
+            // area; the shell mounts them and draws the chrome.
+            ->tag('shell.org_pages');
 
         // THE DEPLOYMENT'S SHIFT VOCABULARY, as a parameter for the services
         // that read it. Shape-checked on the way in: phpstan max will demand
@@ -309,6 +316,20 @@ final class UhifadhiRosterBundle extends AbstractBundle
         // WHERE EVERYBODY IS, FED TO THE ATLAS. The plate, the ground and
         // the posts are other people's; this contributes the marker layers
         // and the legend group over them, and draws nothing itself.
+        // THE ROSTER ONE SCOPE WIDER. It counts nothing of its own: it
+        // resolves the areas a scope reaches and folds what the per-area
+        // services already answer.
+        $services->set('roster.org', RosterOrgService::class)
+            ->args([
+                service(AreaOfInterestRepository::class),
+                service('roster.figures'),
+                service('roster.presence'),
+                service('roster.identity'),
+                service('roster.week_grid'),
+                service('roster.live'),
+                service(LivePositionsInterface::class),
+            ]);
+
         $services->set('roster.live', RosterLiveService::class)
             ->args([
                 service(AreaPlateService::class),
@@ -373,6 +394,12 @@ final class UhifadhiRosterBundle extends AbstractBundle
         // of lists. They share the mechanism and nothing else, which is
         // what a surface is for. Tagged by hand like every contribution.
         $services->set('roster.rail_widgets', RosterRailWidgets::class)
+            ->tag(WidgetSurfaceInterface::TAG);
+
+        // AND THE THIRD: the module read across every area. It is a surface
+        // like the other two and composed the same way; what makes it
+        // different is only the scope the figures under it are read at.
+        $services->set('roster.org_widgets', RosterOrgWidgets::class)
             ->tag(WidgetSurfaceInterface::TAG);
 
         /*
@@ -527,6 +554,20 @@ final class UhifadhiRosterBundle extends AbstractBundle
             $services->set('roster.widget_urls', RosterWidgetUrls::class)
                 ->args([service('router')]);
 
+            $services->set('roster.controller.org', RosterOrgController::class)
+                ->args([
+                    service('twig'),
+                    service('roster.org'),
+                    service(WidgetService::class),
+                    service(WidgetEndpoint::class),
+                    service(\Uhifadhi\Bundle\ShellBundle\Service\Scopes::class),
+                    service('roster.module_provider'),
+                    service('router'),
+                    service('request_stack'),
+                ])
+                ->public();
+            $services->alias(RosterOrgController::class, 'roster.controller.org')->public();
+
             $services->set('roster.controller.widgets', RosterWidgetsController::class)
                 ->args([
                     service('twig'),
@@ -540,6 +581,7 @@ final class UhifadhiRosterBundle extends AbstractBundle
                     service('roster.presence'),
                     service(LivePositionsInterface::class),
                     service(ShiftRepository::class),
+                    service('roster.org'),
                 ])
                 ->public();
             $services->alias(RosterWidgetsController::class, 'roster.controller.widgets')->public();

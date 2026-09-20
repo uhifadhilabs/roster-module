@@ -36,7 +36,7 @@ final class ModuleSeamRegistrationTest extends KernelTestCase
         self::assertArrayHasKey(RosterModuleProvider::SLUG, $modules);
         self::assertInstanceOf(RosterModuleProvider::class, $modules[RosterModuleProvider::SLUG]);
         self::assertSame('Roster', $modules[RosterModuleProvider::SLUG]->name());
-        self::assertSame('calendar-clock', $modules[RosterModuleProvider::SLUG]->icon());
+        self::assertSame('roster:calendar-clock', $modules[RosterModuleProvider::SLUG]->icon());
     }
 
     /**

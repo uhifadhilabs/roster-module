@@ -1,0 +1,20 @@
+{# WHICH, not how many, and ordered by the question rather than by
+   the area: a missing check-in in one park outranks a late one in another.
+   A list grouped by area would make a reader open four groups to find the
+   loudest thing in the organisation. #}
+<div class="c">
+    <span class="tab">Needs a decision<span class="src">&middot; {{ decisions|length }} &middot; every area</span></span>
+    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterOrgController::TODAY_ROUTE')) }}">Today &rarr;</a>
+
+    {% for row in decisions|slice(0, 6) %}
+        <div class="rln">
+            <span>
+                <span class="orgarea sm" data-cat="{{ row.position }}"><i></i>{{ row.areaName }}</span>
+                &middot; <b>{{ row.decision.who }}</b><em>&middot; {{ row.decision.where }}</em>
+            </span>
+            <span class="chip {{ row.decision.tone }}">{{ row.decision.fact }}</span>
+        </div>
+    {% else %}
+        <div class="rfrag"><b>Nothing needs an answer in any area</b><em>every watch that is due has been checked into, and no post has gone quiet</em></div>
+    {% endfor %}
+</div>

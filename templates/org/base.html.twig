@@ -1,0 +1,49 @@
+{# ============================================================================
+   THE ROSTER AT ORGANISATION SCOPE — the frame its three screens share.
+
+   THE SHELL OWNS THE CHROME AROUND THIS. The row in Observatory and the
+   screens under it are mounted from what this module's provider names in
+   `orgPages()`; the scope control is the shell's own component. What this
+   file adds is the page's tab strip and the parts every one of the three
+   screens says the same way.
+
+   THERE IS NO AREA HERE, which is the whole difference from the area base:
+   no area name in the trail, no area in the page head, and every figure
+   below drawn for the scope instead. A screen that needed one area would be
+   an area screen.
+
+   THE STRIP IS BUILT FROM THE SAME DECLARATION THE SHELL MOUNTS, so a tab
+   and a sidebar screen can never disagree about which pages exist — and a
+   route this installation has not mounted is left out rather than drawn as
+   a link to a 404.
+   ========================================================================== #}
+{% extends '@Shell/page.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {# The widget grid's sheet, for the surface the Overview composes. #}
+    <link rel="stylesheet" href="{{ asset(constant('Uhifadhi\\Bundle\\ShellBundle\\ShellBundle::WIDGET_STYLESHEET')) }}">
+    <link rel="stylesheet" href="{{ asset(constant('Uhifadhi\\Roster\\UhifadhiRosterBundle::STYLESHEET')) }}">
+{% endblock %}
+
+{% block shell_breadcrumbs %}uhifadhi / roster /{% block roster_org_trail_tail %} overview{% endblock %}{% endblock %}
+
+{% block shell_page_title %}Roster{% endblock %}
+
+{% block shell_page_subtitle %}Who is due, who checked in, and where their handset says they actually are &mdash; <b>{{ scope.isOrganisation ? 'across every area' : scope.label }}</b>. The stations and the live positions are each area&rsquo;s.{% endblock %}
+
+{# THE ONE CONTROL AN ORGANISATION-LEVEL PAGE CARRIES, and it is the
+   shell's. A module states no scope control of its own. #}
+{% block shell_page_actions %}
+    {{ include('@Shell/_scope_control.html.twig', {scopes: scopeOptions, current: scope}, with_context: false) }}
+{% endblock %}
+
+{% block shell_page %}
+    <div class="atabs">
+        {% for tab in orgTabs %}
+            <a href="{{ tab.url }}"{{ tab.current ? ' class="on"' : '' }}>{{ tab.label }}</a>
+        {% endfor %}
+    </div>
+
+    {% block roster_org_page %}{% endblock %}
+{% endblock %}

@@ -30,7 +30,7 @@ final class RosterModuleProviderTest extends TestCase
         self::assertSame('Roster', $provider->name());
         self::assertSame('operations', $provider->category());
         self::assertSame('Rotations, duties and the area\'s check-ins', $provider->dataSource());
-        self::assertSame('calendar-clock', $provider->icon());
+        self::assertSame('roster:calendar-clock', $provider->icon());
     }
 
     /**

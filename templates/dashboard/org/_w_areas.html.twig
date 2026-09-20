@@ -1,0 +1,21 @@
+{# one band per area. A BAND AND NOT A CARD: four cards inside a
+   card is how a dashboard stops being readable.
+
+   THE SWATCH IS THE AREA'S POSITION, not a colour it owns — `data-cat` is
+   the house's categorical set and the shell turns it into a value. #}
+<div class="c">
+    <span class="tab">One band per area<span class="src">&middot; {{ bands|length }} &middot; declared order</span></span>
+
+    {% for band in bands %}
+        <div class="orgband">
+            <span class="orgarea" data-cat="{{ band.position }}"><i></i><b>{{ band.name }}</b></span>
+            <span class="n">{{ band.rangers }} rangers<em> &middot; posts {{ band.postsReporting }} of {{ band.postsOnTheBooks }} &middot; checked in {{ band.checkedIn }} of {{ band.expected }} &middot; </em>
+                {%- if band.needingADecision > 0 %}<span class="w">{{ band.needingADecision }} need an answer</span>
+                {%- else %}<span>nothing outstanding</span>{% endif -%}
+            </span>
+            {% if band.url %}<a class="open-btn" href="{{ band.url }}">Open &rarr;</a>{% endif %}
+        </div>
+    {% else %}
+        <div class="rfrag"><b>No area is running the roster</b><em>an area runs this module deliberately, so none is assumed</em></div>
+    {% endfor %}
+</div>

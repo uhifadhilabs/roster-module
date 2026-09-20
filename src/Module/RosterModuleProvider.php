@@ -16,8 +16,11 @@ namespace Uhifadhi\Roster\Module;
 use Uhifadhi\Contracts\ModulePermission;
 use Uhifadhi\Contracts\ModuleProviderInterface;
 use Uhifadhi\Contracts\ModuleProviderTrait;
+use Uhifadhi\Contracts\Shell\OrgPage;
+use Uhifadhi\Contracts\Shell\OrgPagesInterface;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
 use Uhifadhi\Roster\Controller\RosterController;
+use Uhifadhi\Roster\Controller\RosterOrgController;
 
 /**
  * DECLARES THE ONE MODULE THIS BUNDLE CONTRIBUTES — "Roster": who is due on
@@ -39,7 +42,7 @@ use Uhifadhi\Roster\Controller\RosterController;
  * here. A roster says who is due at a post tonight; it never says who is
  * there.
  */
-final class RosterModuleProvider implements ModuleProviderInterface
+final class RosterModuleProvider implements ModuleProviderInterface, OrgPagesInterface
 {
     // The defaults for status, pinned, base and position.
     use ModuleProviderTrait;
@@ -76,9 +79,19 @@ final class RosterModuleProvider implements ModuleProviderInterface
         return 'Rotations, duties and the area\'s check-ins';
     }
 
+    /**
+     * THE MARK, UNDER THIS MODULE'S OWN NAMESPACE.
+     *
+     * A MODULE SHIPS THE MARKS IT ASKS FOR. A bare name resolves in the
+     * host's default icon set, so a module naming one is a module betting
+     * that every installation happens to ship that glyph — and the bet
+     * fails silently until something renders the name in a place that has
+     * no such icon. `roster:` is this bundle's own directory, which
+     * travels with it.
+     */
     public function icon(): string
     {
-        return 'calendar-clock';
+        return 'roster:calendar-clock';
     }
 
     /**
@@ -122,6 +135,32 @@ final class RosterModuleProvider implements ModuleProviderInterface
                 'Plan',
                 'Fill the day\'s watches and publish them, offer a watch to somebody else, and take an offer back before it is answered.',
             ),
+        ];
+    }
+
+    /**
+     * THE ROSTER READ ACROSS EVERY AREA AT ONCE — the module's own screens
+     * one scope wider, which the SHELL mounts: a row in Observatory, these
+     * as its tabs, and the scope control in the action row. This module
+     * writes none of those three.
+     *
+     * THREE TABS AND NOT SIX. Overview, Today and Live answer a question
+     * that only exists across areas — which area is the problem, who needs
+     * an answer anywhere, where everybody is. The week plan, the day board
+     * and the calendar are read one area at a time and are deliberately
+     * absent: a tab whose body would be a note is a placeholder, and the
+     * product ships none.
+     *
+     * ROUTE NAMES, NEVER PATHS. The application mounts them; a screen whose
+     * route an installation has not mounted is left out rather than drawn
+     * as a link to a 404.
+     */
+    public function orgPages(): array
+    {
+        return [
+            new OrgPage('overview', 'Overview', RosterOrgController::OVERVIEW_ROUTE),
+            new OrgPage('today', 'Today', RosterOrgController::TODAY_ROUTE),
+            new OrgPage('live', 'Live', RosterOrgController::LIVE_ROUTE),
         ];
     }
 }

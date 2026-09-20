@@ -28,6 +28,7 @@ use Uhifadhi\Bundle\ShellBundle\Widget\Model\WidgetCatalog;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetEndpoint;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetService;
 use Uhifadhi\Contracts\Area\LivePositionsInterface;
+use Uhifadhi\Contracts\Shell\Scope;
 use Uhifadhi\Roster\Model\LiveRailGroup;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Repository\ShiftRepository;
@@ -35,7 +36,9 @@ use Uhifadhi\Roster\Service\PresenceReader;
 use Uhifadhi\Roster\Service\RosterDashboardService;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\RosterLiveService;
+use Uhifadhi\Roster\Service\RosterOrgService;
 use Uhifadhi\Roster\Service\RosterWidgetUrls;
+use Uhifadhi\Roster\Widget\RosterOrgWidgets;
 use Uhifadhi\Roster\Widget\RosterRailWidgets;
 use Uhifadhi\Roster\Widget\RosterWidgets;
 
@@ -85,6 +88,9 @@ final class RosterWidgetsController
     /** The id of the rail's section, which the Live tab's door names. */
     public const string RAIL_ANCHOR = 'rail';
 
+    /** And the organisation section's, for a door from that scope. */
+    public const string ORG_ANCHOR = 'org';
+
     /**
      * THE TWO COMPOSITIONS THIS MODULE HAS, as a route requirement.
      *
@@ -93,7 +99,7 @@ final class RosterWidgetsController
      * save the server had to guess at — and the guess would be wrong exactly
      * half the time.
      */
-    public const string SURFACES = RosterWidgets::SURFACE.'|'.RosterRailWidgets::SURFACE;
+    public const string SURFACES = RosterWidgets::SURFACE.'|'.RosterRailWidgets::SURFACE.'|'.RosterOrgWidgets::SURFACE;
 
     public function __construct(
         private readonly Environment $twig,
@@ -109,6 +115,7 @@ final class RosterWidgetsController
         private readonly PresenceReader $presence,
         private readonly LivePositionsInterface $positions,
         private readonly ShiftRepository $shifts,
+        private readonly RosterOrgService $org,
     ) {
     }
 
@@ -134,6 +141,7 @@ final class RosterWidgetsController
         // widgets", so there is one, and each section carries its own
         // catalogue, presets, routes and token.
         $rail = RosterRailWidgets::declaration();
+        $org = RosterOrgWidgets::declaration();
 
         return new Response($this->twig->render('@UhifadhiRoster/widgets/library.html.twig', [
             'area' => $area,
@@ -163,6 +171,24 @@ final class RosterWidgetsController
                     'csrfToken' => $this->endpoint->csrfToken($catalog, $areaUuid),
                 ],
                 [
+                    // AND THE THIRD: the module read across every area. It
+                    // is composed here beside the other two because this is
+                    // the module's library, and a person arranging one will
+                    // want the others.
+                    'anchor' => self::ORG_ANCHOR,
+                    'label' => 'The organisation roster',
+                    'intro' => 'The same module one scope wider: every area at once. The figures under these widgets are the area page’s own, with the area filter widened — never a second aggregate.',
+                    'catalog' => $org,
+                    'builtins' => $org->builtins(),
+                    'customPresets' => $this->widgets->customPresets($org, $viewer, $areaUuid),
+                    'active' => $this->widgets->activeRef($org, $viewer, $areaUuid),
+                    'widgets' => $this->widgets->resolve($org, $viewer, $areaUuid),
+                    'partial' => RosterOrgController::PARTIAL,
+                    'widgetContext' => $this->orgPreview($now),
+                    'urls' => $this->urls->forArea($area, RosterOrgWidgets::SURFACE),
+                    'csrfToken' => $this->endpoint->csrfToken($org, $areaUuid),
+                ],
+                [
                     // THE DOOR ON THE LIVE TAB LANDS HERE, not at the top of
                     // the page: a module with two surfaces has two doors into
                     // one library, and a door that always lands at the top
@@ -186,6 +212,39 @@ final class RosterWidgetsController
                 ],
             ],
         ]));
+    }
+
+    /**
+     * WHAT THE RAIL'S THREE LISTS NEED TO DRAW THEMSELVES, once.
+     *
+     * EVERY PREVIEW IS THE REAL LIST ON REAL DATA — the same partials the
+     * Live tab includes, reading the same services — so a twin here cannot
+     * fall out of step with the column it stands for.
+     *
+     * @return array<string, mixed>
+     */
+    /**
+     * WHAT THE ORGANISATION WIDGETS NEED TO DRAW THEMSELVES.
+     *
+     * THE PREVIEW IS THE WIDGET, so these are the real partials on the
+     * real reading — read across every area this installation has, which
+     * is what the surface is for. The library is not the page, so it draws
+     * no plate: a second live map inside a picker is a second live map.
+     *
+     * @return array<string, mixed>
+     */
+    private function orgPreview(\DateTimeImmutable $now): array
+    {
+        $day = $now->setTime(0, 0);
+        $areas = $this->org->areasIn(Scope::organisation(), []);
+
+        return [
+            'areas' => $areas,
+            'figures' => $this->org->figuresFor($areas, $day, $now),
+            'bands' => $this->org->bands($areas, $day, $now),
+            'decisions' => $this->org->decisions($areas, $day, $now),
+            'plate' => null,
+        ];
     }
 
     /**
@@ -346,15 +405,21 @@ final class RosterWidgetsController
      */
     private static function catalogOf(string $surface): WidgetCatalog
     {
-        return RosterRailWidgets::SURFACE === $surface
-            ? RosterRailWidgets::declaration()
-            : RosterWidgets::declaration();
+        return match ($surface) {
+            RosterRailWidgets::SURFACE => RosterRailWidgets::declaration(),
+            RosterOrgWidgets::SURFACE => RosterOrgWidgets::declaration(),
+            default => RosterWidgets::declaration(),
+        };
     }
 
     /** What to call a surface in a sentence somebody reads after a write. */
     private static function nameOf(string $surface): string
     {
-        return RosterRailWidgets::SURFACE === $surface ? 'Live plate rail' : 'roster dashboard';
+        return match ($surface) {
+            RosterRailWidgets::SURFACE => 'Live plate rail',
+            RosterOrgWidgets::SURFACE => 'organisation roster',
+            default => 'roster dashboard',
+        };
     }
 
     /**

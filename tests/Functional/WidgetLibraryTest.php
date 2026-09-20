@@ -29,6 +29,7 @@ use Uhifadhi\Roster\Enum\RotationScope;
 use Uhifadhi\Roster\Model\Cycle;
 use Uhifadhi\Roster\Service\StationWatchService;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
+use Uhifadhi\Roster\Widget\RosterOrgWidgets;
 use Uhifadhi\Roster\Widget\RosterRailWidgets;
 use Uhifadhi\Roster\Widget\RosterWidgets;
 
@@ -229,15 +230,15 @@ use Uhifadhi\Roster\Widget\RosterWidgets;
      * arranged in one place — each in a house section, each with its own
      * catalogue, its own presets and its own write routes.
      */
-    public function testBothOfThisModulesSurfacesAreOnTheOneLibraryPage(): void
+    public function testEveryOneOfThisModulesSurfacesIsOnTheOneLibraryPage(): void
     {
         $crawler = $this->open();
 
         $sections = $crawler->filter('section.w-surface');
-        self::assertCount(2, $sections, 'One section per surface, and the module has two.');
+        self::assertCount(3, $sections, 'One section per surface, and the module has three.');
 
         self::assertSame(
-            ['The module dashboard', 'The Live tab’s plate rail'],
+            ['The module dashboard', 'The organisation roster', 'The Live tab’s plate rail'],
             $sections->each(static fn (\Symfony\Component\DomCrawler\Crawler $s): string => html_entity_decode(trim($s->filter('h2.zone')->text()))),
             'The house section, in the order the page reads.',
         );
@@ -258,15 +259,16 @@ use Uhifadhi\Roster\Widget\RosterWidgets;
         $crawler = $this->open();
 
         $roots = $crawler->filter('[data-widget-root]');
-        self::assertCount(2, $roots, 'One library root per surface.');
+        self::assertCount(3, $roots, 'One library root per surface.');
 
         $saves = $roots->each(static fn (\Symfony\Component\DomCrawler\Crawler $r): string => (string) $r->attr('data-widget-save-url'));
         self::assertStringContainsString('/'.RosterWidgets::SURFACE.'/save', $saves[0]);
-        self::assertStringContainsString('/'.RosterRailWidgets::SURFACE.'/save', $saves[1]);
-        self::assertNotSame($saves[0], $saves[1], 'A save for one surface is not a save for the other.');
+        self::assertStringContainsString('/'.RosterOrgWidgets::SURFACE.'/save', $saves[1]);
+        self::assertStringContainsString('/'.RosterRailWidgets::SURFACE.'/save', $saves[2]);
+        self::assertCount(3, array_unique($saves), 'A save for one surface is not a save for another.');
 
         $tokens = $roots->each(static fn (\Symfony\Component\DomCrawler\Crawler $r): string => (string) $r->attr('data-widget-csrf-token'));
-        self::assertNotSame($tokens[0], $tokens[1], 'And a token good for one is not good for the other.');
+        self::assertCount(3, array_unique($tokens), 'And a token good for one is not good for another.');
     }
 
     /**
@@ -277,7 +279,7 @@ use Uhifadhi\Roster\Widget\RosterWidgets;
     public function testTheRailsListsAndArrangementsRenderFromTheLibrary(): void
     {
         $crawler = $this->open();
-        $rail = $crawler->filter('section.w-surface')->eq(1);
+        $rail = $crawler->filter('section.w-surface')->eq(2);
         $text = html_entity_decode($rail->text());
 
         $catalog = RosterRailWidgets::declaration();
@@ -304,7 +306,7 @@ use Uhifadhi\Roster\Widget\RosterWidgets;
      */
     public function testTheRailsTwinsCarryNoneOfTheRailsOwnControls(): void
     {
-        $rail = $this->open()->filter('section.w-surface')->eq(1);
+        $rail = $this->open()->filter('section.w-surface')->eq(2);
 
         self::assertCount(0, $rail->filter('.rl-cellhd .ord button'));
         self::assertCount(0, $rail->filter('.rl-cellhd button.rm'));
@@ -396,7 +398,8 @@ use Uhifadhi\Roster\Widget\RosterWidgets;
         $sections = $this->open()->filter('section.w-surface');
 
         self::assertNull($sections->eq(0)->attr('id'), 'The first section is where the page already starts.');
-        self::assertSame(RosterWidgetsController::RAIL_ANCHOR, $sections->eq(1)->attr('id'));
+        self::assertSame(RosterWidgetsController::ORG_ANCHOR, $sections->eq(1)->attr('id'));
+        self::assertSame(RosterWidgetsController::RAIL_ANCHOR, $sections->eq(2)->attr('id'));
     }
 
     /** AND THE DOOR ON THE LIVE TAB OPENS IT, rather than the page. */

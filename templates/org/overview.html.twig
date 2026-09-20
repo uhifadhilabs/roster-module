@@ -1,0 +1,22 @@
+{# THE ORGANISATION'S ROSTER DASHBOARD — the module's third widget surface.
+
+   IT IS COMPOSED, NOT WRITTEN. What this page draws is whatever arrangement
+   the reader has adopted for `roster-org`, exactly as the area dashboard
+   draws theirs; the page is the grid and nothing else. #}
+{% extends '@UhifadhiRoster/org/base.html.twig' %}
+
+{% block title %}Roster · {{ scope.label }}{% endblock %}
+
+{% block roster_org_trail_tail %} overview{% endblock %}
+
+{% block roster_org_page %}
+    <div class="w-grid" data-widget-dashboard>
+        {% for widget in widgets %}
+            {% if widget.on %}
+                <div class="w-cell" style="--span:{{ widget.cols }}" data-w="{{ widget.id }}">
+                    {{ include('@UhifadhiRoster/dashboard/org/_w_' ~ widget.id ~ '.html.twig') }}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endblock %}
