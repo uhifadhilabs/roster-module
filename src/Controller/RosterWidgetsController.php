@@ -82,6 +82,9 @@ final class RosterWidgetsController
     /** And the rail's, whose widgets ARE the lists the Live tab draws. */
     public const string RAIL_PARTIAL = '@UhifadhiRoster/rail/_%s.html.twig';
 
+    /** The id of the rail's section, which the Live tab's door names. */
+    public const string RAIL_ANCHOR = 'rail';
+
     /**
      * THE TWO COMPOSITIONS THIS MODULE HAS, as a route requirement.
      *
@@ -160,6 +163,11 @@ final class RosterWidgetsController
                     'csrfToken' => $this->endpoint->csrfToken($catalog, $areaUuid),
                 ],
                 [
+                    // THE DOOR ON THE LIVE TAB LANDS HERE, not at the top of
+                    // the page: a module with two surfaces has two doors into
+                    // one library, and a door that always lands at the top
+                    // makes the reader hunt for what it just opened.
+                    'anchor' => self::RAIL_ANCHOR,
                     'label' => 'The Live tab’s plate rail',
                     'intro' => 'The column beside the Live tab’s plate is a widget surface of its own, and the lists it carries are widgets. The rail is one column wide, so every widget in it is full width.',
                     'catalog' => $rail,

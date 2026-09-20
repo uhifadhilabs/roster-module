@@ -382,4 +382,37 @@ use Uhifadhi\Roster\Widget\RosterWidgets;
             )),
         ));
     }
+
+    /**
+     * THE RAIL'S SECTION CARRIES THE ID THE LIVE TAB'S DOOR NAMES.
+     *
+     * A MODULE WITH TWO SURFACES HAS TWO DOORS INTO ONE PAGE. A door that
+     * always lands at the top is a door that makes the reader hunt for the
+     * thing it just opened — so the rail's section is `#rail`, and the Live
+     * tab's door says so.
+     */
+    public function testTheRailsSectionCarriesTheAnchorTheLiveDoorNames(): void
+    {
+        $sections = $this->open()->filter('section.w-surface');
+
+        self::assertNull($sections->eq(0)->attr('id'), 'The first section is where the page already starts.');
+        self::assertSame(RosterWidgetsController::RAIL_ANCHOR, $sections->eq(1)->attr('id'));
+    }
+
+    /** AND THE DOOR ON THE LIVE TAB OPENS IT, rather than the page. */
+    public function testTheLiveTabsDoorLandsOnTheRailsSection(): void
+    {
+        $router = static::getContainer()->get('router');
+        self::assertInstanceOf(\Symfony\Component\Routing\RouterInterface::class, $router);
+
+        $live = $this->client->request('GET', $router->generate(RosterController::LIVE_ROUTE, ['uuid' => (string) $this->area->getUuidString()]));
+        self::assertResponseIsSuccessful();
+
+        $door = $live->filter('.fg-side > .fg-rlhd a.more');
+        self::assertCount(1, $door);
+        self::assertStringEndsWith(
+            $router->generate(RosterWidgetsController::LIBRARY_ROUTE, ['uuid' => (string) $this->area->getUuidString()]).'#'.RosterWidgetsController::RAIL_ANCHOR,
+            (string) $door->attr('href'),
+        );
+    }
 }
