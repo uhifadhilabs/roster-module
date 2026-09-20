@@ -12,9 +12,12 @@
    neither screen owns the other.
 
    A POST WITH NO WATCH IS NOT A FAULT. A post that declares none is never
-   counted, never late and never a hole — only offline. The posts the area
-   registers that are not on these books are named at the foot rather than
-   silently missing.
+   counted, never late and never a hole — only offline.
+
+   AND A POST OFF THE BOOKS IS NOT INVISIBLE. The area's other posts are the
+   add row's own list, so the section that says which posts this module
+   works is also the one place a post joins them. Ported from the design's
+   `.staddrow` on this card.
    ========================================================================== #}
 {% extends '@UhifadhiRoster/configure/_frame.html.twig' %}
 
@@ -63,23 +66,39 @@
             {% else %}
                 <div class="rfrag"><b>No post is on the roster&rsquo;s books yet</b><em>the area registers {{ band.stationsInArea }} station{{ band.stationsInArea == 1 ? '' : 's' }}; a watch is given to a post deliberately, so none is assumed</em></div>
             {% endfor %}
-            <div class="rfrag"><b>The name, kind, point and call sign are the AREA&rsquo;s</b><em>this section edits only the four columns the roster owns, and it is the same block the area&rsquo;s Stations configure card renders</em></div>
-            <div class="rfrag"><b>A post with no watch is not a fault</b><em>a post that declares none is never counted, never late and never a hole &mdash; only offline</em></div>
-            <div class="rfrag"><b>{{ postsOffTheBooks|length }} of the area&rsquo;s posts are not on these books</b><em>they declare no watch, so this module never counts them, reports on them or complains about them</em></div>
-            {# THE CATCHMENT GOES WHERE IT IS READ. A claim is verified
-               against the POST's own catchment, and the area now exposes
-               the verb that writes it — so saving this section writes the
-               distance through to the post rather than into a number
-               nothing measures. This module states the distance; the area
-               does the measuring, which is the whole division. #}
-            <div class="rfrag"><b>The catchment is the post&rsquo;s, and verification measures against it</b><em>saving here writes it to the post itself, so a claim from inside the ring reads <i>at post &middot; verified</i> and one from outside reads <i>unverified</i> &mdash; the area&rsquo;s own Stations section edits the same distance</em></div>
 
-            {# SAVE AT THE END OF THE FORM BODY, RIGHT-ALIGNED — the house's
-               own .staddrow. Ruled 2026-09-20: a footer strip is for one
-               SEPARATE operation, and saving the form you are looking at is
-               not separate from it. #}
+            {# THE DOOR, AND IT IS THE REASON THIS SECTION EXISTS. Ported
+               from the design's own `.staddrow` on this card: the add
+               control on the left, the save at the right-hand end.
+
+               ONE FORM, TWO SUBMITS. Adding a post and saving the page are
+               two writes at two addresses, and `formaction` is how one form
+               offers both — a second `<form>` cannot be nested inside this
+               one, and a form outside it could not carry the same token.
+
+               THE PICKER IS THIS MODULE'S ADDITION TO THE DRAWING, stated
+               rather than slipped in: the design's button names no post
+               because the drawing has one meaning and a running area has
+               twelve, and a button that cannot say which post is not a
+               control. It wears the reference card's own add-row shape —
+               label, control, quiet button. #}
             {% if mayManage %}
-                <div class="staddrow"><span class="sp"></span><button type="submit" class="cta">Save the watches</button></div>
+                <div class="staddrow">
+                    {% if postsOffTheBooks is not empty %}
+                        <label class="fldlab" for="roster-add-post">Add a post</label>
+                        <select class="fld" id="roster-add-post" name="station">
+                            {% for station in postsOffTheBooks %}
+                                <option value="{{ station.uuidString }}">{{ station.name }}{% if station.code %} &middot; {{ station.code }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn sm"
+                                formaction="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ADD_TO_ROSTER_ROUTE'), {uuid: area.uuid}) }}">Add a post to the roster</button>
+                    {% else %}
+                        <span class="more">every post this area registers is on these books</span>
+                    {% endif %}
+                    <span class="sp"></span>
+                    <button type="submit" class="cta">Save the watches</button>
+                </div>
             {% endif %}
         </div>
     </div>

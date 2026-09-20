@@ -283,6 +283,16 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service('roster.shift_vocabulary'),
                 service('roster.presence'),
                 service('router'),
+                /*
+                 * THE DOOR ON AN OFF-THE-BOOKS POST'S CARD writes, so it
+                 * carries a token — and it exists only where the configure
+                 * controller does, because that is where it posts. An
+                 * installation with no SecurityBundle gets the block
+                 * without the door rather than a button at a route nobody
+                 * mounted.
+                 */
+                service('security.csrf.token_manager')->nullOnInvalid(),
+                service('request_stack'),
             ])
             ->tag(StationSectionsInterface::TAG);
 
@@ -529,6 +539,7 @@ final class UhifadhiRosterBundle extends AbstractBundle
                     service('roster.shift_vocabulary'),
                     service('roster.station_watches'),
                     service(StationRepository::class),
+                    service(PostingRepository::class),
                     service(StationService::class),
                     service(CheckInStatusService::class),
                     service('roster.rostered_people'),

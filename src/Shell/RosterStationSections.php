@@ -13,7 +13,9 @@ declare(strict_types=1);
 
 namespace Uhifadhi\Roster\Shell;
 
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Uid\Uuid;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
@@ -43,11 +45,19 @@ use Uhifadhi\Roster\Service\StationWatchService;
  * pages rather than onto a page of this module's, which is why
  * `modules/roster/stations.html` was retired as a page.
  *
- * A POST THIS MODULE DOES NOT KEEP ON ITS BOOKS IS ANSWERED WITH SILENCE —
- * no key in the answer at all, so the area draws no band and no placeholder.
- * That is not the same as a post this module has nothing to REPORT about:
- * one is "not our post", the other is a band saying so in this module's own
- * words, and the contract keeps them apart deliberately.
+ * A POST THIS MODULE DOES NOT KEEP ON ITS BOOKS IS ANSWERED WITH SILENCE ON
+ * ITS RECORD — no key in the answer at all, so the area draws no band and no
+ * placeholder. That is not the same as a post this module has nothing to
+ * REPORT about: one is "not our post", the other is a band saying so in this
+ * module's own words, and the contract keeps them apart deliberately.
+ *
+ * ON THE CONFIGURE CARD IT IS ANSWERED WITH THE DOOR, and the difference is
+ * the whole point of a configure surface: the record is where somebody reads
+ * a post, and saying nothing there is honest; the card is where somebody
+ * SETS ONE UP, and a post that can never be worked because no screen offers
+ * the one write is the defect this block exists to close. Ported from the
+ * design's own `configure-stations.html` — "not on the roster's books", and
+ * one control that changes it.
  *
  * THE AREA DRAWS THE BAND AND THIS DRAWS WHAT IS IN IT. The card, the
  * heading row, the contributor tag and the summary line are the surface's
@@ -72,6 +82,11 @@ final readonly class RosterStationSections implements StationSectionsInterface
         private ShiftVocabularyService $shifts,
         private PresenceReader $presence,
         private UrlGeneratorInterface $router,
+        private ?CsrfTokenManagerInterface $csrfTokenManager = null,
+        // A TOKEN IS A THING IN A SESSION, so it can only be issued inside
+        // a request that has one. This contributor is called from a page
+        // and nowhere else, and asking the manager outside one throws.
+        private ?RequestStack $requests = null,
     ) {
     }
 
@@ -97,11 +112,16 @@ final readonly class RosterStationSections implements StationSectionsInterface
         foreach ($stations as $uuid => $station) {
             $watch = $this->watches->forStation($station);
 
-            // NOT ON THE BOOKS, SO NOTHING IS SAID. The area draws no band,
-            // which is the honest answer for a post this module does not
-            // work — and the reason the other six of twelve are silent
-            // rather than showing an empty watch.
             if (null === $watch) {
+                // NOT ON THE BOOKS. The record says nothing at all; the
+                // configure card says so, and offers the one write that
+                // changes it.
+                if (StationSurface::Record === $request->surface) {
+                    continue;
+                }
+
+                $byStation[$uuid] = [$this->offTheBooksBlock($station)];
+
                 continue;
             }
 
@@ -175,6 +195,57 @@ final readonly class RosterStationSections implements StationSectionsInterface
                 )),
             ],
         );
+    }
+
+    /**
+     * THE *ROSTER* BLOCK ON A POST THIS MODULE DOES NOT YET WORK — one row,
+     * and the one control that changes it.
+     *
+     * THE WRITE IS THE MODULE'S OWN, AT THE MODULE'S OWN ADDRESS. The area
+     * owns the card and knows nothing about a watch; this block posts to
+     * the roster's configure controller and says where it came from, so the
+     * redirect lands back on the card it was pressed on.
+     */
+    private function offTheBooksBlock(Station $station): StationSection
+    {
+        $area = $station->getArea();
+
+        return new StationSection(
+            id: self::ROSTER,
+            label: 'Watch and presence',
+            template: '@UhifadhiRoster/station/_configure_off.html.twig',
+            variables: [
+                'station' => $station,
+                // NO TOKEN, NO DOOR. Without SecurityBundle the configure
+                // controller is not registered at all, so a button here
+                // would post at a route nobody mounted.
+                'door' => null === $area || !$this->mayIssueAToken() ? null : $this->router->generate(
+                    RosterConfigureController::ADD_TO_ROSTER_ROUTE,
+                    ['uuid' => (string) $area->getUuidString()],
+                ),
+                'csrfToken' => $this->mayIssueAToken()
+                    ? $this->csrfTokenManager?->getToken(RosterConfigureController::CSRF_TOKEN_ID)->getValue() ?? ''
+                    : '',
+                'back' => RosterConfigureController::BACK_TO_THE_STATION,
+            ],
+            summary: 'Not on the roster’s books.',
+            actions: [],
+        );
+    }
+
+    /**
+     * WHETHER A WRITE CAN BE OFFERED AT ALL.
+     *
+     * TWO THINGS HAVE TO BE TRUE and neither is this module's doing: the
+     * installation runs SecurityBundle, so the route the door posts to
+     * exists at all; and this is a request with a session, so a token can
+     * be issued. Without either, the block draws the row and no button —
+     * which is the honest state, rather than a button at a route nobody
+     * mounted or a 500 inside somebody else's page.
+     */
+    private function mayIssueAToken(): bool
+    {
+        return null !== $this->csrfTokenManager && true === $this->requests?->getCurrentRequest()?->hasSession();
     }
 
     /**

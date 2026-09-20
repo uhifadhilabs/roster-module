@@ -1,0 +1,32 @@
+{# THE ROSTER'S BLOCK ON A POST IT DOES NOT YET WORK — one row, and the one
+   control that changes it. Ported from the design's configure-stations.html:
+   "not on the roster's books", and the button beside it.
+
+   THE DOOR BELONGS HERE AND NOT ONLY ON THE MODULE'S OWN PAGE. Somebody
+   setting a post up is on this card; sending them to another screen to do
+   the single write that makes the post workable is how a post ends up
+   registered for ever and never rostered.
+
+   IT WEARS `.rset`, LIKE THE BLOCK BESIDE IT. The design draws this row in
+   the area's own `.zfrow`, which is the area's vocabulary and not this
+   module's to spend; the on-the-books block already says the same thing in
+   `.rset`, and two blocks in one card must not be written in two idioms.
+
+   ROWS ONLY: the card and its heading are the area's. #}
+
+<div class="rset">
+    <span class="lb"><b>Watch</b><em>not on the roster&rsquo;s books</em></span>
+    <span class="ct">
+        {%- if door %}
+            <form method="post" action="{{ door }}">
+                <input type="hidden" name="_token" value="{{ csrfToken }}">
+                <input type="hidden" name="station" value="{{ station.uuidString }}">
+                <input type="hidden" name="back" value="{{ back }}">
+                <button type="submit" class="btn sm">Put this post on the roster</button>
+            </form>
+        {%- else %}
+            <span class="unit">none</span>
+        {%- endif %}
+    </span>
+    <span class="why">It declares no shift, so the roster never counts it, reports on it or calls a hole at it.</span>
+</div>

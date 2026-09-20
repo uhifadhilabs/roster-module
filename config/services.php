@@ -233,7 +233,7 @@ return static function (ContainerConfigurator $container): void {
     // does NOT generate: correcting a typo in a ring must not rewrite six
     // weeks of duties on the spot.
     $services->set('roster.rotation_editor', RotationEditor::class)
-        ->args([service('doctrine.orm.entity_manager'), service(RotationPoolMemberRepository::class)]);
+        ->args([service('doctrine.orm.entity_manager'), service(RotationPoolMemberRepository::class), service(RotationRepository::class)]);
 
     // THE MONTH A RING WOULD PRODUCE, through the same pure planner the
     // generator runs — so a preview cannot disagree with the result, and it

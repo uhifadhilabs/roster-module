@@ -16,6 +16,7 @@ namespace Uhifadhi\Roster\Tests\Integration\Fixtures;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Vote;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
+use Uhifadhi\Bundle\AreaBundle\Access\AreaPermissions;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
 use Uhifadhi\Roster\Controller\RosterController;
@@ -39,18 +40,43 @@ final class FixedManageVoter extends Voter
     /** Holds nothing: reads the configure page and saves nothing. */
     public const string READER_EMAIL = 'reader@example.test';
 
+    /**
+     * READING AN AREA — the platform's own word, spelt where the area's
+     * Stations configure page checks it. It is in the host's catalogue and
+     * not in this bundle's, so there is no constant upstream to import.
+     */
+    public const string AREA_VIEW = 'area.view';
+
     protected function supports(string $attribute, mixed $subject): bool
     {
         return \in_array($attribute, [
             RosterConfigureController::MANAGE_PERMISSION,
             RosterController::PLAN_PERMISSION,
+            // The AREA's own two, neither of them this module's to declare
+            // and neither of them ever checked by it. They are granted here
+            // because this module CONTRIBUTES to the area's own screens and
+            // answers the area's own endpoint, and a suite that could not
+            // open either would be testing the contribution in a vacuum.
+            AreaPermissions::CHECK_IN,
+            self::AREA_VIEW,
         ], true);
     }
 
     protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token, ?Vote $vote = null): bool
     {
         $user = $token->getUser();
+        if (!$user instanceof User) {
+            return false;
+        }
 
-        return $user instanceof User && self::MANAGER_EMAIL === $user->getEmail();
+        // ANY SIGNED-IN ACCOUNT MAY READ THE PARK AND REPORT ITS OWN DAY.
+        // The two roster permissions are the manager's alone; check-in is
+        // every ranger's, which is what makes "me" mean the token's
+        // account.
+        if (\in_array($attribute, [AreaPermissions::CHECK_IN, self::AREA_VIEW], true)) {
+            return true;
+        }
+
+        return self::MANAGER_EMAIL === $user->getEmail();
     }
 }

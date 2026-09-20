@@ -320,6 +320,19 @@ final class TestKernel extends Kernel
         // recipe in a real installation — not an attribute on a controller.
         $shell = \dirname((new \ReflectionClass(ConfigureController::class))->getFileName() ?: '', 3);
         $routes->import($shell.'/config/routes/configure.php');
+
+        /*
+         * AND THE FIELD API, under `/api`, exactly as an installation's own
+         * `config/routes/api_platform.yaml` mounts it.
+         *
+         * IT IS THE OTHER END OF THIS MODULE'S ONE CONTRACT. The area asks
+         * the roster "what is this person rostered for" and a handset reads
+         * the answer at `GET /api/areas/{uuid}/me/roster`; a suite that
+         * exercised the provider and never the endpoint would be asserting
+         * that the module answers a question nobody can ask it. The
+         * end-to-end test walks the whole chain and finishes there.
+         */
+        $routes->import('.', 'api_platform')->prefix('/api');
     }
 
     /**

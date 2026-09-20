@@ -367,6 +367,126 @@ final class ConfigurePageTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    /**
+     * THE DOOR IS WITHHELD FROM A READER, not disabled. A greyed control
+     * tells somebody a thing exists and they are not trusted with it, which
+     * is a worse product than not offering it.
+     */
+    public function testAReaderIsOfferedNoWayToPutAPostOnTheBooks(): void
+    {
+        $this->signIn(FixedManageVoter::READER_EMAIL);
+
+        $crawler = $this->client->request('GET', $this->url('watches'));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(0, $crawler->filter('button:contains("Add a post to the roster")')->count());
+    }
+
+    /**
+     * THE ADD ROW OFFERS THIS AREA'S POSTS AND ONLY THE ONES OFF THE BOOKS.
+     * A post already worked would be a second entry for one record.
+     */
+    public function testTheAddRowOffersThePostsThatAreNotOnTheBooksYet(): void
+    {
+        $this->watches()->addToRoster($this->gate);
+        $this->signIn(FixedManageVoter::MANAGER_EMAIL);
+
+        $crawler = $this->client->request('GET', $this->url('watches'));
+        $offered = $crawler->filter('#roster-add-post option')->each(
+            static fn (\Symfony\Component\DomCrawler\Crawler $option): string => trim($option->text()),
+        );
+
+        self::assertCount(1, $offered);
+        self::assertStringContainsString('west outpost', $offered[0]);
+    }
+
+    /**
+     * A UUID OUT OF A FORM NAMES ANY POST IN THE INSTALLATION. The area is
+     * part of the lookup and not a check after it, so a form posted from
+     * one park cannot put another park's gate on these books.
+     */
+    public function testAPostFromAnotherAreaCannotBePutOnTheseBooks(): void
+    {
+        $elsewhere = new AreaOfInterest()->setSource('test fixture')->setName('other reserve')->setGeom(
+            '{"type":"MultiPolygon","coordinates":[[[[13.2,-6.8],[13.5,-6.8],[13.5,-6.5],[13.2,-6.5],[13.2,-6.8]]]]}',
+        );
+        $this->em->persist($elsewhere);
+        $theirs = new Station()
+            ->setArea($elsewhere)
+            ->setName('their gate')
+            ->setCode('ST-99')
+            ->setPoint('{"type":"Point","coordinates":[13.3,-6.7]}');
+        $this->em->persist($theirs);
+        $this->em->flush();
+
+        $this->signIn(FixedManageVoter::MANAGER_EMAIL);
+        $crawler = $this->client->request('GET', $this->url('watches'));
+        $token = $crawler->filter('input[name=_token]')->attr('value');
+        self::assertIsString($token);
+
+        $this->client->request('POST', $this->url('watches').'/add', [
+            '_token' => $token,
+            'station' => (string) $theirs->getUuidString(),
+        ]);
+
+        self::assertResponseRedirects();
+        self::assertNull($this->watches()->forStation($theirs));
+    }
+
+    /** A reader who posts the add anyway is refused. */
+    public function testAReaderCannotPutAPostOnTheBooks(): void
+    {
+        $this->signIn(FixedManageVoter::MANAGER_EMAIL);
+        $crawler = $this->client->request('GET', $this->url('watches'));
+        $token = $crawler->filter('input[name=_token]')->attr('value');
+        self::assertIsString($token);
+
+        $this->signIn(FixedManageVoter::READER_EMAIL);
+        $this->client->request('POST', $this->url('watches').'/add', [
+            '_token' => $token,
+            'station' => (string) $this->gate->getUuidString(),
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertNull($this->watches()->forStation($this->gate));
+    }
+
+    /**
+     * A POST THAT STANDS NO WATCH IS NOT OFFERED A RING, and the section
+     * says why rather than drawing an empty picker.
+     */
+    public function testAPostWithNoWatchIsNotOfferedARing(): void
+    {
+        $this->watches()->addToRoster($this->gate);
+        $this->signIn(FixedManageVoter::MANAGER_EMAIL);
+
+        $crawler = $this->client->request('GET', $this->url('rotation'));
+
+        self::assertSame(0, $crawler->filter('button:contains("Declare the rotation")')->count());
+        self::assertStringContainsString('No post is ready for a ring', $crawler->filter('body')->text());
+    }
+
+    /** And declaring one anyway is refused with a sentence rather than written. */
+    public function testDeclaringARingForAPostWithNoWatchIsRefused(): void
+    {
+        $this->watches()->addToRoster($this->gate);
+        $this->signIn(FixedManageVoter::MANAGER_EMAIL);
+
+        $crawler = $this->client->request('GET', $this->url('rotation'));
+        $token = $crawler->filter('input[name=_token]')->attr('value');
+        self::assertIsString($token);
+
+        $this->client->request('POST', $this->url('rotation').'/new', [
+            '_token' => $token,
+            'station' => (string) $this->gate->getUuidString(),
+            'preset' => 'one_of_each_then_off',
+        ]);
+
+        self::assertResponseRedirects();
+        $this->em->clear();
+        self::assertSame([], $this->em->getRepository(\Uhifadhi\Roster\Entity\Rotation::class)->findAll());
+    }
+
     protected function tearDown(): void
     {
         parent::tearDown();

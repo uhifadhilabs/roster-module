@@ -13,6 +13,10 @@ declare(strict_types=1);
 
 namespace Uhifadhi\Roster\Tests\Integration\Shell;
 
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Contracts\Area\StationSectionRequest;
@@ -146,6 +150,39 @@ final class RosterStationSectionsTest extends IntegrationTestCase
 
         self::assertCount(1, $sections[0]->actions);
         self::assertStringContainsString('/modules/roster/watches', $sections[0]->actions[0]->url);
+    }
+
+    /**
+     * AND ON THE CONFIGURE CARD IT IS ANSWERED WITH THE DOOR.
+     *
+     * The record is where somebody READS a post and silence there is
+     * honest; the card is where somebody SETS ONE UP, and a post that can
+     * never be worked because no screen offers the one write is the defect
+     * this block exists to close. Ported from the design's own
+     * configure-stations.html.
+     */
+    public function testAPostOffTheBooksIsOfferedTheDoorOnItsConfigureCard(): void
+    {
+        // THE BLOCK IS DRAWN INSIDE A REQUEST and its door carries a token,
+        // which is a thing in a session — so the request this kernel test
+        // stands in has to be a real one, as the page's is.
+        $request = Request::create('/areas/'.$this->area->getUuidString().'/stations/settings');
+        $request->setSession(new Session(new MockArraySessionStorage()));
+        $requests = static::getContainer()->get('request_stack');
+        self::assertInstanceOf(RequestStack::class, $requests);
+        $requests->push($request);
+
+        $answer = $this->sections()->sectionsFor($this->request(StationSurface::Configure, $this->offTheBooks));
+        $sections = $answer->forStation((string) $this->offTheBooks->getUuidString());
+
+        self::assertCount(1, $sections);
+        self::assertSame(RosterStationSections::ROSTER, $sections[0]->id);
+        self::assertSame('@UhifadhiRoster/station/_configure_off.html.twig', $sections[0]->template);
+        self::assertStringContainsString('Not on the roster', (string) $sections[0]->summary);
+        $door = $sections[0]->variables['door'];
+        self::assertIsString($door);
+        self::assertStringContainsString('/modules/roster/watches/add', $door);
+        self::assertSame([], $sections[0]->actions, 'The door is the row; the heading carries no second way out.');
     }
 
     /** An empty request is an empty answer, and never a query. */

@@ -12,17 +12,104 @@
    it has generated and which posts run none at all. That is the half of the
    design that can be drawn from what is stored.
 
-   WHAT IS NOT: the cycle EDITOR — the ring of day buttons, the preset select,
-   the pool picker, the live generated month. It is a write surface with its
-   own Stimulus behaviour, and it lands with the plan sheet it shares its
-   vocabulary with. The register below is not a placeholder for it: it is the
-   design's own third card, whole.
+   AND THE DOOR THAT STARTS ALL OF IT. "New rotation" is the page header's
+   one accent action, exactly where the design puts it, and it opens this
+   same section on a blank declaration rather than a page of its own: a
+   rotation is declared and then edited, and sending somebody elsewhere to
+   do the first half would be two screens for one act.
+
+   THE PICKER IS THE DESIGN'S `.lfilt` ROW, in the house's grouped-dropdown
+   idiom every filter bar in the product wears — every option a real link,
+   so a chosen rotation is a url somebody can send.
    ========================================================================== #}
 {% extends '@UhifadhiRoster/configure/_frame.html.twig' %}
 
+{# THE PAGE HEADER'S ONE ACCENT ACTION, and the frame writes Configure after
+   it. Ruled by the design: creating a rotation is a page-level act, not a
+   footer button and not a card. #}
+{% block shell_page_actions %}
+    {% if mayManage %}
+        <a class="cta" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ROTATION_ROUTE'), {uuid: area.uuid, (constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::NEW_QUERY')): 1}) }}">{{ ux_icon('shell:plus') }} New rotation</a>
+    {% endif %}
+{% endblock %}
+
 {% block roster_section %}
 
-{% if chosen %}
+{# THE ROTATION THIS SECTION IS ON — the design's `.lfilt` row. Every option
+   is a link driving one query parameter, so the choice survives a refresh,
+   the back button undoes it, and the control is closed until it is opened. #}
+{% if rotations|length > 1 %}
+    <div class="lfilt">
+        <details class="i-dd">
+            <summary class="mchip i-ddt">
+                <span class="i-ddval">{{ chosen ? (chosen.station ? chosen.station.name : chosen.teamName)|lower : 'no rotation chosen' }}</span><span class="i-ddcaret">&#9662;</span>
+            </summary>
+            <div class="i-ddmenu" aria-label="Which rotation">
+                <span class="i-ddhead">rotation</span>
+                {% for rotation in rotations %}
+                    <a class="i-ddopt{{ chosen and chosen.uuid == rotation.uuid ? ' on' : '' }}" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ROTATION_ROUTE'), {uuid: area.uuid, rotation: rotation.uuid}) }}"><span class="i-dot"></span><span class="i-ddopt-l">{{ rotation.station ? rotation.station.name : rotation.teamName }}{% if rotation.station and rotation.station.code %} &middot; {{ rotation.station.code }}{% endif %}</span><span class="i-ddopt-n">{{ rotation.pool|length }}</span></a>
+                {% endfor %}
+            </div>
+        </details>
+    </div>
+    <div style="height:12px"></div>
+{% endif %}
+
+{# THE BLANK DECLARATION. A ring is a preset filled with the watches the POST
+   itself declares, so a park that stands an office and a radio night gets a
+   ring in its own words; the pool is whoever the area has posted there, and
+   both are editable the moment this is saved. #}
+{% if declaring and mayManage %}
+    <form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::DECLARE_ROTATION_ROUTE'), {uuid: area.uuid}) }}">
+        <input type="hidden" name="_token" value="{{ csrfToken }}">
+        <div class="c rband">
+            <div class="rb-hd">
+                <span class="tab">New rotation</span>
+                <span class="rb-ttl">the post, the shape of its ring, and who it draws on</span>
+            </div>
+            <div class="rb-body">
+                {% if declarable is empty %}
+                    <div class="rfrag"><b>No post is ready for a ring</b><em>a rotation repeats the watches a post declares, so the post goes on the books and names its watches first &mdash; on the Watches section</em></div>
+                {% else %}
+                    <div class="r-rotrow">
+                        <span class="fldlab">Applies to</span>
+                        <select class="fld" style="max-width:280px" name="station" aria-label="The post this ring stands at">
+                            {% for station in declarable %}
+                                <option value="{{ station.uuidString }}">{{ station.name }}{% if station.code %} &middot; {{ station.code }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <span class="more">a post&rsquo;s cycle stands when its people change &middot; a team&rsquo;s travels with them</span>
+                    </div>
+
+                    <div class="r-rotrow">
+                        <span class="fldlab">A squad</span>
+                        <input class="fld" style="max-width:250px" type="text" name="team_name" aria-label="The squad that carries this ring, if it is a squad&rsquo;s" placeholder="leave empty for the post itself">
+                        <span class="more">named, and the ring is a squad&rsquo;s &mdash; filed at the post above</span>
+                    </div>
+
+                    <div class="r-rotrow">
+                        <span class="fldlab">Preset</span>
+                        <select class="fld" style="max-width:280px" name="preset" aria-label="Cycle preset">
+                            {% for preset in presets %}
+                                <option value="{{ preset.value }}">{{ preset.label }}</option>
+                            {% endfor %}
+                        </select>
+                        <span class="more">a preset writes the ring; the ring is what is saved</span>
+                    </div>
+
+                    <div class="staddrow">
+                        <span class="sp"></span>
+                        <button type="submit" class="cta">Declare the rotation</button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+
+    <div style="height:12px"></div>
+{% endif %}
+
+{% if chosen and not declaring %}
     {# ============================================================
        THE CYCLE EDITOR — FULL ROW, ruled 2026-09-20. A cycle, a pool of
        five and a month cannot be configured in half a column, so the
@@ -61,9 +148,7 @@
                                 <button type="button" class="{{ day == 'off' ? 'o' : 'd' }}" disabled><b>{{ loop.index }}</b><em>{{ day }}</em></button>
                             {% endfor %}
                         </div>
-                        <div class="rfrag" style="border:0;padding:4px 0 0;margin:0">
-                            <b>repeats for ever</b><em>day 1 is <time datetime="{{ chosen.anchoredOn.format('Y-m-d') }}" data-localtime-format="day">{{ chosen.anchoredOn.format('D j M')|lower }}</time> &middot; each person enters the ring one day later than the last</em>
-                        </div>
+                        <span class="more">repeats for ever &middot; day 1 is <time datetime="{{ chosen.anchoredOn.format('Y-m-d') }}" data-localtime-format="day">{{ chosen.anchoredOn.format('D j M')|lower }}</time></span>
                     </div>
                 </div>
 
@@ -118,8 +203,6 @@
                     <span class="more">an edited day is never overwritten by a later run</span>
                 </div>
 
-                <div class="rfrag"><b>Nothing here is presence</b><em>a rotation says who is DUE &middot; who was actually there is the handset&rsquo;s check-in, and this page never writes one</em></div>
-
                 {% if mayManage %}
                     <div class="staddrow"><span class="sp"></span><button type="submit" class="cta">Save the rotation</button></div>
                 {% endif %}
@@ -151,7 +234,6 @@
                 </form>
             {% endif %}
         </div>
-        <div class="rfrag"><b>Today is left alone</b><em>people are already standing today&rsquo;s watches, and regenerating the day underneath them would move somebody who is at a post</em></div>
     </div>
 
     <div style="height:12px"></div>
@@ -199,9 +281,6 @@
                 <tr><td class="fog">{{ station.name }} <span class="mono">{{ station.code ?: '—' }}</span></td><td class="fog" colspan="4">no rotation &mdash; and therefore never a hole</td></tr>
             {% endfor %}
         </table>
-        <div class="rfrag"><b>A post with no rotation is never counted, reported on or called a hole</b><em>the roster works the posts somebody put on its books, and says which ones those are</em></div>
-        <div class="rfrag"><b>Nothing here is presence</b><em>a rotation says who is DUE &middot; who was actually there is the handset&rsquo;s check-in, and this page never writes one</em></div>
-        <div class="rfrag"><b>An edited day is never overwritten by a later run</b><em>the generator steps over a day somebody has touched, whole &mdash; it does not merge or fill the gaps</em></div>
     </div>
 </div>
 {% endblock %}

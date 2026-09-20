@@ -15,6 +15,8 @@ Each deliberate modelling choice, **why**, and **the trigger that reopens it**
 - [A per-team rotation is filed at its base post](#a-per-team-rotation-is-filed-at-its-base-post)
 - [Thresholds are starting values, not settings](#thresholds-are-starting-values-not-settings)
 - [Leave has no approval in v1](#leave-has-no-approval-in-v1)
+- [A preset is a shape, and the post's own watches fill it](#a-preset-is-a-shape-and-the-posts-own-watches-fill-it)
+- [Two doors put a post on the books, and neither is the seeder](#two-doors-put-a-post-on-the-books-and-neither-is-the-seeder)
 - [What the design asks for that nothing can answer yet](#what-the-design-asks-for-that-nothing-can-answer-yet)
 
 ## The scaffold was reconciled, not preserved
@@ -365,6 +367,52 @@ state a plan as a fact. So the presence read is asked for exactly one day.
 answered swap marks nothing: accepted has already moved the duty, and
 declined or withdrawn changed nothing, so the grid shows the roster as it is
 rather than remembering a conversation.
+
+## A preset is a shape, and the post's own watches fill it
+
+**Decision.** `RotationPreset` stores no shift key. Each case is a SHAPE —
+one of each watch then a day off, two of each then a day off, four on four
+off, ten on four off, a weekly set — and `ringFor()` fills it with the shift
+keys the POST itself declares.
+
+**Why.** The design draws its presets in one park's vocabulary: "2 days, 2
+nights, 1 off — 5-day". A module that shipped those words would offer five
+rings to a park that stands an `office` watch and a `radio night` and can use
+none of them, and the shift vocabulary is already ruled to be the area's own
+list. A shape survives that; a word does not.
+
+**And nothing is stored.** A preset is a way of choosing a ring, exactly as a
+horizon preset is a way of choosing a number of days. Keeping the choice
+would make an old rotation change shape the day somebody edited a preset.
+
+**Reopens if** an installation wants named house patterns of its own — that
+is configuration, and it would arrive the way the shift vocabulary did: a
+seed in `roster.*` config, an area's list after that.
+
+## Two doors put a post on the books, and neither is the seeder
+
+**Decision.** `StationWatchService::addToRoster()` is reached from the
+Watches section's add row and from the Roster block on the AREA's own
+Stations configure card. `RotationEditor::declareForPost()` is reached from
+the page header's "New rotation".
+
+**Why.** This is recorded because its absence was a shipped defect, not a
+gap in a plan. Every piece of the duty flow had a green test and the flow
+could not start: the only caller of `addToRoster()` in the whole module was
+the demo seeder, and rotations were built by hand in fixtures. A capability
+with no door is a capability an installation does not have, and a suite that
+seeds the state a door would have written cannot see it — which is why
+`TheDutyFlowStartsTest` starts from an area with nothing and presses the
+screens.
+
+**One write, two doors, and neither owns the other.** The card door says
+where it came from with one known word and the redirect is generated from a
+route name, never from a submitted address.
+
+**Reopens if** a post should ever join the books implicitly — for instance
+when the area first posts somebody at it. It is deliberately NOT that today:
+the area may register twelve posts and mean to work four, and an accidental
+row would put a post on the books nobody meant to be watching.
 
 ## What the design asks for that nothing can answer yet
 

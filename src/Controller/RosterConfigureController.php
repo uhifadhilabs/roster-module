@@ -28,8 +28,10 @@ use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Uid\Uuid;
 use Twig\Environment;
+use Uhifadhi\Bundle\AreaBundle\Controller\StationConfigureController;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
+use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
 use Uhifadhi\Bundle\AreaBundle\Service\StationService;
@@ -38,6 +40,7 @@ use Uhifadhi\Roster\Entity\RotationPoolMember;
 use Uhifadhi\Roster\Entity\StationWatch;
 use Uhifadhi\Roster\Enum\LateThreshold;
 use Uhifadhi\Roster\Enum\RestRule;
+use Uhifadhi\Roster\Enum\RotationPreset;
 use Uhifadhi\Roster\Enum\VacancyAnnounce;
 use Uhifadhi\Roster\Model\RotationDraft;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
@@ -84,6 +87,15 @@ final class RosterConfigureController
     public const string WATCHES_ROUTE = 'roster_configure_watches';
     public const string SETTINGS_ROUTE = 'roster_configure_settings';
 
+    /** PUT A POST ON THE BOOKS — the door the Watches section's add row opens. */
+    public const string ADD_TO_ROSTER_ROUTE = 'roster_configure_watches_add';
+
+    /** DECLARE A ROTATION — the door the page header's "New rotation" opens. */
+    public const string DECLARE_ROTATION_ROUTE = 'roster_configure_rotation_declare';
+
+    /** The query that opens the rotation section on a blank declaration. */
+    public const string NEW_QUERY = 'new';
+
     public const string SAVE_ROTATION_ROUTE = 'roster_configure_rotation_save';
     public const string GENERATE_ROTATION_ROUTE = 'roster_configure_rotation_generate';
     public const string SAVE_WATCHES_ROUTE = 'roster_configure_watches_save';
@@ -102,6 +114,13 @@ final class RosterConfigureController
     /** One token id for the whole configure page; each form carries it. */
     public const string CSRF_TOKEN_ID = 'roster_configure';
 
+    /**
+     * THE ONE WORD A DOOR ON THE AREA'S OWN STATIONS CARD SENDS, so that it
+     * returns to the card it was pressed on. It is a name and not an
+     * address: see {@see backFrom()}.
+     */
+    public const string BACK_TO_THE_STATION = 'station';
+
     public function __construct(
         private readonly Environment $twig,
         private readonly UrlGeneratorInterface $router,
@@ -110,6 +129,10 @@ final class RosterConfigureController
         private readonly ShiftVocabularyService $shifts,
         private readonly StationWatchService $watches,
         private readonly StationRepository $stations,
+        // WHO STANDS AT A POST — the ring a new rotation starts with draws
+        // on the people the AREA posted there, which is the only list this
+        // module could honestly seed a pool from.
+        private readonly PostingRepository $postings,
         // THE POST'S OWN CATCHMENT is the column verification measures a
         // ping against, and the area owns the verb that writes it.
         private readonly StationService $stationDesk,
@@ -151,8 +174,119 @@ final class RosterConfigureController
             // reported on or called a hole" is only trustworthy if the page
             // says which posts it means.
             'postsWithoutARotation' => $this->postsWithoutARotation($area),
+            // THE BLANK DECLARATION, opened by the page header's one accent
+            // action. It is a STATE of this section rather than a page of
+            // its own: a rotation is declared and then edited, and sending
+            // somebody to a second address to do the first half would be
+            // two screens for one act.
+            'declaring' => $request->query->has(self::NEW_QUERY) || [] === $rotations,
+            // WHAT A RING MAY BE DECLARED FOR: a post already on the books.
+            // A post with no watch has no shifts for a ring to repeat, so
+            // it is not offered — the Watches section is where that is
+            // fixed, and the section strip is two clicks away.
+            'declarable' => $this->declarablePosts($area),
+            'presets' => RotationPreset::cases(),
             'mayManage' => $this->authorization->isGranted(self::MANAGE_PERMISSION, $area),
         ]));
+    }
+
+    /**
+     * PUT A POST ON THE ROSTER'S BOOKS — the one write that makes this
+     * module work a post at all.
+     *
+     * IT IS DELIBERATE AND IT IS SMALL. The post arrives with the area's
+     * default ring and no shift at all, which is exactly the honest state:
+     * this module now keeps the post, and has not yet been told what it
+     * stands. Everything after that is the Watches row itself.
+     *
+     * TWO DOORS, ONE WRITE. The Watches section's add row and the Roster
+     * block on the area's own Stations configure card both post here, and
+     * the second says so with `back` so it returns to the card it was
+     * pressed on rather than to a page nobody asked for.
+     */
+    #[Route('/areas/{uuid}/modules/roster/watches/add', name: self::ADD_TO_ROSTER_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function addToRoster(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardWrite($area, $request);
+
+        $station = $this->stationIn($area, $request->request->get('station'));
+        if (null === $station) {
+            self::flash($request, 'error', 'That post is not one of this area’s, so it cannot go on this area’s books.');
+
+            return $this->backFrom($request, $area, null);
+        }
+
+        $this->watches->addToRoster($station);
+
+        self::flash($request, 'success', \sprintf(
+            '%s is on the roster’s books. Name the watches it stands, and it starts being counted.',
+            $station->getName(),
+        ));
+
+        return $this->backFrom($request, $area, $station);
+    }
+
+    /**
+     * DECLARE A ROTATION — what the page header's "New rotation" writes.
+     *
+     * THE RING IS THE PRESET FILLED WITH THE POST'S OWN WATCHES, and the
+     * pool is whoever the area has posted there. Both are a starting point
+     * and both are editable the moment the redirect lands: the point of the
+     * door is that a post with a watch stops being a post that can never
+     * generate anything.
+     */
+    #[Route('/areas/{uuid}/modules/roster/rotation/new', name: self::DECLARE_ROTATION_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function declareRotation(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardWrite($area, $request);
+
+        $station = $this->stationIn($area, $request->request->get('station'));
+        $preset = RotationPreset::tryFrom((string) $request->request->get('preset')) ?? RotationPreset::OneOfEachThenOff;
+
+        if (null === $station) {
+            self::flash($request, 'error', 'A rotation stands at a post, and that one is not on this area’s books.');
+
+            return $this->backTo(self::ROTATION_ROUTE, $area);
+        }
+
+        $watch = $this->watches->forStation($station);
+        if (null === $watch) {
+            self::flash($request, 'error', \sprintf('%s is not on the roster’s books yet, so there is no watch for a ring to repeat.', $station->getName()));
+
+            return $this->backTo(self::ROTATION_ROUTE, $area);
+        }
+
+        $pool = [];
+        foreach ($this->postings->findStandingByStation($station) as $posting) {
+            $person = $posting->getPerson();
+            if (null !== $person) {
+                $pool[] = $person;
+            }
+        }
+
+        try {
+            $teamName = trim((string) $request->request->get('team_name'));
+
+            $rotation = '' === $teamName
+                ? $this->editor->declareForPost($station, $watch->getExpects(), $preset, $pool)
+                : $this->editor->declareForTeam($teamName, $station, $watch->getExpects(), $preset, $pool);
+        } catch (\InvalidArgumentException $refused) {
+            self::flash($request, 'error', $refused->getMessage());
+
+            return $this->backTo(self::ROTATION_ROUTE, $area);
+        }
+
+        self::flash($request, 'success', \sprintf(
+            'The rotation is declared — a %d-day ring drawing on %d. Generate it, and the days it produces reach the plan sheet and the handsets.',
+            $rotation->getCycle()->length(),
+            $rotation->getPool()->count(),
+        ));
+
+        return $this->backTo(self::ROTATION_ROUTE, $area, ['rotation' => $rotation->getUuid()->toRfc4122()]);
     }
 
     #[Route('/areas/{uuid}/modules/roster/watches', name: self::WATCHES_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['GET'])]
@@ -411,6 +545,67 @@ final class RosterConfigureController
             $this->stations->findByArea($area),
             static fn (Station $station): bool => !isset($onTheBooks[(string) $station->getId()]),
         ));
+    }
+
+    /**
+     * ONE OF THIS AREA'S POSTS, BY UUID — and nothing else.
+     *
+     * THE AREA IS PART OF THE LOOKUP, not a check after it. A uuid out of a
+     * form names any post in the installation, and a write that trusted it
+     * would let a form posted from one park's configure page put another
+     * park's gate on these books.
+     */
+    private function stationIn(AreaOfInterest $area, mixed $uuid): ?Station
+    {
+        if (!\is_string($uuid) || !Uuid::isValid($uuid)) {
+            return null;
+        }
+
+        $station = $this->stations->findOneBy(['uuid' => Uuid::fromString($uuid)]);
+
+        return $station instanceof Station && $station->getArea()?->getId() === $area->getId() ? $station : null;
+    }
+
+    /**
+     * WHERE A DOOR PRESSED SOMEWHERE ELSE GOES BACK TO.
+     *
+     * A NAME, NEVER A URL. The Roster block on the area's Stations configure
+     * card posts here too, and it says where it came from with one known
+     * word — anything else in that field is the Watches section, because a
+     * redirect built from a submitted address is an open redirect however
+     * politely it is asked.
+     */
+    private function backFrom(Request $request, AreaOfInterest $area, ?Station $station): RedirectResponse
+    {
+        if (self::BACK_TO_THE_STATION === $request->request->get('back')) {
+            return new RedirectResponse($this->router->generate(
+                StationConfigureController::ROUTE,
+                ['uuid' => (string) $area->getUuidString()]
+                    + (null === $station ? [] : [StationConfigureController::OPEN_QUERY => (string) $station->getUuidString()]),
+            ));
+        }
+
+        return $this->backTo(self::WATCHES_ROUTE, $area);
+    }
+
+    /**
+     * THE POSTS A RING MAY BE DECLARED FOR — on the books, standing at least
+     * one watch, and not already running one.
+     *
+     * @return list<Station>
+     */
+    private function declarablePosts(AreaOfInterest $area): array
+    {
+        $posts = [];
+        foreach ($this->watches->forArea($area) as $watch) {
+            $station = $watch->getStation();
+
+            if (!$watch->expectsNothing() && null === $this->rotations->findOneForStation($station)) {
+                $posts[] = $station;
+            }
+        }
+
+        return $posts;
     }
 
     /**
