@@ -18,6 +18,8 @@ use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\ShellBundle\Widget\Model\WidgetDom;
 use Uhifadhi\Roster\Controller\RosterController;
 use Uhifadhi\Roster\Controller\RosterWidgetsController;
+use Uhifadhi\Roster\Widget\RosterRailWidgets;
+use Uhifadhi\Roster\Widget\RosterWidgets;
 
 /**
  * EVERY URL THE SHELL'S LIBRARY COMPONENT NEEDS, named once.
@@ -43,12 +45,16 @@ final readonly class RosterWidgetUrls
      * preset card that only exists after a click has no server-rendered
      * href to read.
      *
+     * EVERY URL NAMES ITS SURFACE. The module has two compositions and one
+     * library page, so a write that did not say which one it wrote would be
+     * a write the server had to guess at.
+     *
      * @return array<string, string>
      */
-    public function forArea(AreaOfInterest $area): array
+    public function forArea(AreaOfInterest $area, string $surface = RosterWidgets::SURFACE): array
     {
         $id = WidgetDom::ID_PLACEHOLDER;
-        $uuid = ['uuid' => (string) $area->getUuidString()];
+        $uuid = ['uuid' => (string) $area->getUuidString(), 'surface' => $surface];
         $url = fn (string $route, array $extra = []): string => $this->router->generate($route, [...$uuid, ...$extra]);
 
         return [
@@ -60,7 +66,13 @@ final readonly class RosterWidgetUrls
             'apply' => $url(RosterWidgetsController::PRESET_APPLY_ROUTE, ['presetUuid' => $id]),
             'rename' => $url(RosterWidgetsController::PRESET_RENAME_ROUTE, ['presetUuid' => $id]),
             'delete' => $url(RosterWidgetsController::PRESET_DELETE_ROUTE, ['presetUuid' => $id]),
-            'dashboard' => $url(RosterController::OVERVIEW_ROUTE),
+            // WHERE THE COMPOSITION IS ACTUALLY SEEN: the dashboard for one,
+            // the Live tab for the other. The library's "back to it" door is
+            // only useful if it opens the thing being arranged.
+            'dashboard' => $this->router->generate(
+                RosterRailWidgets::SURFACE === $surface ? RosterController::LIVE_ROUTE : RosterController::OVERVIEW_ROUTE,
+                ['uuid' => (string) $area->getUuidString()],
+            ),
         ];
     }
 }

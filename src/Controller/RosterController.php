@@ -564,8 +564,8 @@ final class RosterController
                 'centre' => $centre,
             ];
             $context = match ($id) {
-                'stations' => ['list' => $stations, ...$common],
-                'zones' => ['list' => $zones, ...$common],
+                'stations' => ['stations' => $stations, ...$common],
+                'zones' => ['zones' => $zones, ...$common],
                 default => ['rail' => $people, 'people' => self::railPeople($people), ...$common],
             };
 

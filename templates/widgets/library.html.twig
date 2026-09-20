@@ -43,57 +43,35 @@
 {% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / configure / widgets{% endblock %}
 
 {% block shell_page_actions %}
-    {# Throwing the whole composition away asks first — through the shell's
-       reusable confirm modal, never the browser's own dialog. #}
-    <button type="button" class="tgl w-act" {{ constant('Uhifadhi\\Bundle\\ShellBundle\\Widget\\Model\\WidgetDom::RESET') }}
+    {# ONE RESET PER SURFACE, EACH NAMING ITS OWN. A page with two libraries
+       has two compositions to throw away, and a button that did not say
+       which one it resets is not a button anything can act on safely — the
+       framework ignores a bare one here for exactly that reason.
+
+       Throwing a composition away asks first, through the shell's reusable
+       confirm modal and never the browser's own dialog. #}
+    <button type="button" class="tgl w-act" {{ constant('Uhifadhi\\Bundle\\ShellBundle\\Widget\\Model\\WidgetDom::RESET') }}="{{ constant('Uhifadhi\\Roster\\Widget\\RosterWidgets::SURFACE') }}"
             {{ stimulus_controller('confirm-modal') }}
             data-action="click->confirm-modal#ask"
-            data-confirm-modal-title-value="Reset your widget layout?"
-            data-confirm-modal-message-value="This area's roster dashboard goes back to the composition the module ships with. Your own designs are kept, and your other areas are untouched."
-            data-confirm-modal-confirm-label-value="Reset layout"
-            data-confirm-modal-danger-value="true">{{ ux_icon('shell:rotate-ccw') }}Reset to defaults</button>
+            data-confirm-modal-title-value="Reset the dashboard layout?"
+            data-confirm-modal-message-value="This area's roster dashboard goes back to the composition the module ships with. Your own designs are kept, the plate rail is untouched, and your other areas are untouched."
+            data-confirm-modal-confirm-label-value="Reset the dashboard"
+            data-confirm-modal-danger-value="true">{{ ux_icon('shell:rotate-ccw') }}Reset the dashboard</button>
+    <button type="button" class="tgl w-act" {{ constant('Uhifadhi\\Bundle\\ShellBundle\\Widget\\Model\\WidgetDom::RESET') }}="{{ constant('Uhifadhi\\Roster\\Widget\\RosterRailWidgets::SURFACE') }}"
+            {{ stimulus_controller('confirm-modal') }}
+            data-action="click->confirm-modal#ask"
+            data-confirm-modal-title-value="Reset the plate rail?"
+            data-confirm-modal-message-value="The Live tab's rail goes back to the lists the module ships with. Your own designs are kept, the dashboard is untouched, and your other areas are untouched."
+            data-confirm-modal-confirm-label-value="Reset the rail"
+            data-confirm-modal-danger-value="true">{{ ux_icon('shell:rotate-ccw') }}Reset the rail</button>
 {% endblock %}
 
 {% block roster_section %}
-    <div class="rfrag"><b>The directions are presets, not pages</b><em>the roster was drawn five ways &mdash; as a day board, station first, a week planner, the people, and right now. None became a screen of its own: each is a headed section below and a design that composes it. Adopt one, copy it, then pull a widget out of another into your copy.</em></div>
+    {# THE PAGE IS ONLY CHROME. Everything below is the shell's own preset
+       component, given BOTH of this module's surfaces: one house section
+       each, each with its own catalogue, presets, routes and token.
+ #}
+    <div class="rfrag"><b>Two compositions, one place to change them</b><em>the roster&rsquo;s Overview is a page of cards and the Live tab&rsquo;s rail is a column of lists. They share the mechanism and nothing else, and both are arranged here.</em></div>
 
-    {{ include('@Shell/widget/_library.html.twig', {
-        catalog: catalog,
-        builtins: builtins,
-        customPresets: customPresets,
-        active: active,
-        widgets: widgets,
-        partial: partial,
-        widgetContext: widgetContext,
-        urls: urls,
-        csrfToken: csrfToken,
-    }, with_context: false) }}
-
-    {# THE SECOND SURFACE ON THIS PAGE. The Live tab's rail composes a
-       COLUMN out of lists where the dashboard composes a page out of
-       cards; they share the mechanism and nothing else, which is exactly
-       what a surface is for. Both are declared here because this is the
-       module's library, and a person arranging one will want the other.
-
-       THE ANCHOR IS THE RAIL'S OWN DOOR: the Live tab links `#rail`. #}
-    <h2 class="zone" id="rail">The Live tab&rsquo;s plate rail</h2>
-    <p class="pgsub">The column beside <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::LIVE_ROUTE'), {uuid: area.uuid}) }}">the Live tab</a>&rsquo;s plate is a widget surface of its own, and the lists it carries are widgets. Adopt one of the three arrangements this module ships, or compose your own &mdash; the rail is one column wide, so every widget in it is full width.</p>
-
-    <div class="c">
-        <span class="tab">{{ railCatalog.surface }}<span class="src">&middot; {{ railWidgets|length }} lists &middot; {{ railCatalog.presets|length }} arrangements</span></span>
-        {% for preset in railCatalog.presets %}
-            <div class="rset">
-                <span class="lb"><b>{{ preset.label }}</b><em>{{ preset.layout|keys|join(' · ') }}</em></span>
-                <span class="ct">
-                    <a class="mchip{{ preset.id == railActive ? ' on' : '' }}"
-                       href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::RAIL_PRESET_ROUTE'), {uuid: area.uuid, presetId: preset.id}) }}">{{ preset.id == railActive ? 'in force' : 'adopt' }}</a>
-                </span>
-                <span class="why">{{ preset.description }}</span>
-            </div>
-        {% endfor %}
-
-        {% for widget in railWidgets %}
-            <div class="rfrag"><b>{{ widget.label }}</b><em>{{ widget.note }}</em></div>
-        {% endfor %}
-    </div>
+    {{ include('@Shell/widget/_library.html.twig', {surfaces: surfaces}, with_context: false) }}
 {% endblock %}

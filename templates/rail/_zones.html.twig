@@ -3,8 +3,8 @@
    THE SWATCH IS A CATEGORY POSITION AND NEVER A COLOUR: the zone's place in
    the set picks the house's nth category token, so the same position gives
    the same token here and on the plate. This module names no value. #}
-{{ include('@UhifadhiRoster/rail/_cell.html.twig', {id: list.id, label: list.label, count: list.count, position: position, total: total, mayCompose: mayCompose}, with_context: false) }}
-{% for section in list.sections %}
+{{ include('@UhifadhiRoster/rail/_cell.html.twig', {id: zones.id, label: zones.label, count: zones.count, position: position, total: total, mayCompose: mayCompose}, with_context: false) }}
+{% for section in zones.sections %}
     <div class="grp gsub">{{ section.label }}</div>
     {% for row in section.rows %}
         {% if row.centres %}

@@ -28,6 +28,7 @@ use Uhifadhi\Roster\Enum\RotationScope;
 use Uhifadhi\Roster\Model\Cycle;
 use Uhifadhi\Roster\Service\StationWatchService;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
+use Uhifadhi\Roster\Widget\RosterRailWidgets;
 use Uhifadhi\Roster\Widget\RosterWidgets;
 
 /**
@@ -217,5 +218,108 @@ use Uhifadhi\Roster\Widget\RosterWidgets;
 
         self::assertContains('Widget library', $labels);
         self::assertSame('Widget library', $labels[0] ?? null, 'It is the FIRST section of the configure page.');
+    }
+
+    /**
+     * A MODULE WITH TWO SURFACES HAS ONE LIBRARY PAGE, A SECTION EACH.
+     *
+     * TWO LIBRARY PAGES WOULD BE TWO ANSWERS to "where do I change my
+     * widgets", so the roster's Overview and the Live tab's plate rail are
+     * arranged in one place — each in a house section, each with its own
+     * catalogue, its own presets and its own write routes.
+     */
+    public function testBothOfThisModulesSurfacesAreOnTheOneLibraryPage(): void
+    {
+        $crawler = $this->open();
+
+        $sections = $crawler->filter('section.w-surface');
+        self::assertCount(2, $sections, 'One section per surface, and the module has two.');
+
+        self::assertSame(
+            ['The module dashboard', 'The Live tab’s plate rail'],
+            $sections->each(static fn (\Symfony\Component\DomCrawler\Crawler $s): string => html_entity_decode(trim($s->filter('h2.zone')->text()))),
+            'The house section, in the order the page reads.',
+        );
+
+        foreach ($sections as $section) {
+            self::assertNotSame('', trim(new \Symfony\Component\DomCrawler\Crawler($section)->filter('p.pgsub')->text()), 'Each section says what it is.');
+        }
+    }
+
+    /**
+     * EACH SECTION IS ITS OWN COMPOSITION: its own catalogue, its own
+     * presets, and its own write routes. A token or a save URL shared
+     * between them would let an arrangement of one be written over the
+     * other.
+     */
+    public function testEachSurfaceCarriesItsOwnCatalogueAndItsOwnWriteRoutes(): void
+    {
+        $crawler = $this->open();
+
+        $roots = $crawler->filter('[data-widget-root]');
+        self::assertCount(2, $roots, 'One library root per surface.');
+
+        $saves = $roots->each(static fn (\Symfony\Component\DomCrawler\Crawler $r): string => (string) $r->attr('data-widget-save-url'));
+        self::assertStringContainsString('/'.RosterWidgets::SURFACE.'/save', $saves[0]);
+        self::assertStringContainsString('/'.RosterRailWidgets::SURFACE.'/save', $saves[1]);
+        self::assertNotSame($saves[0], $saves[1], 'A save for one surface is not a save for the other.');
+
+        $tokens = $roots->each(static fn (\Symfony\Component\DomCrawler\Crawler $r): string => (string) $r->attr('data-widget-csrf-token'));
+        self::assertNotSame($tokens[0], $tokens[1], 'And a token good for one is not good for the other.');
+    }
+
+    /**
+     * THE RAIL'S THREE LISTS AND ITS THREE ARRANGEMENTS ARE IN THE LIBRARY,
+     * and the lists are the REAL ones — the same partials the Live tab
+     * includes, on this minute's reading.
+     */
+    public function testTheRailsListsAndArrangementsRenderFromTheLibrary(): void
+    {
+        $crawler = $this->open();
+        $rail = $crawler->filter('section.w-surface')->eq(1);
+        $text = html_entity_decode($rail->text());
+
+        $catalog = RosterRailWidgets::declaration();
+        self::assertSame(['people', 'stations', 'zones'], $catalog->ids());
+        foreach ($catalog->ids() as $id) {
+            self::assertStringContainsString(html_entity_decode($catalog->get($id)->label), $text, \sprintf('The library does not draw "%s".', $id));
+        }
+
+        foreach ($catalog->presets() as $preset) {
+            self::assertStringContainsString(html_entity_decode($preset->label), $text);
+        }
+
+        // AND THE TWIN IS THE LIST, not a drawing of one: the stations
+        // partial's own row, on the post the fixture registers.
+        self::assertGreaterThan(0, $rail->filter('.fg-stn')->count(), 'The preview is the real list.');
+        self::assertStringContainsString('north gate post', $text);
+    }
+
+    /**
+     * A LIBRARY IS NOT THE SURFACE. The order marks and the way out of the
+     * rail belong to the rail itself; here they would be controls on a
+     * picture, and one of them would take a list out of a column the
+     * person is looking at somewhere else.
+     */
+    public function testTheRailsTwinsCarryNoneOfTheRailsOwnControls(): void
+    {
+        $rail = $this->open()->filter('section.w-surface')->eq(1);
+
+        self::assertCount(0, $rail->filter('.rl-cellhd .ord button'));
+        self::assertCount(0, $rail->filter('.rl-cellhd button.rm'));
+    }
+
+    /**
+     * AND EACH SURFACE HAS ITS OWN RESET, NAMING ITSELF. A button that does
+     * not say which composition it throws away is not one anything can act
+     * on safely, and the framework ignores a bare one on a page with two.
+     */
+    public function testEachSurfaceHasItsOwnResetNamingItself(): void
+    {
+        $crawler = $this->open();
+
+        self::assertCount(1, $crawler->filter('[data-widget-reset="'.RosterWidgets::SURFACE.'"]'));
+        self::assertCount(1, $crawler->filter('[data-widget-reset="'.RosterRailWidgets::SURFACE.'"]'));
+        self::assertCount(0, $crawler->filter('[data-widget-reset=""]'), 'No bare reset on a page with two libraries.');
     }
 }

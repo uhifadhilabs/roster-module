@@ -6,8 +6,8 @@
 
    EVERY ROW CENTRES THE PLATE ON THE POST IT NAMES — and a post with no
    point is INERT AND UNMARKED rather than a link that does nothing. #}
-{{ include('@UhifadhiRoster/rail/_cell.html.twig', {id: list.id, label: list.label, count: list.count, position: position, total: total, mayCompose: mayCompose}, with_context: false) }}
-{% for section in list.sections %}
+{{ include('@UhifadhiRoster/rail/_cell.html.twig', {id: stations.id, label: stations.label, count: stations.count, position: position, total: total, mayCompose: mayCompose}, with_context: false) }}
+{% for section in stations.sections %}
     <div class="grp gsub">{{ section.label }}</div>
     {% for row in section.rows %}
         {% if row.centres %}

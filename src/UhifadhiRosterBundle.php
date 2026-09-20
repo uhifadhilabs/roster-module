@@ -530,6 +530,10 @@ final class UhifadhiRosterBundle extends AbstractBundle
                     service('roster.dashboard'),
                     service('roster.identity'),
                     service('router'),
+                    service('roster.live'),
+                    service('roster.presence'),
+                    service(LivePositionsInterface::class),
+                    service(ShiftRepository::class),
                 ])
                 ->public();
             $services->alias(RosterWidgetsController::class, 'roster.controller.widgets')->public();
