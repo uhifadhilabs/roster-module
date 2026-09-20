@@ -1,0 +1,26 @@
+{# Widget "stations" — one row per post the AREA registers.
+
+   THE POSTS LEFT THE LEGEND TO GET HERE. A legend is a key to what is
+   drawn; "which post has how many people on it right now" is not a key, it
+   is the answer, and a key that carried answers would grow with the park.
+
+   EVERY ROW CENTRES THE PLATE ON THE POST IT NAMES — and a post with no
+   point is INERT AND UNMARKED rather than a link that does nothing. #}
+{{ include('@UhifadhiRoster/rail/_cell.html.twig', {list: list, position: position, total: total}, with_context: false) }}
+{% for section in list.sections %}
+    <div class="grp gsub">{{ section.label }}</div>
+    {% for row in section.rows %}
+        {% if row.centres %}
+            <a class="fg-stn{{ row.quiet ? ' quiet' : '' }}" href="?centre={{ row.centre }}">
+        {% else %}
+            <div class="fg-stn{{ row.quiet ? ' quiet' : '' }}">
+        {% endif %}
+            <span class="nm">{{ row.name }}<em>{{ row.detail }}</em></span>
+            <span class="lv{{ row.live == 0 ? ' none' : '' }}">
+                {%- if row.live > 0 %}<i class="livedot"></i>{% endif %}{{ row.live }} live
+                {%- if row.wrong %}<em>{{ row.wrong }}</em>{% endif -%}
+            </span>
+            {% if row.centres %}<span class="loc">{{ ux_icon('roster:locate') }}</span>{% endif %}
+        {% if row.centres %}</a>{% else %}</div>{% endif %}
+    {% endfor %}
+{% endfor %}

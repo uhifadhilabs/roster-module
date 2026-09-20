@@ -19,15 +19,14 @@ use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\AreaPlateService;
 use Uhifadhi\Bundle\AreaBundle\Service\ZoneSetService;
 use Uhifadhi\Bundle\AtlasBundle\Model\AtlasMap;
-use Uhifadhi\Bundle\AtlasBundle\Model\GeoJsonLayer;
-use Uhifadhi\Bundle\AtlasBundle\Model\LayerShape;
 use Uhifadhi\Contracts\Area\DayState;
-use Uhifadhi\Contracts\Area\LivePosition;
 use Uhifadhi\Contracts\Area\LivePresence;
 use Uhifadhi\Roster\Model\LiveFigures;
 use Uhifadhi\Roster\Model\LiveRailGroup;
 use Uhifadhi\Roster\Model\PostPresence;
 use Uhifadhi\Roster\Model\PostState;
+use Uhifadhi\Roster\Model\RailList;
+use Uhifadhi\Roster\Model\RailRow;
 use Uhifadhi\Roster\Model\RosteredPerson;
 
 /**
@@ -58,15 +57,6 @@ use Uhifadhi\Roster\Model\RosteredPerson;
  */
 final readonly class RosterLiveService
 {
-    /** The key's heading for everything this module puts on the plate. */
-    public const string GROUP = 'Roster presence states';
-
-    /** The layer ids, namespaced with this module's own word. */
-    public const string LAYER_PREFIX = 'roster.presence.';
-
-    /** The one layer that is not a state: a fix older than the area allows. */
-    public const string STALE_LAYER = self::LAYER_PREFIX.'stale';
-
     public function __construct(
         private AreaPlateService $plates,
         private ZoneSetService $zones,
@@ -82,7 +72,7 @@ final readonly class RosterLiveService
      * rings and the same posts a reader saw on the Stations tab, so nobody
      * has to learn a second map. Only the presence layers are ours.
      */
-    public function plate(AreaOfInterest $area, LivePresence $live): AtlasMap
+    public function plate(AreaOfInterest $area, LivePresence $live, int $withoutPosition = 0): AtlasMap
     {
         $view = $this->zones->view($area);
 
@@ -107,110 +97,19 @@ final readonly class RosterLiveService
 
         $map = $this->plates->stationsPlate($area, $view->rows, $posts);
 
-        // ONE LAYER PER STATE, and a sixth for the fixes that are too old.
-        // Separate layers rather than one coloured by a property, because
-        // the key's rows are what a reader switches — "show me only the
-        // unverified" is the question this plate is opened with.
-        foreach (self::states() as $state => [$label, $swatch]) {
-            $features = [];
-            foreach ($live->positions as $position) {
-                if ($position->state->value === $state && !$live->isStale($position)) {
-                    $features[] = self::marker($position, $live);
-                }
-            }
-
-            $map->addLayer(new GeoJsonLayer(
-                id: self::LAYER_PREFIX.$state,
-                label: $label,
-                features: self::collection($features),
-                swatch: $swatch,
-                shape: LayerShape::Point,
-                visible: [] !== $features,
-                count: \count($features),
-                group: self::GROUP,
-                tooltip: 'label',
-            ));
-        }
-
-        $stale = [];
-        foreach ($live->positions as $position) {
-            if ($live->isStale($position)) {
-                $stale[] = self::marker($position, $live);
-            }
-        }
-
-        // A STALE FIX IS DRAWN, NEVER DROPPED. Where somebody was an hour
-        // ago is a fact worth having on the ground; what it must not do is
-        // wear the colour of a fresh one and be read as where they are.
-        $map->addLayer(new GeoJsonLayer(
-            id: self::STALE_LAYER,
-            label: \sprintf('ping older than the interval · %d min', $live->pingIntervalMinutes),
-            features: self::collection($stale),
-            swatch: 'var(--plate-fail)',
-            shape: LayerShape::Point,
-            visible: [] !== $stale,
-            count: \count($stale),
-            group: self::GROUP,
-            tooltip: 'label',
-        ));
+        // WHERE PEOPLE ARE, DRAWN BY THE ATLAS. One call adds the live
+        // layer AND the key that must come with it — live, stale, and the
+        // people this read had no fix for at all, who are on no layer and
+        // would otherwise go unmentioned.
+        //
+        // THIS MODULE NAMES NO COLOUR, NO SIZE AND NO TYPEFACE. The mark is
+        // the house's `.livedot` component; staleness is the ANSWER's, from
+        // LivePresence::isStale at two ping intervals, never a threshold of
+        // ours. All the roster contributes is the positions and the count
+        // of the people missing from them.
+        $map->livePositions($live, $withoutPosition);
 
         return $map;
-    }
-
-    /**
-     * THE STATES A MARKER MAY WEAR, in the key's own order, each with the
-     * PLATE token it is drawn in.
-     *
-     * VERIFIED IS ABSENT FROM NOTHING HERE, but it will be empty in every
-     * installation until the core grows a writer for a post's catchment —
-     * the same gap the configure page flags. The row still ships, because a
-     * key that hid a state would make its absence look like a decision.
-     *
-     * @return array<string, array{string, string}>
-     */
-    public static function states(): array
-    {
-        return [
-            DayState::AtPostVerified->value => ['at post · verified', 'var(--plate-ok)'],
-            DayState::AtPostUnverified->value => ['at post · unverified', 'var(--plate-warn)'],
-            DayState::Special->value => ['special assignment', 'var(--plate-acc)'],
-            DayState::WorkingElsewhere->value => ['working elsewhere', 'var(--plate-acc)'],
-            DayState::NotWorking->value => ['not working', 'var(--plate-dim)'],
-        ];
-    }
-
-    /**
-     * ONE PERSON, ONE POINT. Never a trail: a line of where somebody has
-     * been is a patrol track, and drawing one here would answer a question
-     * this tab is not asking with data the area publishes for another.
-     *
-     * @return array<string, mixed>
-     */
-    private static function marker(LivePosition $position, LivePresence $live): array
-    {
-        return [
-            'type' => 'Feature',
-            'geometry' => ['type' => 'Point', 'coordinates' => [$position->longitude, $position->latitude]],
-            'properties' => [
-                'id' => $position->personUuid,
-                'label' => \sprintf(
-                    '%s · %s · %s',
-                    $position->personName,
-                    $position->stationName ?? 'no post',
-                    self::age($position->ageSeconds($live->asOf)),
-                ),
-            ],
-        ];
-    }
-
-    /**
-     * @param list<array<string, mixed>> $features
-     *
-     * @return array<string, mixed>
-     */
-    private static function collection(array $features): array
-    {
-        return ['type' => 'FeatureCollection', 'features' => $features];
     }
 
     /**
@@ -275,6 +174,178 @@ final readonly class RosterLiveService
         }
 
         return $rail;
+    }
+
+    /**
+     * THE STATIONS LIST — one row per post the AREA registers, not per post
+     * this module keeps a watch on.
+     *
+     * THE POSTS LEFT THE LEGEND TO GET HERE, and that is the ruling worth
+     * restating: a legend is a KEY TO WHAT IS DRAWN, and "which post has
+     * how many people on it right now" is not a key, it is the answer. A
+     * key that carried answers would grow with the park.
+     *
+     * THE ONES WITH A WATCH COME FIRST. The rest are still listed, quiet,
+     * because a post this module ignores is still a post on the plate and
+     * a reader who clicks it should be centred on it.
+     *
+     * @param list<PostPresence> $posts the posts on this module's books
+     */
+    public function stations(AreaOfInterest $area, LivePresence $live, array $posts): RailList
+    {
+        $onTheBooks = [];
+        foreach ($posts as $post) {
+            $onTheBooks[$post->stationUuid] = $post;
+        }
+
+        $liveAt = [];
+        $staleAt = [];
+        foreach ($live->positions as $position) {
+            $at = $position->stationUuid;
+            if (null === $at) {
+                continue;
+            }
+
+            if ($live->isStale($position)) {
+                $staleAt[$at] = ($staleAt[$at] ?? 0) + 1;
+
+                continue;
+            }
+
+            $liveAt[$at] = ($liveAt[$at] ?? 0) + 1;
+        }
+
+        $watched = [];
+        $quiet = [];
+        foreach ($this->stations->findByArea($area) as $station) {
+            $uuid = (string) $station->getUuidString();
+            $posted = $this->postings->countStandingByStation($station);
+            $stale = $staleAt[$uuid] ?? 0;
+
+            $row = new RailRow(
+                // A POST WITH NO POINT CANNOT BE CENTRED ON, so its row is
+                // not a link. The area gazettes a post before it surveys
+                // one, and a dead link is worse than an inert row.
+                centre: null === $station->getPoint() ? null : $uuid,
+                name: (string) $station->getName(),
+                detail: self::detail([$station->getCode(), self::people($posted)]),
+                live: $liveAt[$uuid] ?? 0,
+                wrong: $stale > 0 ? \sprintf('%d stale', $stale) : null,
+                quiet: !isset($onTheBooks[$uuid]),
+            );
+
+            if (isset($onTheBooks[$uuid])) {
+                $watched[] = $row;
+            } else {
+                $quiet[] = $row;
+            }
+        }
+
+        $sections = [];
+        if ([] !== $watched) {
+            $sections[] = ['label' => \sprintf('with a watch · %d', \count($watched)), 'rows' => $watched];
+        }
+
+        if ([] !== $quiet) {
+            $sections[] = ['label' => \sprintf('no watch in this module · %d', \count($quiet)), 'rows' => $quiet];
+        }
+
+        return new RailList('stations', 'Stations', $sections);
+    }
+
+    /**
+     * THE ZONES LIST — one row per zone, with the swatch the plate draws it
+     * in.
+     *
+     * THE SWATCH IS A CATEGORY POSITION AND NEVER A COLOUR. A zone's place
+     * in the set picks the house's nth category token; this module does not
+     * read the zone's own colour field and does not name a value. The same
+     * position gives the same token on the plate and in this list, which is
+     * the only reason the two agree.
+     *
+     * A ZONE'S LIVE COUNT IS ITS POSTS' — the positions claimed at a post
+     * that stands inside it. A fix with no post claimed belongs to nobody's
+     * zone, and guessing one from a coordinate would be this module doing
+     * geography the area already does.
+     */
+    public function zones(AreaOfInterest $area, LivePresence $live): RailList
+    {
+        $liveAt = [];
+        foreach ($live->positions as $position) {
+            if (null !== $position->stationUuid && !$live->isStale($position)) {
+                $liveAt[$position->stationUuid] = ($liveAt[$position->stationUuid] ?? 0) + 1;
+            }
+        }
+
+        $postedIn = [];
+        $liveIn = [];
+        foreach ($this->stations->findByArea($area) as $station) {
+            $zone = $station->getZone()?->getName();
+            if (null === $zone) {
+                continue;
+            }
+
+            $postedIn[$zone] = ($postedIn[$zone] ?? 0) + $this->postings->countStandingByStation($station);
+            $liveIn[$zone] = ($liveIn[$zone] ?? 0) + ($liveAt[(string) $station->getUuidString()] ?? 0);
+        }
+
+        $staffed = [];
+        $empty = [];
+        foreach ($this->zones->view($area)->rows as $position => $zone) {
+            $posted = $postedIn[$zone->name] ?? 0;
+
+            $row = new RailRow(
+                centre: $zone->uuid,
+                name: $zone->name,
+                detail: self::detail([self::km2($zone->km2), self::people($posted)]),
+                live: $liveIn[$zone->name] ?? 0,
+                category: ($position % self::CATEGORIES) + 1,
+                quiet: 0 === $posted,
+            );
+
+            if ($posted > 0) {
+                $staffed[] = $row;
+            } else {
+                $empty[] = $row;
+            }
+        }
+
+        $sections = [];
+        if ([] !== $staffed) {
+            $sections[] = ['label' => \sprintf('with somebody posted · %d', \count($staffed)), 'rows' => $staffed];
+        }
+
+        if ([] !== $empty) {
+            $sections[] = ['label' => \sprintf('nobody posted · %d', \count($empty)), 'rows' => $empty];
+        }
+
+        return new RailList('zones', 'Zones', $sections);
+    }
+
+    /** The house ships nine category tokens; a longer set wraps round them. */
+    private const int CATEGORIES = 9;
+
+    /**
+     * A row's second line: the facts it has, in order, dots between.
+     *
+     * @param list<string|null> $parts
+     */
+    private static function detail(array $parts): string
+    {
+        return implode(' · ', array_values(array_filter(
+            $parts,
+            static fn (?string $part): bool => null !== $part && '' !== $part,
+        )));
+    }
+
+    private static function people(int $posted): string
+    {
+        return 0 === $posted ? 'nobody posted' : \sprintf('%d posted', $posted);
+    }
+
+    private static function km2(int $km2): string
+    {
+        return \sprintf('%s km²', number_format($km2));
     }
 
     /**

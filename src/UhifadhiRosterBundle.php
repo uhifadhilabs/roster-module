@@ -59,6 +59,7 @@ use Uhifadhi\Roster\Service\RosterWidgetUrls;
 use Uhifadhi\Roster\Shell\RosterConfigurationSections;
 use Uhifadhi\Roster\Shell\RosterModuleTabs;
 use Uhifadhi\Roster\Shell\RosterStationSections;
+use Uhifadhi\Roster\Widget\RosterRailWidgets;
 use Uhifadhi\Roster\Widget\RosterWidgets;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
@@ -362,6 +363,13 @@ final class UhifadhiRosterBundle extends AbstractBundle
          * `widget:prune` reads as orphans and deletes.
          */
         $services->set('roster.widgets', RosterWidgets::class)
+            ->tag(WidgetSurfaceInterface::TAG);
+
+        // THE LIVE TAB'S RAIL IS A SECOND SURFACE, not a preset of the
+        // first: one composes a page out of cards, the other a column out
+        // of lists. They share the mechanism and nothing else, which is
+        // what a surface is for. Tagged by hand like every contribution.
+        $services->set('roster.rail_widgets', RosterRailWidgets::class)
             ->tag(WidgetSurfaceInterface::TAG);
 
         /*

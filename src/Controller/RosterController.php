@@ -58,6 +58,7 @@ use Uhifadhi\Roster\Service\RotaService;
 use Uhifadhi\Roster\Service\SwapCostService;
 use Uhifadhi\Roster\Service\SwapService;
 use Uhifadhi\Roster\Service\WeekGridService;
+use Uhifadhi\Roster\Widget\RosterRailWidgets;
 use Uhifadhi\Roster\Widget\RosterWidgets;
 
 /**
@@ -125,6 +126,9 @@ final class RosterController
 
     /** What is true this minute. */
     public const string LIVE_ROUTE = 'roster_live';
+
+    /** Adopting one of the rail's arrangements. */
+    public const string RAIL_PRESET_ROUTE = 'roster_live_rail_preset';
 
     /** The generated plan for a day, as slots to fill. */
     public const string PLAN_ROUTE = 'roster_plan';
@@ -519,6 +523,44 @@ final class RosterController
         // all answering the same minute.
         $live = $this->positions->liveIn((string) $area->getUuidString(), $now);
 
+        // THE RAIL IS A SURFACE, resolved exactly as the Overview's is and
+        // out of the same store: which lists it carries, and in what
+        // order, is a decision somebody made and the framework remembers.
+        $catalog = RosterRailWidgets::declaration();
+        $resolved = $this->widgetService->resolve($catalog, $this->viewer(), $area->getUuid());
+        $active = $this->widgetService->activeRef($catalog, $this->viewer(), $area->getUuid());
+
+        $stations = $this->liveService->stations($area, $live, $whole);
+        $zones = $this->liveService->zones($area, $live);
+        $people = $this->liveService->rail($live, $narrowed);
+
+        $lists = [];
+        $counted = 0;
+        foreach ($resolved as $widget) {
+            // The framework answers a resolved surface as rows, not as
+            // catalogue objects: the layout is what a person arranged, and
+            // a Widget is what the module declared.
+            if (!$widget['on']) {
+                continue;
+            }
+
+            $id = (string) $widget['id'];
+            $position = \count($lists) + 1;
+            $context = match ($id) {
+                'stations' => ['list' => $stations, 'position' => $position, 'total' => 0],
+                'zones' => ['list' => $zones, 'position' => $position, 'total' => 0],
+                default => ['rail' => $people, 'position' => $position, 'total' => 0, 'people' => self::railPeople($people)],
+            };
+
+            $counted += match ($id) {
+                'stations' => $stations->count(),
+                'zones' => $zones->count(),
+                default => self::railPeople($people),
+            };
+
+            $lists[] = ['id' => $id, 'context' => $context];
+        }
+
         return new Response($this->twig->render('@UhifadhiRoster/live/show.html.twig', [
             'area' => $area,
             'band' => $this->identity->bandFor($area),
@@ -526,8 +568,19 @@ final class RosterController
             'now' => $now,
             'filter' => $filter,
             'posts' => $narrowed,
-            'plate' => $this->liveService->plate($area, $live),
-            'rail' => $this->liveService->rail($live, $narrowed),
+            // THE PEOPLE THE READ HAD NO FIX FOR are the plate's business
+            // too: they are on no layer, and a plate silent about them
+            // would be a plate claiming the park is fully seen.
+            'plate' => $this->liveService->plate($area, $live, $this->liveService->figures($live, $whole)->withoutAFix),
+            'rail' => $people,
+            'railLists' => $lists,
+            'railCount' => \sprintf('%d in %d list%s', $counted, \count($lists), 1 === \count($lists) ? '' : 's'),
+            'railPresets' => $catalog->presets(),
+            'railPreset' => $active['id'],
+            // WHO CHOSE THE ARRANGEMENT AND WHEN. A rail somebody else set
+            // up is a rail whose shape needs explaining, and the foot is
+            // where it explains itself.
+            'railDefault' => $this->railDefault($catalog, $area),
             'live' => $this->liveService->figures($live, $whole),
             'stationsUrl' => $this->stationsUrl($area),
             'chosenPost' => $this->chosenPost($whole, $filter),
@@ -577,6 +630,56 @@ final class RosterController
             'post' => $station?->getName(),
             'postUrl' => null === $station ? null : $this->stationUrl($station),
         ];
+    }
+
+    /**
+     * HOW MANY PEOPLE THE RAIL'S PEOPLE LIST HOLDS, across its groups.
+     *
+     * @param list<\Uhifadhi\Roster\Model\LiveRailGroup> $groups
+     */
+    private static function railPeople(array $groups): int
+    {
+        $total = 0;
+        foreach ($groups as $group) {
+            $total += $group->count();
+        }
+
+        return $total;
+    }
+
+    /**
+     * WHAT THE RAIL'S FOOT SAYS: the arrangement in force, who put it
+     * there and when — or that nobody has, and it is the one the module
+     * ships with.
+     */
+    private function railDefault(\Uhifadhi\Bundle\ShellBundle\Widget\Model\WidgetCatalog $catalog, AreaOfInterest $area): string
+    {
+        $active = $this->widgetService->activeRef($catalog, $this->viewer(), $area->getUuid());
+        $chosen = $catalog->preset($active['id']);
+
+        return null === $chosen || $catalog->defaultPresetId() === $active['id']
+            ? \sprintf('%s · the module · as shipped', $catalog->builtins()[0]->label ?? RosterRailWidgets::DEFAULT_LABEL)
+            : \sprintf('%s · %s · chosen here', $chosen->label, $this->viewer()?->getFullName() ?? 'this installation');
+    }
+
+    /**
+     * ADOPT ONE OF THE RAIL'S ARRANGEMENTS. It is a write, so it is a POST
+     * and it is attributed — the same endpoint the Overview's presets go
+     * through, over this surface's own catalogue.
+     */
+    #[Route('/areas/{uuid}/modules/roster/live/rail/{presetId}', name: self::RAIL_PRESET_ROUTE, requirements: ['uuid' => Requirement::UUID, 'presetId' => '[a-z0-9_-]+'], methods: ['GET', 'POST'])]
+    public function adoptRailPreset(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+        string $presetId,
+    ): Response {
+        $viewer = $this->viewer();
+
+        if (null !== $viewer) {
+            $this->widgetService->applyPreset(RosterRailWidgets::declaration(), $viewer, $area->getUuid(), $presetId);
+        }
+
+        return new RedirectResponse($this->router->generate(self::LIVE_ROUTE, ['uuid' => (string) $area->getUuidString()]));
     }
 
     /** The area's stations page, or null where this installation omits it. */

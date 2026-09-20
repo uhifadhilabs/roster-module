@@ -30,6 +30,7 @@ use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Service\RosterDashboardService;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\RosterWidgetUrls;
+use Uhifadhi\Roster\Widget\RosterRailWidgets;
 use Uhifadhi\Roster\Widget\RosterWidgets;
 
 /**
@@ -118,6 +119,15 @@ final class RosterWidgetsController
             ],
             'urls' => $this->urls->forArea($area),
             'csrfToken' => $this->endpoint->csrfToken($catalog, $areaUuid),
+            // THE SECOND SURFACE: the Live tab's rail. Declared here
+            // because this is the module's library, and composed with the
+            // same mechanism as the dashboard above it.
+            'railCatalog' => $rail = RosterRailWidgets::declaration(),
+            'railWidgets' => array_map(
+                static fn (string $id) => $rail->get($id),
+                $rail->ids(),
+            ),
+            'railActive' => $this->widgets->activeRef($rail, $viewer, $areaUuid)['id'],
         ]));
     }
 

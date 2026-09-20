@@ -95,15 +95,29 @@ final class RosterLiveServiceDeclaresNoColourTest extends TestCase
     }
 
     /**
-     * WHAT IT DOES INSTEAD: publishes the plate palette's token names and
-     * lets whoever owns the plate resolve them.
+     * WHAT IT DOES INSTEAD: hands the positions to the atlas and names
+     * nothing about how they are drawn.
+     *
+     * THIS IS THE STRONGER FORM OF THE RULE. It used to publish the plate
+     * palette's token NAMES, which was already better than a hex — but a
+     * module that names even a token has an opinion about a mark it does
+     * not own. The house ships `.livedot` as a component and the atlas
+     * adds the layer and its key in one call; the roster supplies the
+     * positions and the count of the people there was no fix for, and not
+     * one word about colour, size or typeface.
      */
-    public function testItPublishesTokenNamesForItsOwnLayers(): void
+    public function testItHandsTheMarksToTheAtlasAndDescribesNoneOfThem(): void
     {
         $source = self::source();
 
-        foreach (['var(--plate-ok)', 'var(--plate-warn)', 'var(--plate-fail)', 'var(--plate-dim)', 'var(--plate-acc)'] as $token) {
-            self::assertStringContainsString($token, $source);
+        self::assertStringContainsString('livePositions(', $source, 'One call: the live layer and the key that must come with it.');
+
+        foreach (['var(--plate-', 'var(--cat-', 'livedot', 'font', 'radius', 'stroke-width'] as $described) {
+            self::assertStringNotContainsString(
+                $described,
+                (string) preg_replace('~/\*.*?\*/|//[^\n]*~s', '', $source),
+                \sprintf('The module says "%s" about a mark the house draws.', $described),
+            );
         }
     }
 }

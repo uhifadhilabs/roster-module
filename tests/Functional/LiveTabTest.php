@@ -148,7 +148,8 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
             $crawler->filter('h2.zone')->each(static fn (\Symfony\Component\DomCrawler\Crawler $h): string => html_entity_decode(trim($h->text()))),
         );
 
-        self::assertCount(1, $crawler->filter('.r-live .r-live-plate'), 'The atlas plate, in the card that leads the page.');
+        self::assertCount(1, $crawler->filter('.fg-live'), 'The plate and its rail, side by side, in the card that leads the page.');
+        self::assertGreaterThan(0, $crawler->filter('.fg-live .map-plate')->count(), 'And the atlas plate itself is in it.');
     }
 
     /** THE FILTER ROW, the house's, pointed at this page. */
@@ -163,68 +164,149 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
     }
 
     /**
-     * THE RAIL LISTS THE PEOPLE THE ROSTER HAS ON A WATCH, whether or not a
-     * handset has said where they are — and the group for those with no
-     * position is the one it ends on.
+     * THE RAIL IS HEAD + BODY + FOOT, AND ONLY THE BODY SCROLLS.
+     *
+     * AN OVERFLOW BOX CLIPS EVERYTHING POSITIONED INSIDE IT, so a head, a
+     * popover or a tooltip parented to a scrolling rail is cut off the
+     * moment the lists are long enough to scroll — which on this tab is
+     * always. The head and the foot therefore sit OUTSIDE the scroller;
+     * this asserts that arrangement structurally, because the clipping
+     * itself is a computed-layout fact and yours to see.
      */
-    public function testTheRailListsEverybodyIncludingThoseWithNoPosition(): void
+    public function testTheRailIsAPinnedHeadAScrollingBodyAndAPinnedFoot(): void
     {
         $crawler = $this->open();
 
-        $rail = $crawler->filter('.r-live-rail');
+        $rail = $crawler->filter('.fg-side');
         self::assertCount(1, $rail);
 
-        self::assertStringContainsString('Ada Example', $rail->text(), 'Somebody rostered is on the list…');
-        self::assertStringContainsString('no position', $rail->text(), '…under the heading for having sent none.');
-        self::assertStringContainsString('no ping', $rail->text());
+        self::assertCount(1, $crawler->filter('.fg-side > .fg-rlhd'), 'The head is a child of the rail, not of the scroller.');
+        self::assertCount(1, $crawler->filter('.fg-side > .rl-body'), 'One scroller.');
+        self::assertCount(1, $crawler->filter('.fg-side > .fg-foot'), 'And the foot is outside it too.');
+
+        self::assertCount(0, $rail->filter('.rl-body .fg-rlhd'), 'Nothing pinned may sit inside the scroller.');
+        self::assertCount(0, $rail->filter('.rl-body .fg-foot'));
     }
 
     /**
-     * THE LEGEND CARRIES THIS MODULE'S OWN GROUP, and its swatches are
-     * TOKEN NAMES. A module declares no colour — not even mirrored as a
-     * literal, and not even at a seam JavaScript reads.
+     * THE RAIL IS A WIDGET SURFACE: the lists it carries are widgets, and
+     * the shipped arrangement is two of the three.
      */
-    public function testThePresenceLayersPublishTokenNamesAndNeverAColour(): void
+    public function testTheRailCarriesTheListsTheSurfaceShipsWith(): void
     {
         $crawler = $this->open();
 
-        $plate = $crawler->filter('.r-live-plate')->html();
-
-        self::assertStringContainsString('Roster presence states', html_entity_decode($plate), 'This module\'s own legend group.');
-        self::assertStringContainsString('var(--plate-', $plate, 'Swatches are the plate palette\'s token names.');
-        self::assertDoesNotMatchRegularExpression(
-            '/roster\.presence\.[a-z_.]+[^}]{0,400}#[0-9A-Fa-f]{6}/',
-            $plate,
-            'No hex anywhere near this module\'s layers.',
+        self::assertSame(
+            ['people', 'stations'],
+            $crawler->filter('.rl-body .rl-cell')->each(
+                static fn (\Symfony\Component\DomCrawler\Crawler $cell): string => (string) $cell->attr('data-list'),
+            ),
+            'The duty officer: people first, posts under them — and zones one adopt away.',
         );
+
+        self::assertCount(3, $crawler->filter('.rl-presets .mchip'), 'Three arrangements to choose between.');
+        self::assertCount(1, $crawler->filter('.rl-presets .mchip.on'), 'One of them is in force.');
     }
 
     /**
-     * THE PAGE LINKS THE MAP SHEET, because the plate's styles do not
-     * travel with the component the way the calendar's and the chart's do.
+     * A PRESET VISIBLY CHANGES WHICH LISTS SHOW AND THEIR ORDER, and the
+     * choice is REMEMBERED — in the same store the Overview surface uses,
+     * so a duty officer's rail is the rail they left.
+     */
+    public function testAdoptingAnArrangementChangesTheRailAndIsRemembered(): void
+    {
+        $crawler = $this->open();
+
+        $everything = $crawler->filter('.rl-presets .mchip')->reduce(
+            static fn (\Symfony\Component\DomCrawler\Crawler $chip): bool => 'Everything' === trim($chip->text()),
+        );
+        self::assertCount(1, $everything);
+
+        $this->client->request('GET', (string) $everything->attr('href'));
+        self::assertResponseRedirects();
+        $after = $this->client->followRedirect();
+
+        self::assertSame(
+            ['people', 'stations', 'zones'],
+            $after->filter('.rl-body .rl-cell')->each(
+                static fn (\Symfony\Component\DomCrawler\Crawler $cell): string => (string) $cell->attr('data-list'),
+            ),
+            'All three lists, in the order the arrangement names.',
+        );
+
+        // AND IT PERSISTS: a fresh request reads the same rail back out of
+        // the store rather than falling back to what the module ships.
+        $again = $this->open();
+        self::assertSame(
+            ['people', 'stations', 'zones'],
+            $again->filter('.rl-body .rl-cell')->each(
+                static fn (\Symfony\Component\DomCrawler\Crawler $cell): string => (string) $cell->attr('data-list'),
+            ),
+        );
+        self::assertSame('Everything', trim($again->filter('.rl-presets .mchip.on')->text()));
+    }
+
+    /**
+     * THE STATIONS LIST IS ONE ROW PER POST, and a post the plate cannot
+     * be centred on is INERT AND UNMARKED rather than a link that does
+     * nothing when clicked.
+     */
+    public function testTheStationsListCarriesTheDesignsColumns(): void
+    {
+        $crawler = $this->open();
+
+        $row = $crawler->filter('[data-list="stations"] .fg-stn')->eq(0);
+        self::assertCount(1, $row->filter('.nm'), 'The post, and its code and people under it.');
+        self::assertCount(1, $row->filter('.nm em'));
+        self::assertCount(1, $row->filter('.lv'), 'How many of them are live now.');
+
+        self::assertStringContainsString('ST-01', $row->filter('.nm em')->text());
+        self::assertStringContainsString('live', $row->filter('.lv')->text());
+    }
+
+    /** THE DOOR IS THE LIBRARY, in the design's exact words. */
+    public function testTheRailsDoorIsTheWidgetLibrary(): void
+    {
+        $crawler = $this->open();
+
+        // THE HOUSE'S `.more` IDIOM, not a door class of this module's:
+        // one quiet door on a card looks the same everywhere in the app.
+        $door = $crawler->filter('.fg-side .fg-rlhd .more');
+        self::assertCount(1, $door);
+        self::assertSame('Widget library →', html_entity_decode(trim($door->text())));
+        self::assertStringContainsString('/widgets', (string) $door->attr('href'));
+    }
+
+    /** AND THE FOOT SAYS WHICH ARRANGEMENT IS IN FORCE, and whose it is. */
+    public function testTheFootMarksTheArrangementInForce(): void
+    {
+        $crawler = $this->open();
+
+        self::assertStringContainsString('default ·', html_entity_decode($crawler->filter('.fg-side .fg-foot')->text()));
+    }
+
+    /**
+     * THE LEGEND CARRIES THE LIVE KEY, and the module named none of it.
      *
-     * A PAGE THAT FORGETS IT IS NOT A BROKEN COMPONENT, IT IS AN UNSTYLED
-     * ONE: the map collapses to a strip, the key inlines itself into the
-     * text and the controls pile into a corner — and nothing errors, so
-     * only a render catches it. This is that render, made cheap.
+     * A LAYER SHIPS A LEGEND — and here the legend says more than the
+     * layer can: the mark has a state the plate draws DIMMED and a state
+     * it draws NOWHERE, and a plate silent about the people it is not
+     * showing would be claiming the park is fully seen. The atlas adds
+     * both in one call.
      */
-    public function testThePageLinksTheMapSheet(): void
+    public function testTheLiveKeyIsOnThePlateAndTheModuleNamesNoneOfIt(): void
     {
         $crawler = $this->open();
 
-        $sheets = $crawler->filter('link[rel="stylesheet"]')->each(
-            static fn (\Symfony\Component\DomCrawler\Crawler $link): string => (string) $link->attr('href'),
-        );
+        $plate = html_entity_decode($crawler->filter('.fg-live')->html());
 
-        $map = array_filter($sheets, static fn (string $href): bool => str_contains($href, 'map'));
-        self::assertNotEmpty($map, 'A page that draws a plate links the atlas map sheet.');
+        foreach (['Live position', 'Stale', 'No position'] as $row) {
+            self::assertStringContainsString($row, $plate, 'The key the live layer ships with.');
+        }
 
-        // AND LEAFLET'S OWN IS NOT LINKED: the UX Map bridge's controller
-        // imports it, so there is one Leaflet and one copy of its styles.
-        self::assertEmpty(
-            array_filter($sheets, static fn (string $href): bool => str_contains(strtolower($href), 'leaflet')),
-            'Leaflet\'s sheet comes with the bridge, never from a page.',
-        );
+        // AND NO COLOUR ANYWHERE NEAR THIS MODULE'S OWN LAYER. The posts
+        // layer is still the roster's; it must not have grown a palette.
+        self::assertDoesNotMatchRegularExpression('/roster\.[a-z_.]+[^}]{0,300}#[0-9A-Fa-f]{6}/', $plate);
     }
 
     /** AND THE MODULE'S OWN SOURCE CARRIES NO COLOUR EITHER. */

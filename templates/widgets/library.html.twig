@@ -68,4 +68,32 @@
         urls: urls,
         csrfToken: csrfToken,
     }, with_context: false) }}
+
+    {# THE SECOND SURFACE ON THIS PAGE. The Live tab's rail composes a
+       COLUMN out of lists where the dashboard composes a page out of
+       cards; they share the mechanism and nothing else, which is exactly
+       what a surface is for. Both are declared here because this is the
+       module's library, and a person arranging one will want the other.
+
+       THE ANCHOR IS THE RAIL'S OWN DOOR: the Live tab links `#rail`. #}
+    <h2 class="zone" id="rail">The Live tab&rsquo;s plate rail</h2>
+    <p class="pgsub">The column beside <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::LIVE_ROUTE'), {uuid: area.uuid}) }}">the Live tab</a>&rsquo;s plate is a widget surface of its own, and the lists it carries are widgets. Adopt one of the three arrangements this module ships, or compose your own &mdash; the rail is one column wide, so every widget in it is full width.</p>
+
+    <div class="c">
+        <span class="tab">{{ railCatalog.surface }}<span class="src">&middot; {{ railWidgets|length }} lists &middot; {{ railCatalog.presets|length }} arrangements</span></span>
+        {% for preset in railCatalog.presets %}
+            <div class="rset">
+                <span class="lb"><b>{{ preset.label }}</b><em>{{ preset.layout|keys|join(' · ') }}</em></span>
+                <span class="ct">
+                    <a class="mchip{{ preset.id == railActive ? ' on' : '' }}"
+                       href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::RAIL_PRESET_ROUTE'), {uuid: area.uuid, presetId: preset.id}) }}">{{ preset.id == railActive ? 'in force' : 'adopt' }}</a>
+                </span>
+                <span class="why">{{ preset.description }}</span>
+            </div>
+        {% endfor %}
+
+        {% for widget in railWidgets %}
+            <div class="rfrag"><b>{{ widget.label }}</b><em>{{ widget.note }}</em></div>
+        {% endfor %}
+    </div>
 {% endblock %}

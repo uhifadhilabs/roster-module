@@ -86,26 +86,51 @@
         {# THE PLATE IS THE ATLAS'S AND THE GROUND IS THE AREA'S. What this
            module contributes is the marker layers and their legend group;
            it draws nothing itself. #}
-        <div class="r-live">
-            <div class="r-live-plate">{{ render_map(plate, {"--map-plate-height": "min(64vh, 560px)"}) }}</div>
+        <div class="fg-live">
+            <div>{{ render_map(plate, {"--map-plate-height": "min(64vh, 560px)"}) }}</div>
 
-            {# THE RAIL LISTS EVERYBODY, the map draws the ones with a fix.
-               Somebody at their post whose phone has said nothing is here
-               and not there, and that difference is the point of both. #}
-            <div class="r-live-rail">
-                {% for group in rail %}
-                    {% if not group.isEmpty %}
-                        <div class="r-live-grp {{ group.tone }}">{{ group.label }} &middot; {{ group.count }}</div>
-                        {% for row in group.rows %}
-                            <div class="r-live-row">
-                                <span class="nm">{{ row.person.personName }}<em>{{ row.post.stationName }}</em></span>
-                                <span class="r-ping {{ row.fix ? (row.stale ? 'off' : 'on') : 'off' }}"><i></i>{{ row.age ?: 'no ping' }}</span>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% else %}
-                    <div class="rfrag"><b>Nobody is on a watch this minute</b><em>the rail lists who is due; the plate draws the ones whose handsets have said where</em></div>
-                {% endfor %}
+            {# THE RAIL IS A WIDGET SURFACE OF ITS OWN (ruled): three
+               lists, composed the way every other surface in the app is
+               composed, and adopted as presets from this module's own
+               library.
+
+               HEAD, BODY, FOOT — AND ONLY THE BODY SCROLLS. An overflow
+               box clips everything positioned inside it, so a head, a
+               popover or a tooltip parented to a scrolling rail is cut off
+               the moment the lists are long enough to scroll, which on
+               this tab is always. The head and the foot sit OUTSIDE the
+               scroller and stay pinned. #}
+            <div class="fg-side">
+                <div class="fg-rlhd">
+                    <span class="k">{{ railCount }}</span>
+                    <span class="sp"></span>
+                    <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterWidgetsController::LIBRARY_ROUTE'), {uuid: area.uuid}) }}#rail">Widget library &rarr;</a>
+                </div>
+
+                {# A PRESET VISIBLY CHANGES WHICH LISTS SHOW AND THEIR
+                   ORDER, and the choice is remembered in the same store
+                   the Overview surface uses — so a duty officer's rail is
+                   the rail they left. #}
+                <div class="rl-presets">
+                    {% for preset in railPresets %}
+                        <a class="mchip{{ preset.id == railPreset ? ' on' : '' }}"
+                           href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::RAIL_PRESET_ROUTE'), {uuid: area.uuid, presetId: preset.id}) }}">{{ preset.label }}</a>
+                    {% endfor %}
+                </div>
+
+                <div class="rl-body">
+                    {% for cell in railLists %}
+                        <div class="fg-lst rl-cell" data-list="{{ cell.id }}">
+                            {{ include('@UhifadhiRoster/rail/_' ~ cell.id ~ '.html.twig', cell.context, with_context: false) }}
+                        </div>
+                    {% else %}
+                        <div class="rfrag"><b>The rail carries no list</b><em>every list has been taken out of it &mdash; the widget library puts one back</em></div>
+                    {% endfor %}
+                </div>
+
+                <div class="fg-foot">
+                    <span data-rail-default>default &middot; {{ railDefault }}</span>
+                </div>
             </div>
         </div>
     </div>

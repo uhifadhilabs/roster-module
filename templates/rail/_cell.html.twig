@@ -1,0 +1,13 @@
+{# THE HEAD OF ONE LIST IN THE RAIL: where it sits, what it is, and how many
+   it holds.
+
+   A LIST STATES ITS OWN COUNT, because the rail carries several and a
+   reader scrolling the third has lost sight of how long the first was. The
+   count is of the WHOLE list, not of the rows one sub-head happens to
+   hold. #}
+<div class="rl-cellhd">
+    <span class="ord"><b>{{ position }}</b></span>
+    <span class="k">{{ list.label }}</span>
+    <em>{{ list.count }}</em>
+    <span class="sp"></span>
+</div>
