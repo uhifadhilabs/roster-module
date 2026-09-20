@@ -10,8 +10,6 @@
 
 {% block title %}Roster · today · {{ scope.label }}{% endblock %}
 
-{% block roster_org_trail_tail %} today{% endblock %}
-
 {% block roster_org_page %}
     <div class="c">
         <span class="tab">Today, every area<span class="src">&middot; <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D j M')|lower }}</time> &middot; <time datetime="{{ now.format('c') }}" data-localtime-format="time">{{ now.format('H:i') }}</time></span></span>

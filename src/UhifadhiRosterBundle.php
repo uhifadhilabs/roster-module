@@ -561,9 +561,6 @@ final class UhifadhiRosterBundle extends AbstractBundle
                     service(WidgetService::class),
                     service(WidgetEndpoint::class),
                     service(\Uhifadhi\Bundle\ShellBundle\Service\Scopes::class),
-                    service('roster.module_provider'),
-                    service('router'),
-                    service('request_stack'),
                 ])
                 ->public();
             $services->alias(RosterOrgController::class, 'roster.controller.org')->public();

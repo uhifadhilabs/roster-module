@@ -6,16 +6,6 @@
 
 {% block title %}Roster · live · {{ scope.label }}{% endblock %}
 
-{% block roster_org_trail_tail %} live{% endblock %}
-
-{# THE MAP SHEET IS THE PAGE'S TO LINK. It does not travel with the
-   component, and a page that draws a plate without it gets a collapsed
-   strip with its key inlined — an unstyled component, not a broken one. #}
-{% block stylesheets %}
-    {{ parent() }}
-    <link rel="stylesheet" href="{{ asset(constant('Uhifadhi\\Bundle\\AtlasBundle\\AtlasBundle::STYLESHEET')) }}">
-{% endblock %}
-
 {% block roster_org_page %}
     <h2 class="zone">The plate first</h2>
     <div class="c">

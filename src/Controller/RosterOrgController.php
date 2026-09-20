@@ -13,16 +13,13 @@ declare(strict_types=1);
 
 namespace Uhifadhi\Roster\Controller;
 
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Twig\Environment;
 use Uhifadhi\Bundle\ShellBundle\Service\Scopes;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetEndpoint;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetService;
 use Uhifadhi\Contracts\Shell\Scope;
-use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Service\RosterOrgService;
 use Uhifadhi\Roster\Widget\RosterOrgWidgets;
 
@@ -60,9 +57,6 @@ final class RosterOrgController
         private readonly WidgetService $widgets,
         private readonly WidgetEndpoint $endpoint,
         private readonly Scopes $scopes,
-        private readonly RosterModuleProvider $pages,
-        private readonly UrlGeneratorInterface $router,
-        private readonly RequestStack $requests,
     ) {
     }
 
@@ -119,31 +113,6 @@ final class RosterOrgController
     }
 
     /**
-     * THE STRIP, from the declaration the shell mounts. A route this
-     * installation has not mounted is LEFT OUT rather than drawn as a link
-     * to a 404 — the same rule the shell applies to the sidebar.
-     *
-     * @return list<array{label: string, url: string, current: bool}>
-     */
-    private function tabs(): array
-    {
-        $here = $this->requests->getCurrentRequest()?->attributes->get('_route');
-        $tabs = [];
-
-        foreach ($this->pages->orgPages() as $page) {
-            try {
-                $url = $this->router->generate($page->route);
-            } catch (\Symfony\Component\Routing\Exception\ExceptionInterface) {
-                continue;
-            }
-
-            $tabs[] = ['label' => $page->label, 'url' => $url, 'current' => $page->route === $here];
-        }
-
-        return $tabs;
-    }
-
-    /**
      * @param list<\Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest> $areas
      *
      * @return array<string, mixed>
@@ -152,11 +121,6 @@ final class RosterOrgController
     {
         return [
             'scope' => $scope,
-            // THE CONTROL'S OWN ROWS AND THE PAGE'S OWN STRIP — both built
-            // from what the shell mounted, so a tab and a sidebar screen
-            // can never disagree about which pages exist.
-            'scopeOptions' => $this->scopes->available(),
-            'orgTabs' => $this->tabs(),
             'areas' => $areas,
             'day' => $day,
             'now' => $now,
