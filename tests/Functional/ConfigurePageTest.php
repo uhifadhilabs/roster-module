@@ -294,7 +294,11 @@ final class ConfigurePageTest extends WebTestCase
         self::assertSame(['day'], $stored->getExpects());
         self::assertSame(240, $stored->getSilenceWindowMinutes());
         self::assertSame(2880, $stored->getOfflineAfterMinutes());
-        self::assertSame(2000, $stored->getCatchmentMetres());
+
+        // AND THE RING WENT TO THE POST, which is the column verification
+        // measures against — the watch's own is retired and unread.
+        $station = $stored->getStation();
+        self::assertSame(2000, $station->getCatchmentM(), 'Saving the watches writes the ring where it is read.');
     }
 
     /**

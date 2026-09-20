@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
 use Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository;
+use Uhifadhi\Bundle\AreaBundle\Service\StationService;
 use Uhifadhi\Contracts\Area\PresenceProviderInterface;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\AreaRosterSettingsRepository;
@@ -133,6 +134,7 @@ return static function (ContainerConfigurator $container): void {
             service(StationWatchRepository::class),
             service(RotationRepository::class),
             service('roster.settings'),
+            service(StationService::class),
             param('roster.default_silence_window_minutes'),
             param('roster.default_offline_after_minutes'),
         ]);

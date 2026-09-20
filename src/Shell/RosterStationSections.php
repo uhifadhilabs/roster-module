@@ -133,6 +133,8 @@ final readonly class RosterStationSections implements StationSectionsInterface
                 'presence' => $presence,
                 'shifts' => $this->labelsFor($station),
                 'day' => $today,
+                // THE RING IS THE POST'S, and this section draws the post.
+                'catchmentM' => $station->getCatchmentM(),
             ],
             summary: $this->summaryFor($watch, $presence?->shortfall() ?? 0),
             actions: null === $area ? [] : [
@@ -163,6 +165,7 @@ final readonly class RosterStationSections implements StationSectionsInterface
                 'watch' => $watch,
                 'shifts' => $this->labelsFor($station),
                 'pool' => $this->watches->poolSizeFor($station),
+                'catchmentM' => $station->getCatchmentM(),
             ],
             summary: 'The shifts this post expects, how long its silence may run, and how wide its catchment is.',
             actions: null === $area ? [] : [

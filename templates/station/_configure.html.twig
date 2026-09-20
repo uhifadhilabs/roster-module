@@ -28,6 +28,6 @@
 
 <div class="rset">
     <span class="lb"><b>Catchment</b><em>what makes a claim verified</em></span>
-    <span class="ct"><span class="unit">{{ watch.catchmentMetres }} m</span><span class="unit">pool {{ pool }}</span></span>
+    <span class="ct"><span class="unit">{{ catchmentM ? catchmentM ~ ' m' : 'none set' }}</span><span class="unit">pool {{ pool }}</span></span>
     <span class="why">Changing it re-derives every past day, because a state is never stored.</span>
 </div>

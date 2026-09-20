@@ -424,13 +424,13 @@ final class RosterContentProviderTest extends IntegrationTestCase
         $posts = $this->em->getRepository(Station::class)->findBy(['area' => $this->area], ['code' => 'ASC']);
         self::assertNotEmpty($posts);
         $byHand = $watches->addToRoster($posts[0]);
-        $watches->save($byHand, ['radio'], 45, 180, 900);
+        $watches->save($byHand, ['radio'], 45, 180);
 
         $this->provider()->load();
 
         // Untouched: still the one shift somebody chose, not the demo's.
         self::assertSame(['radio'], $byHand->getExpects());
-        self::assertSame(900, $byHand->getCatchmentMetres());
+        self::assertSame(45, $byHand->getSilenceWindowMinutes());
 
         // And the area is not empty because of it.
         self::assertGreaterThan(1, \count($this->repository(StationWatchRepository::class)->findByArea($this->area)));
@@ -468,7 +468,7 @@ final class RosterContentProviderTest extends IntegrationTestCase
 
         $posts = $this->em->getRepository(Station::class)->findBy(['area' => $this->area], ['code' => 'ASC']);
         self::assertNotEmpty($posts);
-        $watches->save($watches->addToRoster($posts[0]), ['night'], 45, 180, 900);
+        $watches->save($watches->addToRoster($posts[0]), ['night'], 45, 180);
 
         $this->provider()->load();
 

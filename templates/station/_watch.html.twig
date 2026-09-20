@@ -23,7 +23,7 @@
     <span class="why">
         <span class="unit">silence</span> {{ watch.silenceWindowMinutes }} min ·
         <span class="unit">offline after</span> {{ watch.offlineAfterMinutes }} min ·
-        <span class="unit">catchment</span> {{ watch.catchmentMetres }} m
+        <span class="unit">catchment</span> {{ catchmentM ? catchmentM ~ ' m' : 'none set' }}
     </span>
 </div>
 

@@ -16,6 +16,7 @@ namespace Uhifadhi\Roster\Service;
 use Doctrine\ORM\EntityManagerInterface;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
+use Uhifadhi\Bundle\AreaBundle\Service\StationService;
 use Uhifadhi\Roster\Entity\StationWatch;
 use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
@@ -40,6 +41,8 @@ final readonly class StationWatchService
         private StationWatchRepository $watches,
         private RotationRepository $rotations,
         private RosterSettingsService $settings,
+        // THE RING IS THE POST'S, so the verb that writes it is the area's.
+        private StationService $stations,
         private int $defaultSilenceWindowMinutes,
         private int $defaultOfflineAfterMinutes,
     ) {
@@ -59,10 +62,14 @@ final readonly class StationWatchService
     }
 
     /**
-     * PUT A POST ON THE BOOKS. Its catchment starts at whatever the AREA's
-     * default is rather than the installation's, because the area setting is
+     * PUT A POST ON THE BOOKS. Its ring starts at whatever the AREA's default
+     * is rather than the installation's, because the area setting is
      * explicitly "used by a post that sets none of its own" — reading past it
      * to the config would make the area's own number mean nothing.
+     *
+     * THE RING IS THE POST'S, AND IT IS SET ON THE POST. A post that already
+     * carries one keeps it: joining the roster is not a reason to move a
+     * distance somebody chose, and the area owns that column.
      */
     public function addToRoster(Station $station): StationWatch
     {
@@ -77,9 +84,16 @@ final readonly class StationWatchService
             $station,
             $this->defaultSilenceWindowMinutes,
             $this->defaultOfflineAfterMinutes,
+            // RETIRED, and written only because the column is not nullable
+            // until the drop. Nothing reads it; see {@see StationWatch}.
             $settings->getDefaultCatchmentMetres(),
         );
         $this->entityManager->persist($watch);
+
+        if (null === $station->getCatchmentM()) {
+            $this->stations->setCatchment($station, $settings->getDefaultCatchmentMetres());
+        }
+
         $this->entityManager->flush();
 
         return $watch;
@@ -90,12 +104,11 @@ final readonly class StationWatchService
      *
      * @param list<string> $expects shift keys from the area's own list; empty declares a post that runs nothing
      */
-    public function save(StationWatch $watch, array $expects, int $silenceWindowMinutes, int $offlineAfterMinutes, int $catchmentMetres): StationWatch
+    public function save(StationWatch $watch, array $expects, int $silenceWindowMinutes, int $offlineAfterMinutes): StationWatch
     {
         $watch
             ->expect($expects)
-            ->setThresholds($silenceWindowMinutes, $offlineAfterMinutes)
-            ->setCatchmentMetres($catchmentMetres);
+            ->setThresholds($silenceWindowMinutes, $offlineAfterMinutes);
 
         $this->entityManager->flush();
 

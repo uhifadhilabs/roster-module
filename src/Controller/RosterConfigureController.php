@@ -165,6 +165,9 @@ final class RosterConfigureController
             'area' => $area,
             'band' => $this->identity->bandFor($area),
             'watches' => $watches,
+            // THE AREA'S DEFAULT RING, for a post that carries none of its
+            // own — the field shows what verification would actually use.
+            'settings' => $this->settings->forArea($area),
             'pools' => $this->poolSizes($watches),
             'shifts' => $this->shifts->openFor($area),
             // The area's other posts — what "Add a post to the roster" offers.
@@ -286,24 +289,22 @@ final class RosterConfigureController
         foreach ($this->watches->forArea($area) as $watch) {
             $station = $watch->getStation();
             $id = (string) $station->getId();
-            $catchment = $this->positiveInt($request, 'catchment_'.$id, $watch->getCatchmentMetres());
+            // THE RING'S ONE HOME IS THE POST. The watch's own column is
+            // retired and no longer read, so the value that stands when the
+            // form omits one is the post's.
+            $catchment = $this->positiveInt($request, 'catchment_'.$id, $station->getCatchmentM() ?? $this->settings->forArea($area)->getDefaultCatchmentMetres());
 
             $this->watches->save(
                 $watch,
                 $this->shiftKeys($request, 'expects_'.$id),
                 $this->positiveInt($request, 'silence_'.$id, $watch->getSilenceWindowMinutes()),
                 $this->positiveInt($request, 'offline_'.$id, $watch->getOfflineAfterMinutes()),
-                $catchment,
             );
 
-            // AND THROUGH TO THE COLUMN VERIFICATION ACTUALLY READS.
-            //
-            // A claim is verified against the POST's catchment, not the
-            // watch's, and until the area grew a verb for it this page
-            // edited a number nothing measured — a field that looked like
-            // a setting and was a note. The verb exists now, so the value
-            // goes where it is read, through the area's own service: this
-            // module states the distance and computes no presence with it.
+            // AND THE RING GOES TO ITS ONE HOME. A claim is verified
+            // against the POST's catchment, so that is the only column
+            // this writes: the roster states the distance and the area
+            // does the measuring.
             $this->stationDesk->setCatchment($station, $catchment);
         }
 

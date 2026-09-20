@@ -71,7 +71,7 @@
                     <input class="fld" type="number" min="1" name="default_catchment_metres" value="{{ settings.defaultCatchmentMetres }}" aria-label="Default catchment in metres" {{ mayManage ? '' : 'disabled' }}>
                     <span class="unit">m</span>
                 </span>
-                <span class="why"><b>It decides who reads as unverified.</b> A radius smaller than the post&rsquo;s own compound will flag people who are standing in it; one larger than the nearest road will verify people driving past. Changing it <b>re-derives every past day</b>, because a state is never stored. <b>It does not reach verification yet</b> &mdash; that reads the post&rsquo;s own catchment, which nothing in the product writes.</span>
+                <span class="why"><b>It decides who reads as unverified.</b> A radius smaller than the post&rsquo;s own compound will flag people who are standing in it; one larger than the nearest road will verify people driving past. Changing it <b>re-derives every past day</b>, because a state is never stored. It is the ring a post falls back on: verification measures against the POST&rsquo;s own catchment, and a post that sets none takes this.</span>
             </div>
 
             <div class="rset">

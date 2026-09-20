@@ -55,7 +55,7 @@
                         <span class="unit">min, offline after</span>
                         <input class="fld" type="number" min="1" name="offline_{{ id }}" value="{{ watch.offlineAfterMinutes }}" aria-label="Offline threshold for {{ station.name }}, minutes" {{ mayManage ? '' : 'disabled' }}>
                         <span class="unit">min, catchment</span>
-                        <input class="fld" type="number" min="1" name="catchment_{{ id }}" value="{{ watch.catchmentMetres }}" aria-label="Catchment for {{ station.name }}, metres" {{ mayManage ? '' : 'disabled' }}>
+                        <input class="fld" type="number" min="1" name="catchment_{{ id }}" value="{{ station.catchmentM ?? settings.defaultCatchmentMetres }}" aria-label="Catchment for {{ station.name }}, metres" {{ mayManage ? '' : 'disabled' }}>
                         <span class="unit">m</span>
                         <span class="unit">pool {{ pools[id]|default(0) }}</span>
                     </span>

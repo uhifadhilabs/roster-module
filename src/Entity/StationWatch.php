@@ -84,12 +84,20 @@ class StationWatch
     private int $offlineAfterMinutes;
 
     /**
-     * How close a ping has to be for a claim of "at post" to read as verified.
+     * RETIRED. Nothing reads this — the ring lives on the POST.
      *
-     * IT NEVER HIDES ANYTHING. A claim whose pings fall outside it is shown
-     * and flagged as unverified — never corrected, and never turned into an
-     * absence. Changing it re-derives every past day, because a state is
-     * never stored.
+     * ONE DISTANCE, ONE HOME (ruled). How close a ping has to be for a
+     * claim of "at post" to read as verified is measured against
+     * `station.catchment_m`, which is the column the AREA's verification
+     * actually reads and the area's own service writes. This one held the
+     * same number in a second place, and two columns for one distance are
+     * two answers the day somebody edits one of them.
+     *
+     * IT IS STILL HERE FOR ONE RELEASE. The column is not nullable, so it
+     * is written on insert and never read; the release after this drops
+     * it, as a `@destructive` migration. Dropping it in the same release
+     * that stopped reading it would take an installation's data away
+     * before it had a version where both were true.
      */
     #[ORM\Column(name: 'catchment_metres')]
     private int $catchmentMetres;
@@ -159,11 +167,19 @@ class StationWatch
         return $this;
     }
 
+    /**
+     * @deprecated RETIRED — the ring is the post's. Read `Station::getCatchmentM()`,
+     *             which is what verification measures against. Dropped next release.
+     */
     public function getCatchmentMetres(): int
     {
         return $this->catchmentMetres;
     }
 
+    /**
+     * @deprecated RETIRED — write through `StationService::setCatchment()`,
+     *             the area's own verb. Dropped next release.
+     */
     public function setCatchmentMetres(int $catchmentMetres): static
     {
         if ($catchmentMetres < 1) {

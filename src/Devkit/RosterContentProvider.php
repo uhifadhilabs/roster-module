@@ -410,7 +410,6 @@ final readonly class RosterContentProvider implements ContentProviderInterface
                 self::DEMANDS[$index % \count(self::DEMANDS)],
                 $watch->getSilenceWindowMinutes(),
                 $watch->getOfflineAfterMinutes(),
-                $watch->getCatchmentMetres(),
             );
         }
 

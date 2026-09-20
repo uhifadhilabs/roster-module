@@ -10,6 +10,7 @@ hand is a release with a note under it.
 - [Stimulus controllers an older installation will not have](#stimulus-controllers-an-older-installation-will-not-have)
 - [0.1.0 — `rotation`, the cycle editor](#010--rotation-the-cycle-editor)
 - [0.1.0 — `now-line`, the day board's line at "now"](#010--now-line-the-day-boards-line-at-now)
+- [`station_watch.catchment_metres` is retired](#station_watchcatchment_metres-is-retired)
 
 ## The rule for anything this module ships to a host
 
@@ -88,3 +89,48 @@ line — it is wrong by the offset between the two clocks, and it looks
 authoritative.
 
 Enable `@uhifadhi/roster-module/now-line` as above.
+
+## `station_watch.catchment_metres` is retired
+
+**Nothing to do this release. Read this one before the next.**
+
+**What changed.** A post's catchment — how close a ping has to be for a claim
+of "at post" to read as verified — now has one home: `station.catchment_m`,
+the column the AREA measures against and its own `StationService::setCatchment()`
+writes. This module no longer reads `station_watch.catchment_metres` anywhere.
+The Watches section still edits the distance and still shows it; it writes it
+to the post.
+
+**Why.** Verification always read the post's column. This module held the same
+number in a second one, so the field on the configure page edited something
+nothing measured — for a while the page carried a flag saying exactly that.
+Two columns for one distance are two answers the day somebody edits one of
+them, and the area has now grown its own row for the same value.
+
+**What happens to the old column.** It is still there, still `NOT NULL`, still
+written on insert and never read. The release AFTER this one drops it in a
+`@destructive` migration. Dropping it in the same release that stopped reading
+it would take an installation's data away before there was a version where
+both were true.
+
+**If you read it yourself.** An installation or a module that queried
+`station_watch.catchment_metres` should move to the station's column now:
+
+```diff
+-$metres = $watch->getCatchmentMetres();
++$metres = $watch->getStation()->getCatchmentM();
+```
+
+and write through the area's verb rather than the entity:
+
+```diff
+-$watch->setCatchmentMetres($metres);
++$stations->setCatchment($station, $metres);
+```
+
+`getCatchmentMetres()` and `setCatchmentMetres()` are marked `@deprecated` and
+go with the column.
+
+**The area's default is unaffected.** `roster.default_catchment_metres` and the
+Settings field above it are a different thing — the ring a post falls back on
+when it carries none of its own — and they stay exactly as they are.
