@@ -216,6 +216,10 @@ final class TestKernel extends Kernel
             // READS it rather than computing a second answer beside it.
             \Uhifadhi\Contracts\Area\PresenceProviderInterface::class => 'area.presence',
             \Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService::class => 'area.checkin_statuses',
+            // AND THE DOOR A HANDSET CLAIMS THROUGH, so a fixture that
+            // needs somebody off today tells the AREA rather than writing
+            // a presence row this module is ruled never to own.
+            \Uhifadhi\Bundle\AreaBundle\Service\CheckInService::class => 'area.checkins',
             // The area's postings, so a demo-content test can staff its
             // posts the way an installation does rather than by hand.
             \Uhifadhi\Bundle\AreaBundle\Service\PostingService::class => 'area.postings',

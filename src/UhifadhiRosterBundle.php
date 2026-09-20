@@ -21,6 +21,7 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
+use Uhifadhi\Bundle\AreaBundle\Repository\ZoneRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\AreaPlateService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
@@ -313,6 +314,7 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service(ZoneSetService::class),
                 service(StationRepository::class),
                 service(PostingRepository::class),
+                service(ZoneRepository::class),
             ]);
 
         // THE WHOLE SURFACE'S ONE READ. Both the dashboard and the library

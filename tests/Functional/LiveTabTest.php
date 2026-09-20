@@ -52,6 +52,8 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
     private KernelBrowser $client;
     private EntityManagerInterface $em;
     private AreaOfInterest $area;
+    private Station $gate;
+    private User $ranger;
 
     protected function setUp(): void
     {
@@ -76,6 +78,7 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
             ->setCode('ST-01')
             ->setPoint('{"type":"Point","coordinates":[12.3,-5.7]}');
         $this->em->persist($gate);
+        $this->gate = $gate;
         $this->em->persist(new User()->setPassword('x')->setEmail(FixedManageVoter::MANAGER_EMAIL)->setFirstName('Mara')->setLastName('Manager'));
         $this->em->flush();
 
@@ -97,6 +100,7 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
 
         $ranger = new User()->setPassword('x')->setEmail('ada@example.test')->setFirstName('Ada')->setLastName('Example');
         $this->em->persist($ranger);
+        $this->ranger = $ranger;
         $this->em->persist(new RotationPoolMember($rotation, $ranger, 0));
         // Due today and nothing reported: the "no check-in" row the decisions
         // card exists for, and the one figure an empty demo never produces.
@@ -315,5 +319,214 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
         // AND NO COLOUR ANYWHERE NEAR THIS MODULE'S OWN LAYER. The posts
         // layer is still the roster's; it must not have grown a palette.
         self::assertDoesNotMatchRegularExpression('/roster\.[a-z_.]+[^}]{0,300}#[0-9A-Fa-f]{6}/', $plate);
+    }
+
+    /** The rail's edit route, for one op on one list. */
+    private function editUrl(string $op, string $list): string
+    {
+        $router = static::getContainer()->get('router');
+        self::assertInstanceOf(\Symfony\Component\Routing\RouterInterface::class, $router);
+
+        return $router->generate(RosterController::RAIL_EDIT_ROUTE, [
+            'uuid' => (string) $this->area->getUuidString(),
+            'op' => $op,
+            'list' => $list,
+        ]);
+    }
+
+    /**
+     * COMPOSE THE RAIL AS THE PAGE DOES: the token comes off the rendered
+     * form rather than out of the container, so a page that stopped
+     * shipping one would fail here rather than quietly pass.
+     *
+     * @return list<string> the rail after the edit
+     */
+    private function compose(\Symfony\Component\DomCrawler\Crawler $page, string $op, string $list): array
+    {
+        $token = $page->filter('#rail-'.$list.'-'.$op.' input[name="_token"]')->attr('value');
+        self::assertIsString($token, 'Every control the rail draws submits a real form.');
+
+        $this->client->request('POST', $this->editUrl($op, $list), ['_token' => $token]);
+        self::assertResponseRedirects();
+
+        return $this->railOf($this->client->followRedirect());
+    }
+
+    /** @return list<string> */
+    private function railOf(\Symfony\Component\DomCrawler\Crawler $page): array
+    {
+        return $page->filter('.rl-body .rl-cell')->each(
+            static fn (\Symfony\Component\DomCrawler\Crawler $cell): string => (string) $cell->attr('data-list'),
+        );
+    }
+
+    /**
+     * A ROW CENTRES THE PLATE ON WHAT IT NAMES, and the row it centred on
+     * says so.
+     *
+     * THE PAGE MUST NOT RELOAD BLIND: the answer to a click is the same
+     * page with the plate moved and the row marked, so somebody who
+     * centred on a post can see which one they chose. The move itself is
+     * the atlas's — this asserts that the click reaches it and comes back
+     * marked.
+     */
+    public function testARowCentresThePlateAndTheChosenRowSaysSo(): void
+    {
+        $page = $this->open();
+
+        $row = $page->filter('.rl-cell[data-list="stations"] a.fg-stn')->first();
+        self::assertCount(1, $row, 'A post with a point is a link, not an inert row.');
+
+        $centre = (string) $row->attr('href');
+        self::assertStringContainsString('centre='.$this->gate->getUuidString(), $centre);
+
+        $router = static::getContainer()->get('router');
+        self::assertInstanceOf(\Symfony\Component\Routing\RouterInterface::class, $router);
+        $centred = $this->client->request(
+            'GET',
+            $router->generate(RosterController::LIVE_ROUTE, ['uuid' => (string) $this->area->getUuidString()]).$centre,
+        );
+        self::assertResponseIsSuccessful();
+
+        self::assertCount(1, $centred->filter('.rl-cell[data-list="stations"] a.fg-stn.on'), 'The row that was clicked is the row that is marked.');
+    }
+
+    /**
+     * THE CELL HEAD CARRIES THE SURFACE'S OWN EDITING: where the list
+     * sits, and the way out of the rail.
+     *
+     * THE ENDS OF THE RAIL ARE DEAD ENDS. A first list with a live "up"
+     * would answer a click by not moving, which reads as a broken button
+     * rather than as the top of the list.
+     */
+    public function testEachCellCarriesItsOrderAndRemoveControls(): void
+    {
+        $page = $this->open();
+
+        $cells = $page->filter('.rl-body .rl-cell');
+        self::assertCount(2, $cells);
+
+        self::assertNotNull($cells->eq(0)->filter('.rl-cellhd .ord button')->eq(0)->attr('disabled'), 'The first list cannot move up.');
+        self::assertNull($cells->eq(0)->filter('.rl-cellhd .ord button')->eq(1)->attr('disabled'));
+        self::assertNull($cells->eq(1)->filter('.rl-cellhd .ord button')->eq(0)->attr('disabled'));
+        self::assertNotNull($cells->eq(1)->filter('.rl-cellhd .ord button')->eq(1)->attr('disabled'), 'And the last cannot move down.');
+
+        self::assertCount(1, $cells->eq(0)->filter('.rl-cellhd button.rm'), 'Every cell offers the way out.');
+        self::assertCount(1, $cells->eq(1)->filter('.rl-cellhd button.rm'));
+    }
+
+    /**
+     * MOVING A LIST IS REMEMBERED THE WAY THE PRESET CHOICE IS — the same
+     * store, so the rail somebody arranged is the rail they come back to.
+     */
+    public function testMovingAListReordersTheRailAndIsRemembered(): void
+    {
+        $page = $this->open();
+        self::assertSame(['people', 'stations'], $this->railOf($page));
+
+        self::assertSame(['stations', 'people'], $this->compose($page, 'down', 'people'));
+        self::assertSame(['stations', 'people'], $this->railOf($this->open()), 'A rail rearranged is a rail that stays rearranged.');
+    }
+
+    /** AND UP IS DOWN'S UNDO, over the lists that are on. */
+    public function testMovingAListBackUpRestoresTheOrder(): void
+    {
+        $this->compose($this->open(), 'down', 'people');
+
+        self::assertSame(['people', 'stations'], $this->compose($this->open(), 'up', 'people'));
+    }
+
+    /**
+     * TAKING A LIST OUT LEAVES A DOOR BACK IN, and the door is in the
+     * foot, where the design put it: the rail's own body is for lists that
+     * are in it.
+     */
+    public function testALisTakenOutIsOfferedBackFromTheFoot(): void
+    {
+        self::assertSame(['people'], $this->compose($this->open(), 'remove', 'stations'));
+
+        $page = $this->open();
+        $door = $page->filter('.fg-side .fg-foot button.rl-add[aria-pressed="false"]');
+        self::assertCount(2, $door, 'Zones was never in the rail, and stations has just left it.');
+        self::assertStringContainsString('from the library', $door->first()->text());
+
+        self::assertSame(['people', 'stations'], $this->compose($page, 'add', 'stations'), 'And the door puts it back where it was.');
+    }
+
+    /** A LIST THE SURFACE SHIPS WITH OFF IS A LIST THE FOOT CAN ADD. */
+    public function testTheFootAddsTheListTheSurfaceShipsSwitchedOff(): void
+    {
+        self::assertSame(['people', 'stations', 'zones'], $this->compose($this->open(), 'add', 'zones'));
+        self::assertCount(1, $this->open()->filter('.rl-cell[data-list="zones"]'));
+    }
+
+    /** AND COMPOSING IT IS A WRITE: it takes the permission and the token. */
+    public function testComposingTheRailRefusesARequestThatDidNotComeFromThePage(): void
+    {
+        $this->open();
+        $this->client->catchExceptions(false);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException::class);
+        $this->client->request('POST', $this->editUrl('remove', 'people'));
+    }
+
+    /**
+     * THE TAIL OF THE PEOPLE LIST IS FOLDED, AND THE HEAD STILL COUNTS IT.
+     *
+     * "NOT HERE" AND "NOT DUE" ARE DIFFERENT ANSWERS and only one of them
+     * is a problem, so somebody off today is in the list — a rail that
+     * dropped them would answer "who is missing" with a name that is
+     * simply off — but behind their own head, where they cost one row
+     * rather than five.
+     */
+    public function testThePeopleWhoAreNotOnTheWatchAreFoldedIntoTheTail(): void
+    {
+        $this->reportNotWorking();
+
+        $page = $this->open();
+        $cell = $page->filter('.rl-cell[data-list="people"]');
+
+        $fold = $cell->filter('details.rl-more');
+        self::assertCount(1, $fold, 'One fold, not one per group: nobody in it is missing.');
+        self::assertStringContainsString('off · 1', html_entity_decode($fold->filter('summary')->text()));
+        self::assertStringContainsString('Ada', $fold->filter('.pr.note')->text());
+
+        self::assertSame('1', trim($cell->filter('.rl-cellhd em')->text()), 'The head counts the whole list, folded or not.');
+        $offHeads = $cell->filter('.grp.gsub')->reduce(
+            static fn (\Symfony\Component\DomCrawler\Crawler $head): bool => str_contains(html_entity_decode($head->text()), 'off ·'),
+        );
+        self::assertCount(1, $offHeads, 'One head for the tail, and it is the fold\'s own.');
+        self::assertCount(1, $fold->filter('summary .grp.gsub'), 'The head names the fold from inside it.');
+    }
+
+    /**
+     * THE AREA IS TOLD, NOT THIS MODULE'S TABLES. A presence row is the
+     * area's to derive, so the fixture claims through its own service
+     * exactly as a handset would.
+     */
+    private function reportNotWorking(): void
+    {
+        $statuses = static::getContainer()->get('test_public.'.\Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService::class);
+        self::assertInstanceOf(\Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService::class, $statuses);
+        $doors = static::getContainer()->get('test_public.'.\Uhifadhi\Bundle\AreaBundle\Service\CheckInService::class);
+        self::assertInstanceOf(\Uhifadhi\Bundle\AreaBundle\Service\CheckInService::class, $doors);
+
+        $key = null;
+        foreach ($statuses->offeredBy($this->area) as $status) {
+            if (\Uhifadhi\Bundle\AreaBundle\Enum\CheckInStatusKind::NotWorking === $status->getKind()) {
+                $key = $status->getKey();
+            }
+        }
+        self::assertIsString($key, 'The area offers a "not working" status out of the box.');
+
+        $doors->claim($this->area, $this->ranger, [
+            'clientRef' => 'live-tab-tail',
+            'localDate' => new \DateTimeImmutable('today')->format('Y-m-d'),
+            'status' => $key,
+            'occurredAt' => new \DateTimeImmutable('today 06:00')->format(\DATE_ATOM),
+            'deviceId' => 'live-tab-handset',
+            'appVersion' => '1.4.0',
+        ]);
+        $this->em->flush();
     }
 }

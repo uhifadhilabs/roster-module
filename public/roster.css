@@ -825,7 +825,7 @@ a.fg-stn:hover, a.fg-zn:hover { background: var(--raised); text-decoration: none
 .fg-stn .lv.none, .fg-zn .lv.none { color: var(--dim); font-weight: 600; }
 
 .fg-stn .loc, .fg-zn .loc { display: inline-flex; flex: none; color: var(--dim); opacity: .55; }
-a.fg-stn:hover .loc, a.fg-zn:hover .loc { color: var(--acc); opacity: 1; }
+a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color: var(--acc); opacity: 1; }
 .fg-stn .loc svg, .fg-zn .loc svg { display: block; }
 
 /* ---- THE PLAN SHEET: SLOTS AND THE PILLS THAT FILL THEM ------------------
@@ -882,3 +882,31 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc { color: var(--acc); opacity: 1; }
 /* THE RULE THAT REFUSED IT, on the pill that it refused. */
 .r-pill em.why { font: 500 9px ui-monospace, monospace; font-style: normal; color: var(--fail); }
 .r-pill em.warn { font: 500 9px ui-monospace, monospace; font-style: normal; color: var(--warn); }
+
+/* ---- COMPOSING THE RAIL, AND THE TAIL OF A LIST -------------------------
+ * The order buttons, the way out of the rail, the doors that put a list
+ * back, and the fold that keeps a list bounded. Graduated with the rail
+ * itself: the Live tab depends on all four.
+ */
+.ord { flex: none; display: flex; align-items: center; gap: 4px; }
+.ord b { font: 700 10px ui-monospace, monospace; color: var(--dim); min-width: 12px; text-align: right; }
+.ord button { width: 20px; height: 20px; border: 1px solid var(--ln2); border-radius: 5px; background: none; color: var(--fog); cursor: pointer; font-family: inherit; font-size: 9px; line-height: 1; padding: 0; }
+.ord button:disabled { opacity: .35; cursor: default; }
+
+.fg-side .rl-cell .rl-cellhd .rm { border: 0; background: none; padding: 0 2px; cursor: pointer; color: var(--ln2); font-size: 15px; line-height: 1; }
+.fg-side .rl-cell:hover .rl-cellhd .rm { color: var(--fail); }
+
+.fg-side > .fg-foot { flex-direction: column; align-items: stretch; }
+.fg-side .rl-add { display: block; width: 100%; margin: 0 0 7px; cursor: pointer; background: none; padding: 9px 0; text-align: center; border-radius: 10px; border: 1px dashed var(--acc); color: var(--acc); text-decoration: none; font: 700 9px ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.fg-side .rl-add:hover { background: color-mix(in srgb, var(--acc) 9%, transparent); text-decoration: none; }
+/* A list already in the rail needs no door back into it. */
+.fg-side .rl-add[aria-pressed="true"] { display: none; }
+
+.fg-lst details.rl-more > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.fg-lst details.rl-more > summary::-webkit-details-marker { display: none; }
+.fg-lst details.rl-more > summary .grp { flex: 1 1 auto; position: static; }
+.fg-lst details.rl-more > summary .cv { display: inline-flex; color: var(--fog); flex: none; padding-bottom: 5px; transition: transform .15s ease; }
+.fg-lst details.rl-more > summary .cv svg { display: block; }
+.fg-lst details.rl-more[open] > summary .cv { transform: rotate(180deg); }
+/* Nobody in the tail is a row to act on, so none of them reads as one. */
+.fg-lst .pr.note, .fg-lst .pr.note:hover { cursor: default; background: none; box-shadow: none; }

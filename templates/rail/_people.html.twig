@@ -5,26 +5,41 @@
    Somebody at their post whose phone has said nothing is here and nowhere
    on the plate: a page with only the map would report them absent, and a
    marker invented at the post would turn a claim into proof. #}
-{# The head is written here rather than shared, because this list counts
-   PEOPLE and the other two count their own rows: one head partial taking a
-   count it did not compute would be a head that can disagree with its
-   list. #}
-<div class="rl-cellhd">
-    <span class="ord"><b>{{ position }}</b></span>
-    <span class="k">People</span>
-    <em>{{ people }}</em>
-    <span class="sp"></span>
-</div>
-{% for group in rail %}
-    {% if not group.isEmpty %}
-        <div class="grp gsub {{ group.tone }}">{{ group.label }} &middot; {{ group.count }}</div>
-        {% for row in group.rows %}
-            <div class="pr">
-                <span class="nm">{{ row.person.personName }}<em>{{ row.post.stationName }}</em></span>
-                <span class="r-ping {{ row.fix ? (row.stale ? 'stale' : 'ok') : 'off' }}"><i></i>{{ row.age ?: 'no ping' }}</span>
-            </div>
-        {% endfor %}
-    {% endif %}
-{% else %}
+{{ include('@UhifadhiRoster/rail/_cell.html.twig', {id: 'people', label: 'People', count: people, position: position, total: total, mayCompose: mayCompose}, with_context: false) }}
+{% set tail = rail|filter(group => group.tail and not group.isEmpty) %}
+{% set head = rail|filter(group => not group.tail and not group.isEmpty) %}
+{% if head is empty and tail is empty %}
     <div class="rfrag"><b>Nobody is on a watch this minute</b><em>the rail lists who is due; the plate draws the ones whose handsets have said where</em></div>
+{% endif %}
+{% for group in head %}
+    <div class="grp gsub {{ group.tone }}">{{ group.label }} &middot; {{ group.count }}</div>
+    {% for row in group.rows %}
+        <div class="pr">
+            <span class="nm">{{ row.person.personName }}<em>{{ row.post.stationName }}</em></span>
+            <span class="r-ping {{ row.fix ? (row.stale ? 'stale' : 'ok') : 'off' }}"><i></i>{{ row.age ?: 'no ping' }}</span>
+        </div>
+    {% endfor %}
 {% endfor %}
+{# THE TAIL OF THE LIST IS FOLDED, and it is ONE fold rather than one per
+   group: "due later · 3 · off · 2" is a single answer — nobody here is
+   missing — and two collapsed heads would invite reading them as two
+   problems. The head above still counts these people, so the fold hides
+   rows and never a number. A <details> needs no script. #}
+{% if tail is not empty %}
+    <details class="rl-more">
+        <summary>
+            <span class="grp gsub">
+                {%- for group in tail %}{{ group.label }} &middot; {{ group.count }}{{ not loop.last ? ' · ' : '' }}{% endfor -%}
+            </span>
+            <span class="cv">{{ ux_icon('roster:chevron-down') }}</span>
+        </summary>
+        {% for group in tail %}
+            {% for row in group.rows %}
+                <div class="pr note">
+                    <span class="nm">{{ row.person.personName }}<em>{{ row.person.shiftLabel }}{% if row.post.stationName %} &middot; {{ row.post.stationName }}{% endif %}</em></span>
+                    <span class="r-ping off"><i></i>{{ group.label }}</span>
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </details>
+{% endif %}

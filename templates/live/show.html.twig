@@ -129,8 +129,32 @@
                 </div>
 
                 <div class="fg-foot">
+                    {# ONE DOOR PER LIST, AND THE SHEET HIDES THE ONES
+                       ALREADY IN THE RAIL. Drawing all three and hiding
+                       the present ones is the design's arrangement: the
+                       foot then has a fixed set of doors whose order
+                       never shuffles as lists come and go. #}
+                    {% for list in railAll %}
+                        <button type="submit" class="rl-add" form="rail-{{ list.id }}-add" aria-pressed="{{ list.on ? 'true' : 'false' }}"{{ mayCompose ? '' : ' disabled' }}>+ Add <b>{{ list.label }}</b> from the library</button>
+                    {% endfor %}
                     <span data-rail-default>default &middot; {{ railDefault }}</span>
                 </div>
+
+                {# THE FORMS THE CELL CONTROLS SUBMIT. They live outside the
+                   scrolling body — a form is not a box, so its buttons can
+                   sit anywhere on the page and still belong to it — which
+                   keeps the head, the rows and the foot free of nested
+                   forms and keeps composing the rail scriptless. #}
+                {% if mayCompose %}
+                    {% for list in railAll %}
+                        {% for op in ['up', 'down', 'remove', 'add'] %}
+                            <form id="rail-{{ list.id }}-{{ op }}" method="post" hidden
+                                  action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::RAIL_EDIT_ROUTE'), {uuid: area.uuid, op: op, list: list.id}) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token(constant('Uhifadhi\\Roster\\Controller\\RosterController::CSRF_TOKEN_ID')) }}">
+                            </form>
+                        {% endfor %}
+                    {% endfor %}
+                {% endif %}
             </div>
         </div>
     </div>

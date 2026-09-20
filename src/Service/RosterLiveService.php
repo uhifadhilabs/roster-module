@@ -13,9 +13,11 @@ declare(strict_types=1);
 
 namespace Uhifadhi\Roster\Service;
 
+use Symfony\Component\Uid\Uuid;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
+use Uhifadhi\Bundle\AreaBundle\Repository\ZoneRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\AreaPlateService;
 use Uhifadhi\Bundle\AreaBundle\Service\ZoneSetService;
 use Uhifadhi\Bundle\AtlasBundle\Model\AtlasMap;
@@ -30,6 +32,7 @@ use Uhifadhi\Roster\Model\PostState;
 use Uhifadhi\Roster\Model\RailList;
 use Uhifadhi\Roster\Model\RailRow;
 use Uhifadhi\Roster\Model\RosteredPerson;
+use Uhifadhi\Roster\Model\ShiftWindow;
 
 /**
  * WHERE EVERYBODY IS, FED TO THE ATLAS.
@@ -70,6 +73,7 @@ final readonly class RosterLiveService
         private ZoneSetService $zones,
         private StationRepository $stations,
         private PostingRepository $postings,
+        private ZoneRepository $zoneRepository,
     ) {
     }
 
@@ -82,8 +86,9 @@ final readonly class RosterLiveService
      */
     /**
      * @param list<PostPresence> $rostered the posts on this module's books, for the rail's own key
+     * @param string|null        $centre   the uuid of the post or zone a row asked the plate to centre on
      */
-    public function plate(AreaOfInterest $area, LivePresence $live, int $withoutPosition = 0, array $rostered = []): AtlasMap
+    public function plate(AreaOfInterest $area, LivePresence $live, int $withoutPosition = 0, array $rostered = [], ?string $centre = null): AtlasMap
     {
         $view = $this->zones->view($area);
 
@@ -140,6 +145,16 @@ final readonly class RosterLiveService
             ));
         }
 
+        // A ROW ASKED THE PLATE TO CENTRE ON WHAT IT NAMES. The plate is
+        // about the whole area and the click makes it about one thing on
+        // it, which is the atlas's own `focusOn` — a subject's geometry,
+        // not a coordinate this module worked out.
+        $subject = null === $centre ? null : $this->geometryOf($area, $centre);
+
+        if (null !== $subject) {
+            $this->plates->focusOn($map, $subject, self::POST_ZOOM);
+        }
+
         return $map;
     }
 
@@ -190,12 +205,22 @@ final readonly class RosterLiveService
      * a marker at the post's own point would turn a claim into proof, which
      * is the one thing this module exists to avoid.
      *
-     * @param list<PostPresence> $posts
+     * THE TAIL OF THE LIST IS THE PEOPLE WHO ARE LEGITIMATELY NOT ON IT:
+     * the watch that has not started yet, and the day somebody is off. They
+     * belong in the rail — a list that dropped them would answer "who is
+     * missing" with a name that is simply due at six — but they are not what
+     * a duty officer is scanning for, so they are marked as the tail and the
+     * surface folds them behind one head.
+     *
+     * @param list<PostPresence>         $posts
+     * @param array<string, ShiftWindow> $windows the shift hours, so a watch that has not begun reads as due rather than as silent
      *
      * @return list<LiveRailGroup>
      */
-    public function rail(LivePresence $live, array $posts): array
+    public static function rail(LivePresence $live, array $posts, array $windows = [], ?\DateTimeImmutable $now = null): array
     {
+        $now ??= $live->asOf;
+        $minute = (int) $now->format('G') * 60 + (int) $now->format('i');
         $fixes = [];
         foreach ($live->positions as $position) {
             $fixes[$position->personUuid] = $position;
@@ -206,12 +231,21 @@ final readonly class RosterLiveService
             DayState::AtPostUnverified->value => [],
             'away' => [],
             'none' => [],
+            'due' => [],
+            'off' => [],
         ];
 
         foreach ($posts as $post) {
             foreach ($post->rostered as $person) {
                 $fix = $fixes[$person->personUuid] ?? null;
+                $window = $windows[$person->shiftKey] ?? null;
                 $key = match (true) {
+                    DayState::NotWorking === $person->state() => 'off',
+                    // DUE IS NOT SILENT. A watch whose hours have not
+                    // started cannot have been checked into, and reading
+                    // that as "no position" would put a name in front of
+                    // the duty officer every morning for no reason.
+                    0 === $person->watchCount() && null !== $window && $window->startsAtMinuteOfDay() > $minute => 'due',
                     null === $fix => 'none',
                     DayState::AtPostVerified === $fix->state => DayState::AtPostVerified->value,
                     DayState::AtPostUnverified === $fix->state => DayState::AtPostUnverified->value,
@@ -233,12 +267,14 @@ final readonly class RosterLiveService
             DayState::AtPostUnverified->value => ['at post · unverified', 'st-warn'],
             'away' => ['not at a post', ''],
             'none' => ['no position', 'st-fail'],
+            'due' => ['due later', ''],
+            'off' => ['off', ''],
         ];
 
         $rail = [];
         foreach ($groups as $key => $rows) {
             [$label, $tone] = $labels[$key];
-            $rail[] = new LiveRailGroup($label, $tone, $rows);
+            $rail[] = new LiveRailGroup($label, $tone, $rows, \in_array($key, ['due', 'off'], true));
         }
 
         return $rail;
@@ -388,6 +424,37 @@ final readonly class RosterLiveService
         }
 
         return new RailList('zones', 'Zones', $sections);
+    }
+
+    /** How close a plate comes to a post, which has no extent of its own. */
+    private const int POST_ZOOM = 13;
+
+    /**
+     * THE GEOMETRY BEHIND A ROW'S UUID — a post's point or a zone's shape.
+     *
+     * IT LOOKS IN THE AREA ONLY. A uuid from another park is not a subject
+     * this plate may be centred on, and answering null is how a link
+     * somebody edited by hand does nothing rather than something.
+     */
+    private function geometryOf(AreaOfInterest $area, string $uuid): ?string
+    {
+        if (!Uuid::isValid($uuid)) {
+            return null;
+        }
+
+        foreach ($this->stations->findByArea($area) as $station) {
+            if ((string) $station->getUuidString() === $uuid) {
+                return $station->getPoint();
+            }
+        }
+
+        foreach ($this->zoneRepository->zonesFor($area) as $zone) {
+            if ((string) $zone->getUuidString() === $uuid) {
+                return $zone->getGeom();
+            }
+        }
+
+        return null;
     }
 
     /** The house ships nine category tokens; a longer set wraps round them. */

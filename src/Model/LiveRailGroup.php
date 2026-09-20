@@ -38,6 +38,13 @@ final readonly class LiveRailGroup
         /** A house state class, or empty where the group states no verdict. */
         public string $tone,
         public array $rows,
+        /**
+         * WHETHER THIS GROUP IS THE TAIL OF THE LIST — people who are
+         * legitimately not on the watch. The surface folds the tail behind
+         * one head and still counts it, because "not here" and "not due"
+         * are different answers and only one of them is a problem.
+         */
+        public bool $tail = false,
     ) {
     }
 

@@ -58,6 +58,16 @@ final class RosterRailWidgets implements WidgetSurfaceInterface
     /** The heading the library files all three lists under. */
     public const string GROUP = 'rail';
 
+    /**
+     * WHAT THE RAIL ITSELF CALLS EACH LIST.
+     *
+     * A three-hundred-pixel column has room for a word, and the library —
+     * where somebody is choosing between lists they have not seen — has
+     * room for a sentence. Both names are declared here so the head of a
+     * cell and the door that puts it back cannot drift apart.
+     */
+    public const array NAMES = ['people' => 'People', 'stations' => 'Stations', 'zones' => 'Zones'];
+
     public function catalog(): WidgetCatalog
     {
         return self::declaration();
