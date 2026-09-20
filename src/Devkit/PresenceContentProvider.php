@@ -354,6 +354,17 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         $startedAt = $day->setTime(0, 0)->modify(\sprintf('+%d minutes', $window->startsAtMinuteOfDay() + $draw->between(0, 25)));
         $endsAt = $startedAt->modify(\sprintf('+%d minutes', $window->lengthMinutes()));
 
+        // A WATCH THAT HAS NOT STARTED IS NOT REPORTED, because it cannot
+        // have been. The seeder used to write a claim for every rostered
+        // watch on the day whatever the hour, so a park read at four in
+        // the morning had check-ins stamped six — the demo reporting the
+        // future, and every figure counting them. "Due later" is the
+        // reading before a watch begins, and it is written by writing
+        // nothing.
+        if ($startedAt > $now) {
+            return;
+        }
+
         // THE FIRST WATCH OF THE DAY. Where the script says what this one
         // is, it says so; the rest are drawn — most at post, and the others
         // the reasons a park actually records.

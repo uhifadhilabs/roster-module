@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Uhifadhi\Roster\Tests\Integration\Devkit;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\MockClock;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
@@ -335,17 +336,53 @@ final class PresenceContentProviderTest extends IntegrationTestCase
 
         $this->provider()->load();
 
-        foreach ($this->presence()->dayIn((string) $this->area->getUuidString(), $clock->now()->format('Y-m-d')) as $day) {
-            self::assertNotSame(
-                DayState::Special,
-                $day->state,
-                'A watch that has not started cannot have been claimed against.',
-            );
-        }
+        // NOTHING WAS CLAIMED ON TODAY. Every watch on this day starts at
+        // six or later, so at four in the morning the seeder has written
+        // no check-in against any of them: "due later" is the reading, and
+        // the demo says it by writing nothing at all.
+        //
+        // THE FACT IS THE COUNT AND NOT A STATE. A night watch that began
+        // YESTERDAY and is still running is legitimately part of today's
+        // reading and may carry any claim its own day was scripted with —
+        // so asserting "no reading on today says X" is asserting something
+        // untrue, and which watch happens to hold X depends on a sort
+        // order. What cannot vary is that nothing was written FOR today.
+        self::assertSame(0, $this->claimsRecordedOn($clock->now()), 'A watch that has not started cannot have been claimed against.');
 
-        // AND THE PLATE IS HONEST ABOUT IT: nobody is standing yet, so
-        // nothing is stale either — the state that exists at four in the
-        // morning is "due", and the demo says so by writing nothing.
+        // AND THE PLATE IS HONEST ABOUT IT: nobody who started today is
+        // standing yet, so nothing of today's is stale either.
         self::assertSame(0, $this->positions()->liveIn((string) $this->area->getUuidString(), $clock->now())->staleCount());
+    }
+
+    /**
+     * AND ONCE THE WATCHES HAVE BEGUN, TODAY IS CLAIMED AGAINST — the same
+     * count, at an hour when the seeder has work to do. Without this the
+     * test above would pass against a seeder that wrote nothing, ever.
+     */
+    public function testOnceTheWatchesHaveBegunTodayIsClaimedAgainst(): void
+    {
+        $this->atMidMorning();
+        $this->provider()->load();
+
+        $clock = self::getContainer()->get('clock');
+        self::assertInstanceOf(MockClock::class, $clock);
+
+        self::assertGreaterThan(0, $this->claimsRecordedOn($clock->now()));
+    }
+
+    /** How many check-ins the seeder wrote for that day. */
+    private function claimsRecordedOn(\DateTimeImmutable $day): int
+    {
+        $em = self::getContainer()->get('doctrine.orm.entity_manager');
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        $count = $em->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM duty_checkin c JOIN area_of_interest a ON a.id = c.area_id WHERE a.uuid = ? AND c.local_date = ?',
+            [(string) $this->area->getUuidString(), $day->format('Y-m-d')],
+        );
+
+        self::assertIsNumeric($count);
+
+        return (int) $count;
     }
 }
