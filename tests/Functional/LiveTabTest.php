@@ -304,6 +304,14 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
             self::assertStringContainsString($row, $plate, 'The key the live layer ships with.');
         }
 
+        // AND THE RAIL'S OWN KEY, under its own heading: the six states
+        // the column is colour-coded by. They are legend ITEMS and not
+        // layers — nothing on the map is drawn in these colours — but a
+        // reader meeting amber in the rail has nowhere else to learn it.
+        self::assertStringContainsString('Presence states', $plate);
+        self::assertStringContainsString('at post · verified', $plate);
+        self::assertStringContainsString('no check-in', $plate);
+
         // AND NO COLOUR ANYWHERE NEAR THIS MODULE'S OWN LAYER. The posts
         // layer is still the roster's; it must not have grown a palette.
         self::assertDoesNotMatchRegularExpression('/roster\.[a-z_.]+[^}]{0,300}#[0-9A-Fa-f]{6}/', $plate);

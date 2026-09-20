@@ -19,6 +19,8 @@ use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\AreaPlateService;
 use Uhifadhi\Bundle\AreaBundle\Service\ZoneSetService;
 use Uhifadhi\Bundle\AtlasBundle\Model\AtlasMap;
+use Uhifadhi\Bundle\AtlasBundle\Model\LayerShape;
+use Uhifadhi\Bundle\AtlasBundle\Model\LegendItem;
 use Uhifadhi\Contracts\Area\DayState;
 use Uhifadhi\Contracts\Area\LivePresence;
 use Uhifadhi\Roster\Model\LiveFigures;
@@ -57,6 +59,9 @@ use Uhifadhi\Roster\Model\RosteredPerson;
  */
 final readonly class RosterLiveService
 {
+    /** What the legend heads the rail's own colour coding with. */
+    public const string PRESENCE_GROUP = 'Presence states · in the rail';
+
     public function __construct(
         private AreaPlateService $plates,
         private ZoneSetService $zones,
@@ -72,7 +77,10 @@ final readonly class RosterLiveService
      * rings and the same posts a reader saw on the Stations tab, so nobody
      * has to learn a second map. Only the presence layers are ours.
      */
-    public function plate(AreaOfInterest $area, LivePresence $live, int $withoutPosition = 0): AtlasMap
+    /**
+     * @param list<PostPresence> $rostered the posts on this module's books, for the rail's own key
+     */
+    public function plate(AreaOfInterest $area, LivePresence $live, int $withoutPosition = 0, array $rostered = []): AtlasMap
     {
         $view = $this->zones->view($area);
 
@@ -109,7 +117,64 @@ final readonly class RosterLiveService
         // of the people missing from them.
         $map->livePositions($live, $withoutPosition);
 
+        // THE PRESENCE STATES ARE A KEY TO THE RAIL, not to the plate, and
+        // the legend says so in its own heading. They are legend ITEMS and
+        // not layers: nothing on the map is drawn in these colours — the
+        // marks are the house's one live dot — so a row that switched a
+        // layer would switch nothing. They earn their place because the
+        // rail beside the plate IS colour-coded by them, and a reader
+        // meeting "at post · unverified" in amber has nowhere else to
+        // learn what amber means.
+        //
+        // THE SWATCHES ARE THEME TOKENS, NOT PLATE TOKENS: these rows sit
+        // on the page ground under the plate, not on imagery.
+        foreach (self::presenceKey($rostered) as [$label, $swatch, $count]) {
+            $map->addLegendItem(new LegendItem(
+                label: \sprintf('%s · %d', $label, $count),
+                swatch: $swatch,
+                shape: LayerShape::Point,
+                group: self::PRESENCE_GROUP,
+            ));
+        }
+
         return $map;
+    }
+
+    /**
+     * THE SIX STATES THE RAIL COLOUR-CODES BY, each with how many people
+     * are in it — the key to the column, printed under the map.
+     *
+     * A SWATCH IS A TOKEN NAME. This module names no value; the tokens are
+     * the house's semantic six, the same words every other surface in the
+     * app states a state in.
+     *
+     * @param list<PostPresence> $posts
+     *
+     * @return list<array{string, string, int}>
+     */
+    private static function presenceKey(array $posts): array
+    {
+        $counts = [];
+        foreach ($posts as $post) {
+            foreach ($post->rostered as $person) {
+                $key = 0 === $person->watchCount() ? DayState::NoCheckIn->value : $person->state()->value;
+                $counts[$key] = ($counts[$key] ?? 0) + 1;
+            }
+        }
+
+        $rows = [];
+        foreach ([
+            [DayState::AtPostVerified, 'at post · verified', 'var(--ok)'],
+            [DayState::AtPostUnverified, 'at post · unverified', 'var(--warn)'],
+            [DayState::Special, 'special assignment', 'var(--acc)'],
+            [DayState::WorkingElsewhere, 'working elsewhere', 'var(--dim)'],
+            [DayState::NotWorking, 'not working', 'var(--fog)'],
+            [DayState::NoCheckIn, 'no check-in', 'var(--fail)'],
+        ] as [$state, $label, $swatch]) {
+            $rows[] = [$label, $swatch, $counts[$state->value] ?? 0];
+        }
+
+        return $rows;
     }
 
     /**

@@ -571,7 +571,7 @@ final class RosterController
             // THE PEOPLE THE READ HAD NO FIX FOR are the plate's business
             // too: they are on no layer, and a plate silent about them
             // would be a plate claiming the park is fully seen.
-            'plate' => $this->liveService->plate($area, $live, $this->liveService->figures($live, $whole)->withoutAFix),
+            'plate' => $this->liveService->plate($area, $live, $this->liveService->figures($live, $whole)->withoutAFix, $whole),
             'rail' => $people,
             'railLists' => $lists,
             'railCount' => \sprintf('%d in %d list%s', $counted, \count($lists), 1 === \count($lists) ? '' : 's'),
