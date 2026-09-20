@@ -54,22 +54,22 @@
  * header band starts below it. */
 .c.rband { padding: 0; overflow: visible; border-color: var(--ln2); }
 
-.rb-hd {
+.rband .rb-hd {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     padding: 17px 15px 10px; border-bottom: 1px solid var(--ln2);
     background: color-mix(in srgb, var(--raised) 55%, transparent); border-radius: 13px 13px 0 0;
 }
 
-.rb-ttl {
+.rband .rb-ttl {
     font: 600 11px ui-monospace, monospace; color: var(--fog);
     flex: 1 1 auto; min-width: 0; letter-spacing: .02em;
 }
 
-.rb-ttl b { color: var(--tx); font-weight: 700; }
+.rband .rb-ttl b { color: var(--tx); font-weight: 700; }
 
-.rb-hd .rb-act { margin-left: auto; display: flex; align-items: center; gap: 7px; flex: none; }
+.rband .rb-hd .rb-act { margin-left: auto; display: flex; align-items: center; gap: 7px; flex: none; }
 
-.rb-body { padding: 12px 15px 13px; }
+.rband .rb-body { padding: 12px 15px 13px; }
 
 /* ---- FRAGMENTS, NOT ESSAYS ------------------------------------------------
  * RULED 2026-09-18. A screen states facts. Where a card has to say one thing

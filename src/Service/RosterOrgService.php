@@ -22,6 +22,11 @@ use Uhifadhi\Roster\Model\DayFigures;
 use Uhifadhi\Roster\Model\Decision;
 use Uhifadhi\Roster\Model\OrgAreaRow;
 use Uhifadhi\Roster\Model\OrgDecision;
+use Uhifadhi\Roster\Model\OrgWatchRow;
+use Uhifadhi\Roster\Model\WatchDeclaration;
+use Uhifadhi\Roster\Repository\RotationRepository;
+use Uhifadhi\Roster\Repository\ShiftRepository;
+use Uhifadhi\Roster\Repository\StationWatchRepository;
 
 /**
  * THE ROSTER READ ACROSS EVERY AREA — the area page one scope wider.
@@ -55,6 +60,12 @@ final readonly class RosterOrgService
         private WeekGridService $week,
         private RosterLiveService $live,
         private LivePositionsInterface $positions,
+        // WHAT EACH STATION ASKS FOR — the three the declaration is read
+        // from. The presence reading says who is on a station; only these
+        // say what it asked for in the first place.
+        private StationWatchRepository $watches,
+        private RotationRepository $rotations,
+        private ShiftRepository $shifts,
     ) {
     }
 
@@ -135,6 +146,74 @@ final readonly class RosterOrgService
                 needingADecision: $figures->needingADecision(),
                 url: null === $url ? null : $url($area),
             );
+        }
+
+        return $rows;
+    }
+
+    /**
+     * TODAY'S WATCHES ACROSS THE ORGANISATION — one row per station on this
+     * module's books, in any area.
+     *
+     * IT IS THE AREA READING WITH THE AREA COLUMN ADDED, and nothing else.
+     * Every figure on a row comes from {@see PresenceReader::postsOn()} —
+     * the same call the area's own stations card makes — so the
+     * organisation's answer is the areas' answers, station for station. The
+     * only thing this adds is which area a row is in, which is the one fact
+     * a per-area reading has no need of.
+     *
+     * A STATION THAT STANDS NO WATCH KEEPS ITS ROW. It is on the books, so
+     * it is this module's to report on; what it reports is that it asks for
+     * nobody, which is why it is never counted, never late and never a
+     * hole. A station the roster does not keep at all is not here, and that
+     * is a different fact.
+     *
+     * @param list<AreaOfInterest> $areas
+     *
+     * @return list<OrgWatchRow>
+     */
+    public function watches(array $areas, \DateTimeImmutable $day, \DateTimeImmutable $now): array
+    {
+        $rows = [];
+
+        foreach ($areas as $area) {
+            // THE VOCABULARY AND THE BOOKS ONCE PER AREA, not once per
+            // station: a park of twelve stations is one query for the
+            // shifts, not twelve of the same one.
+            $shifts = [];
+            foreach ($this->shifts->findByArea($area) as $shift) {
+                $shifts[$shift->getKey()] = $shift;
+            }
+
+            $expects = [];
+            foreach ($this->watches->findByArea($area) as $watch) {
+                $expects[(string) $watch->getStation()->getUuidString()] = $watch;
+            }
+
+            foreach ($this->presence->postsOn($area, $day, $now) as $reading) {
+                $watch = $expects[$reading->stationUuid] ?? null;
+                if (null === $watch) {
+                    continue;
+                }
+
+                $station = $watch->getStation();
+
+                $rows[] = new OrgWatchRow(
+                    stationName: $reading->stationName,
+                    stationCode: $station->getCode(),
+                    areaName: (string) $area->getName(),
+                    watch: WatchDeclaration::of(
+                        $watch->getExpects(),
+                        $this->rotations->findOneForStation($station),
+                        $shifts,
+                    ),
+                    onItNow: \count($reading->rostered),
+                    verified: $reading->verified,
+                    expected: $reading->expected,
+                    state: $reading->state,
+                    silentFor: $reading->silentFor,
+                );
+            }
         }
 
         return $rows;

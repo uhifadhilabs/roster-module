@@ -18,6 +18,7 @@ use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Uhifadhi\Bundle\AreaBundle\Overview\OrgOverviewContributorInterface;
 use Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
@@ -47,6 +48,7 @@ use Uhifadhi\Roster\Devkit\PresenceContentProvider;
 use Uhifadhi\Roster\Devkit\RosterContentProvider;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Module\RosterWatches;
+use Uhifadhi\Roster\Org\RosterOrgOverview;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\RotationPoolMemberRepository;
@@ -297,6 +299,24 @@ final class UhifadhiRosterBundle extends AbstractBundle
             ->tag(StationSectionsInterface::TAG);
 
         /*
+         * WHAT THIS MODULE PUTS ON THE ORGANISATION DASHBOARD — the "on
+         * duty now" figure in the strip, and today's watches across every
+         * area. The design declares both; this registers them.
+         *
+         * A SECOND SEAM BESIDE THE AREA'S, opted into deliberately. A
+         * module with nothing to say across areas says nothing and loses no
+         * cells on the area page — so this tag is the whole of opting in.
+         *
+         * Tagged by hand at this end, like every other: a reusable bundle
+         * is not autoconfigured, and an attribute on the contract interface
+         * would be silently dead because PHP does not inherit attributes
+         * from an interface.
+         */
+        $services->set('roster.org_overview', RosterOrgOverview::class)
+            ->args([service('roster.org'), service('router')])
+            ->tag(OrgOverviewContributorInterface::TAG);
+
+        /*
          * THE ONE QUESTION THE AREA ASKS THE ROSTER, on behalf of a handset
          * reading its month. Read-only and per person; a day with no watch
          * is a rest day and is answered by saying nothing.
@@ -338,6 +358,9 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 service('roster.week_grid'),
                 service('roster.live'),
                 service(LivePositionsInterface::class),
+                service(StationWatchRepository::class),
+                service(RotationRepository::class),
+                service(ShiftRepository::class),
             ]);
 
         $services->set('roster.live', RosterLiveService::class)

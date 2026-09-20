@@ -1,0 +1,80 @@
+{# ============================================================================
+   TODAY'S WATCHES ACROSS THE ORGANISATION — the roster's cell on `/`,
+   ported from the design's org.widgets.js `watches`.
+
+   ONE ROW PER STATION ON THIS MODULE'S BOOKS, in any area: what its watch
+   asks for, who is on it, and how many of them the handset bore out. The
+   AREA column is the only thing this has that the area's own stations card
+   does not — every figure beside it is that card's reading, unchanged.
+
+   TWO THINGS THE DESIGN DREW THAT THIS DOES NOT. Its header row says
+   "post"; the vocabulary is STATION now, and a screen shipped with the
+   older word would teach it back. And it prints the workshop's own index
+   chip in the tab — the drawing's referencing system, not product, as the
+   dashboard this lands on says of itself.
+
+   WHAT IT ADDS INSTEAD IS `.ao-by`. A contributed cell names its
+   contributor, so the day this module is uninstalled its disappearance
+   reads as the system working rather than as a bug. That mark is the host's
+   vocabulary and the page links the sheet that draws it.
+
+   BOUNDED. A dashboard card never grows with its data: the first few rows,
+   the count, and the one door out.
+
+   IT READS `by.roster` AND NOTHING ELSE. The host renders every contributed
+   cell with `with_context: false` against ONE map, each contributor's own
+   answers under its own slug — so a cell cannot read another module's
+   numbers by accident, and the name it reads under is the slug its module
+   provider declares.
+   ========================================================================= #}
+{% set roster = by[constant('Uhifadhi\\Roster\\Org\\RosterOrgOverview::SLUG')] %}
+<div class="c" data-w="watches">
+    <span class="tab">Today&rsquo;s watches<span class="src">&middot;
+        <time datetime="{{ roster.day.format('Y-m-d') }}" data-localtime-format="day">{{ roster.day.format('D j M')|lower }}</time>
+        &middot; {{ roster.onTheWatch }} on the watch now
+        {%- if roster.short %} &middot; <span class="r">{{ roster.short }} short</span>{% endif %}</span></span>
+
+    {% if roster.watches|length > roster.shown %}
+        <a class="more" href="{{ roster.rosterUrl }}">{{ roster.shown }} of {{ roster.watches|length }} &middot; the roster &rarr;</a>
+    {% else %}
+        <a class="more" href="{{ roster.rosterUrl }}">The roster &rarr;</a>
+    {% endif %}
+
+    <span class="ao-by"><i></i>roster</span>
+
+    {% if roster.watches is empty %}
+        <p class="zeb">No station is on the roster&rsquo;s books in any area yet. A watch is given to a station deliberately, so none is assumed &mdash; and until one is, this module counts nothing and reports on nobody.</p>
+    {% else %}
+        <table class="tbl">
+            <tr>
+                <th>station</th>
+                <th>area</th>
+                <th>the watch</th>
+                <th>on it now</th>
+                <th>verified</th>
+            </tr>
+            {% for row in roster.watches|slice(0, roster.shown) %}
+                <tr>
+                    <td{{ row.standsAWatch ? '' : ' class="fog"' }}>
+                        {%- if row.standsAWatch %}<b>{{ row.stationName }}</b>{% else %}{{ row.stationName }}{% endif %}
+                        <span class="mono">{{ row.stationCode ?: '—' }}</span>
+                    </td>
+                    <td{{ row.standsAWatch ? '' : ' class="fog"' }}>{{ row.areaName }}</td>
+                    <td{{ row.standsAWatch ? '' : ' class="fog"' }}>{{ row.watch }}</td>
+                    <td{{ row.standsAWatch ? '' : ' class="fog"' }}>{{ row.onItNow }}</td>
+                    {# A STATION THAT STANDS NO WATCH HAS NOTHING TO VERIFY, so
+                       the column says how it reads instead of printing 0 of 0 —
+                       null and zero are different facts. #}
+                    <td class="{{ row.tone }}">
+                        {%- if row.standsAWatch -%}
+                            {{ row.verified }} of {{ row.onItNow }}
+                        {%- else -%}
+                            {{ row.state.label|lower }}
+                            {%- if row.silentFor is not null %} &middot; {{ row.silentFor }} min{% endif -%}
+                        {%- endif -%}
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+</div>

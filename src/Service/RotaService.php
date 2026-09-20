@@ -24,6 +24,7 @@ use Uhifadhi\Roster\Model\RotaFigures;
 use Uhifadhi\Roster\Model\RotaGroup;
 use Uhifadhi\Roster\Model\RotaRow;
 use Uhifadhi\Roster\Model\SwapMark;
+use Uhifadhi\Roster\Model\WatchDeclaration;
 use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\RotationPoolMemberRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
@@ -307,26 +308,16 @@ final readonly class RotaService
     }
 
     /**
-     * WHAT THE POST ASKS FOR, in the words the heading prints.
+     * WHAT THE STATION ASKS FOR, in the words the heading prints — and it is
+     * the model's sentence, not a second copy of it. The organisation
+     * dashboard's watches cell prints the same phrase.
      *
      * @param list<string>         $expects
      * @param array<string, Shift> $shifts
      */
     private function asksOf(array $expects, ?Rotation $rotation, array $shifts): string
     {
-        if (null === $rotation || [] === $expects) {
-            return 'no watch';
-        }
-
-        $parts = [];
-        foreach ($expects as $key) {
-            $slots = $rotation->slotsFor($key);
-            if ($slots > 0) {
-                $parts[] = mb_strtolower(null === ($shifts[$key] ?? null) ? $key : $shifts[$key]->getLabel()).' '.$slots;
-            }
-        }
-
-        return [] === $parts ? 'no watch' : implode(' · ', $parts);
+        return WatchDeclaration::of($expects, $rotation, $shifts);
     }
 
     /**

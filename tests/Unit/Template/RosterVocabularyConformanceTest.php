@@ -52,6 +52,16 @@ final class RosterVocabularyConformanceTest extends VocabularyConformanceTestCas
         return [
             ...parent::linkedStylesheets(),
             \dirname((new \ReflectionClass(\Uhifadhi\Bundle\ShellBundle\ShellBundle::class))->getFileName() ?: '').'/public/widget.css',
+            /*
+             * AND THE AREA'S OWN SHEET, because one of this module's
+             * templates is not drawn on one of this module's pages: the
+             * organisation dashboard's watches cell is rendered by the
+             * CORE, on a page that links the area vocabulary before any
+             * module's. The contributor tag `.ao-by` and the honest-absent
+             * paragraph are that vocabulary, and a cell that restated them
+             * would be the drift this whole test exists to stop.
+             */
+            \dirname((new \ReflectionClass(\Uhifadhi\Bundle\AreaBundle\AreaBundle::class))->getFileName() ?: '').'/public/area.css',
         ];
     }
 }
