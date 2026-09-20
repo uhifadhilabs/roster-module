@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Uhifadhi\Roster\Tests\Integration;
 
 use ApiPlatform\Symfony\Bundle\ApiPlatformBundle;
+use Composer\InstalledVersions;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Doctrine\Bundle\MigrationsBundle\DoctrineMigrationsBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
@@ -287,13 +288,74 @@ final class TestKernel extends Kernel
         return __DIR__.'/Fixtures/app';
     }
 
+    /**
+     * THE CACHE IS KEYED BY THE CORE IT WAS BUILT AGAINST.
+     *
+     * A KERNEL CACHE THAT OUTLIVES THE PACKAGE IT COMPILED IS A SUITE THAT
+     * TESTS YESTERDAY'S SHELL. The templates this module renders through —
+     * the page frame, the widget library, the map plate — belong to the
+     * core, and Twig compiles them into this directory once. Update the
+     * core, and every one of those stays compiled as it was: the suite goes
+     * green against a shell that is no longer installed, and red against one
+     * that is. It is not debug mode's job to notice, either — Twig's
+     * auto-reload watches a template's own mtime, and a package extracted
+     * fresh by Composer can arrive with an older one than the compiled copy.
+     *
+     * This was found the honest way: a test for a section id the core had
+     * just started emitting stayed red through a correct upgrade, and the
+     * only thing wrong was this directory.
+     *
+     * So the core's exact reference is part of the path. A new core is a new
+     * cache, always, and the old one is simply orphaned in the temp
+     * directory rather than reused.
+     */
+    private static function keyedBy(string $what): string
+    {
+        return \sprintf('%s/roster-module-tests/%s/%s', sys_get_temp_dir(), self::coreReference(), $what);
+    }
+
+    /**
+     * WHICH CORE IS INSTALLED, as one short stable string.
+     *
+     * Composer knows the commit for anything it resolved, which is the whole
+     * answer for CI and for an ordinary checkout. A PATH or symlinked
+     * install — a test bed pointed straight at the core's working copy —
+     * has no reference at all, and there the newest mtime among the
+     * templates and the sheets is what changes when somebody edits one.
+     */
+    private static function coreReference(): string
+    {
+        $reference = InstalledVersions::getReference(self::CORE);
+
+        if (\is_string($reference) && '' !== $reference) {
+            return substr($reference, 0, 12);
+        }
+
+        $newest = 0;
+        $root = InstalledVersions::getInstallPath(self::CORE);
+
+        if (\is_string($root) && is_dir($root)) {
+            /** @var \SplFileInfo $file */
+            foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root.'/src', \FilesystemIterator::SKIP_DOTS)) as $file) {
+                if (\in_array($file->getExtension(), ['twig', 'css', 'js'], true)) {
+                    $newest = max($newest, $file->getMTime());
+                }
+            }
+        }
+
+        return 'local-'.$newest;
+    }
+
+    /** The package every template this suite renders comes from. */
+    private const string CORE = 'uhifadhi/uhifadhi';
+
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir().'/roster-module-tests/cache';
+        return self::keyedBy('cache');
     }
 
     public function getLogDir(): string
     {
-        return sys_get_temp_dir().'/roster-module-tests/log';
+        return self::keyedBy('log');
     }
 }
