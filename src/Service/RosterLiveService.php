@@ -42,16 +42,19 @@ use Uhifadhi\Roster\Model\RosteredPerson;
  *
  * THE POSITIONS ARE THE AREA'S TOO, read through
  * {@see \Uhifadhi\Contracts\Area\LivePositionsInterface}. This module stores
- * no position and derives no state: a marker's colour is the state the AREA
- * already derived for that watch, so a ranger cannot read "verified" on the
- * map and unverified on the day board.
+ * no position and derives no state.
  *
- * A COLOUR IS A TOKEN NAME, NEVER A VALUE. A module declares no colour, and
- * that has no exception for a swatch that happens to be read by JavaScript:
- * the layer publishes `var(--plate-ok)` and the plate resolves it against
- * its own container. The plate palette is fixed on imagery — dark in both
- * themes — which is why these are the plate's tokens and not the shell's
- * semantic ones.
+ * AND IT DOES NOT DRAW THE MARKS EITHER. `AtlasMap::livePositions()` adds
+ * the live layer and the key that must come with it in one call; the mark
+ * is the house's own `.livedot` component. So this names no colour, no
+ * size and no typeface for a position — it hands over the positions and
+ * the count of the people the read had no fix for, and nothing else.
+ *
+ * THE ONE KEY IT DOES WRITE is the rail's: six legend ITEMS, under their
+ * own heading, for the states the COLUMN is colour-coded by. Nothing on
+ * the map is drawn in those colours, which is exactly why they are items
+ * and not layers — and their swatches are the house's semantic token
+ * names, because those rows sit on the page ground and not on imagery.
  *
  * STALENESS IS THE ANSWER'S. {@see LivePresence::isStale()} decides what is
  * old, from the area's own ping interval; a threshold of this module's would
