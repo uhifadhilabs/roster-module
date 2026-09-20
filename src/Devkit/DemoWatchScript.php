@@ -41,6 +41,19 @@ final readonly class DemoWatchScript
         public bool $closed,
         /** Whether the day carries a second watch after this one. */
         public bool $second,
+        /**
+         * WHETHER THIS WATCH IS STANDING AWAY FROM ITS POST. The AREA
+         * derives "at post, unverified" from the distance between the fix
+         * and the post, so a demo cannot claim that state — it can only
+         * stand somebody far enough away and let the area say so.
+         */
+        public bool $away = false,
+        /**
+         * WHETHER THE HANDSET HAS GONE QUIET. Its pings stop early, so the
+         * last one is hours old and the live plate draws it stale: the one
+         * state on that plate that means "where they WERE".
+         */
+        public bool $quiet = false,
     ) {
     }
 
@@ -66,6 +79,18 @@ final readonly class DemoWatchScript
     public static function twoWatches(): self
     {
         return new self(CheckInStatusKind::AtPost, true, true);
+    }
+
+    /** At the post by their own account, and standing nowhere near it. */
+    public static function awayFromThePost(): self
+    {
+        return new self(CheckInStatusKind::AtPost, true, false, away: true);
+    }
+
+    /** At the post, and the handset stopped talking hours ago. */
+    public static function goneQuiet(): self
+    {
+        return new self(CheckInStatusKind::AtPost, true, false, quiet: true);
     }
 
     public function isReported(): bool

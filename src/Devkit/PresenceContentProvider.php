@@ -138,7 +138,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         }
 
         $windows = $this->shifts->windowsFor($area);
-        $scripted = self::script($duties, $windows, $today);
+        $scripted = self::script($duties, $windows, $today) + self::scriptToday($duties, $windows, $today);
 
         foreach ($duties as $duty) {
             $window = $windows[$duty->getShiftKey()] ?? null;
@@ -238,6 +238,71 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
     }
 
     /**
+     * AND TODAY IS SCRIPTED TOO, because today is the day somebody opens.
+     *
+     * THE BOARD, TODAY AND THE LIVE PLATE ALL READ ONE DAY — this one —
+     * and every state they are built to draw has to be ON it. Leaving that
+     * to the draw meant a park of fifteen watches showed "at post" fifteen
+     * times: no special assignment, nobody away, nobody silent, nothing to
+     * decide. The month behind it stays drawn; this fixes only the day in
+     * front of the reader.
+     *
+     * A WATCH THAT HAS NOT STARTED IS LEFT ALONE. "Due later" is its own
+     * reading and the clock owns it — scripting a claim onto a watch that
+     * begins at six tonight would be the demo reporting the future.
+     *
+     * @param list<Duty>                 $duties
+     * @param array<string, ShiftWindow> $windows
+     *
+     * @return array<string, DemoWatchScript> by duty uuid
+     */
+    private static function scriptToday(array $duties, array $windows, \DateTimeImmutable $today): array
+    {
+        $minute = (int) (new \DateTimeImmutable())->format('G') * 60 + (int) (new \DateTimeImmutable())->format('i');
+
+        $begun = array_values(array_filter(
+            $duties,
+            static fn (Duty $duty): bool => $duty->getOnDay()->format('Y-m-d') === $today->format('Y-m-d')
+                && isset($windows[$duty->getShiftKey()])
+                && $windows[$duty->getShiftKey()]->startsAtMinuteOfDay() <= $minute,
+        ));
+
+        usort($begun, static fn (Duty $a, Duty $b): int => [
+            (string) $a->getStation()->getUuidString(), $a->getShiftKey(), (string) $a->getPerson()->getUuidString(),
+        ] <=> [
+            (string) $b->getStation()->getUuidString(), $b->getShiftKey(), (string) $b->getPerson()->getUuidString(),
+        ]);
+
+        // THE READINGS THE THREE SCREENS DRAW, in the order a duty officer
+        // meets them. Everything past the end of this list is drawn, which
+        // is most of the park and where the variety comes from.
+        // THE ORDER IS THE ORDER OF NEED. A park with only a couple of
+        // watches standing still has to show the plate's stale mark and a
+        // claim the positions do not bear out, because those are the two a
+        // duty officer acts on; the rarer reasons come after them.
+        $scripts = [
+            DemoWatchScript::reporting(CheckInStatusKind::AtPost),
+            DemoWatchScript::goneQuiet(),
+            DemoWatchScript::awayFromThePost(),
+            DemoWatchScript::reporting(CheckInStatusKind::Special),
+            DemoWatchScript::reporting(CheckInStatusKind::WorkingElsewhere),
+            DemoWatchScript::reporting(CheckInStatusKind::NotWorking),
+            DemoWatchScript::unreported(),
+        ];
+
+        $assigned = [];
+        foreach ($begun as $index => $duty) {
+            if (!isset($scripts[$index])) {
+                break;
+            }
+
+            $assigned[(string) $duty->getUuid()] = $scripts[$index];
+        }
+
+        return $assigned;
+    }
+
+    /**
      * ONE ROSTERED WATCH, WORKED. The draw is a function of the duty, so
      * the same watch tells the same story on every run.
      *
@@ -289,6 +354,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
             $startedAt,
             $stillOut ? null : $endsAt,
             $draw,
+            $script,
         );
 
         // A DAY HOLDS ANY NUMBER OF WATCHES (ruled). About one day in five
@@ -336,6 +402,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         \DateTimeImmutable $startedAt,
         ?\DateTimeImmutable $endedAt,
         DemoDraw $draw,
+        ?DemoWatchScript $script = null,
     ): void {
         $status = $statuses[$kind->value] ?? null;
         if (null === $status) {
@@ -368,7 +435,17 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         // rule seen from the other end: the watch started without a
         // position and the area says so rather than refusing the claim.
         $blind = $kind->takesStation() && $draw->then('blind')->oneIn(13);
-        $stray = $draw->then('stray')->oneIn(9);
+
+        // STANDING AWAY FROM THE POST IS NOT A CLAIM, IT IS A DISTANCE.
+        // The area derives "at post, unverified" from how far the fix is
+        // from the post, so the script cannot say it — it can only put
+        // somebody out there and let the area reach its own verdict.
+        $stray = null !== $script ? $script->away : $draw->then('stray')->oneIn(9);
+
+        // Somebody the area is to call unverified has to have a fix at all.
+        if ($stray) {
+            $blind = false;
+        }
 
         if (!$blind) {
             $fix = $this->fixNear($duty, $stray);
@@ -393,7 +470,7 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
             return;
         }
 
-        $this->ping($area, $duty, $ref, $startedAt, $endedAt, $stray, $draw);
+        $this->ping($area, $duty, $ref, $startedAt, $endedAt, $stray, $draw, null !== $script && $script->quiet);
     }
 
     /**
@@ -409,13 +486,22 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
         ?\DateTimeImmutable $endedAt,
         bool $stray,
         DemoDraw $draw,
+        bool $quiet = false,
     ): void {
         $fix = $this->fixNear($duty, $stray);
         if (null === $fix) {
             return;
         }
 
+        // A HANDSET THAT WENT QUIET stopped talking hours ago, so its
+        // pings are spread over the part of the watch it was still
+        // reporting and the last one is old enough for the plate to draw
+        // it stale — "where they WERE", which is the state that sends
+        // somebody to the radio.
         $until = $endedAt ?? new \DateTimeImmutable();
+        if ($quiet) {
+            $until = $startedAt->modify(\sprintf('+%d minutes', max(10, (int) floor(($until->getTimestamp() - $startedAt->getTimestamp()) / 60 / 4))));
+        }
         $minutes = max(0, (int) floor(($until->getTimestamp() - $startedAt->getTimestamp()) / 60));
         $count = $draw->then('pings')->between(2, 5);
         $step = (int) floor($minutes / ($count + 1));

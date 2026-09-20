@@ -216,6 +216,9 @@ final class TestKernel extends Kernel
             // The AREA's own derivation, so a test can assert this module
             // READS it rather than computing a second answer beside it.
             \Uhifadhi\Contracts\Area\PresenceProviderInterface::class => 'area.presence',
+            // And the live read, so a demo-content test can assert what the
+            // plate will actually draw this minute.
+            \Uhifadhi\Contracts\Area\LivePositionsInterface::class => \Uhifadhi\Contracts\Area\LivePositionsInterface::class,
             \Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService::class => 'area.checkin_statuses',
             // AND THE DOOR A HANDSET CLAIMS THROUGH, so a fixture that
             // needs somebody off today tells the AREA rather than writing

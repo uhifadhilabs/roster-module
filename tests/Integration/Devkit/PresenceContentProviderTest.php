@@ -17,6 +17,7 @@ use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
 use Uhifadhi\Contracts\Area\DayState;
+use Uhifadhi\Contracts\Area\LivePositionsInterface;
 use Uhifadhi\Contracts\Area\PresenceProviderInterface;
 use Uhifadhi\Roster\Devkit\PresenceContentProvider;
 use Uhifadhi\Roster\Devkit\RosterContentProvider;
@@ -92,6 +93,14 @@ final class PresenceContentProviderTest extends IntegrationTestCase
         self::assertInstanceOf(PresenceProviderInterface::class, $presence);
 
         return $presence;
+    }
+
+    private function positions(): LivePositionsInterface
+    {
+        $positions = self::getContainer()->get('test_public.'.LivePositionsInterface::class);
+        self::assertInstanceOf(LivePositionsInterface::class, $positions);
+
+        return $positions;
     }
 
     /**
@@ -225,5 +234,57 @@ final class PresenceContentProviderTest extends IntegrationTestCase
         $after = array_map(static fn (object $d): string => $d->localDate.'/'.$d->personUuid.'/'.\count($d->watches), $this->theMonthAsRead());
 
         self::assertSame($before, $after);
+    }
+
+    /**
+     * TODAY IS SCRIPTED, NOT DRAWN — the day somebody opens carries the
+     * readings the screens are built for, in a stated order.
+     *
+     * THE BOARD, TODAY AND THE LIVE PLATE ALL READ ONE DAY. Left to the
+     * draw, a park showed "at post" over and over on the morning somebody
+     * looked: no claim to question, nobody silent, nothing to decide, on
+     * the screens built for deciding. The month behind it was fine, which
+     * is exactly why nobody noticed.
+     *
+     * WHAT IS ASSERTED IS THE MECHANISM AND NOT THE WHOLE LIST. This
+     * fixture is four posts, so only the first of the scripts are reached;
+     * the full spread needs a park-sized roster, and what makes it appear
+     * there is this same order being applied. A watch that has not started
+     * is not in it at all — "due later" is its own reading and the clock
+     * owns it.
+     */
+    public function testTodayIsScriptedSoTheDaySomebodyOpensIsWorthReading(): void
+    {
+        $this->provider()->load();
+
+        $today = $this->presence()->dayIn((string) $this->area->getUuidString(), new \DateTimeImmutable('today')->format('Y-m-d'));
+        self::assertNotSame([], $today, 'Somebody is on today.');
+
+        $atPost = array_filter(
+            $today,
+            static fn (\Uhifadhi\Contracts\Area\PersonDay $day): bool => \in_array($day->state, [DayState::AtPostVerified, DayState::AtPostUnverified], true),
+        );
+
+        self::assertNotSame([], $atPost, 'The first scripted watch of the day is at its post.');
+    }
+
+    /**
+     * AND ONE HANDSET HAS GONE QUIET — the stale mark on the live plate,
+     * which is the only one that means "where they WERE" rather than
+     * where they are.
+     *
+     * IT CANNOT BE LEFT TO A FREQUENCY. A plate whose every mark is fresh
+     * never shows the state a duty officer acts on, and a demo that got
+     * one only on the days the draw felt like it is a demo that is wrong
+     * on the morning somebody looks.
+     */
+    public function testOneHandsetOnTodaysWatchHasGoneQuiet(): void
+    {
+        $this->provider()->load();
+
+        $live = $this->positions()->liveIn((string) $this->area->getUuidString(), new \DateTimeImmutable());
+
+        self::assertNotSame([], $live->positions, 'The plate is not empty.');
+        self::assertGreaterThan(0, $live->staleCount(), 'No mark on the plate is stale.');
     }
 }
