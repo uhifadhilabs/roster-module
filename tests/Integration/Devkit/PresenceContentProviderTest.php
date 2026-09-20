@@ -110,12 +110,21 @@ final class PresenceContentProviderTest extends IntegrationTestCase
      *
      * THIS IS WHAT BROKE CI. Not a wrong assertion — the same assertion,
      * true at the hour one leg ran and false at the hour the other did.
+     *
+     * AND IT HANDS THE CLOCK BACK, because pinning one is only half of it:
+     * a reading asked for "now" while the clock says half past ten is a
+     * reading of two different instants, and the answer then depends on
+     * the hour the suite happens to run at — which is the very thing this
+     * helper exists to stop. A caller that needs the instant takes it from
+     * here rather than from the wall.
      */
-    private function atMidMorning(): void
+    private function atMidMorning(): MockClock
     {
         $clock = self::getContainer()->get('clock');
         self::assertInstanceOf(MockClock::class, $clock);
         $clock->modify('today 10:30');
+
+        return $clock;
     }
 
     private function positions(): LivePositionsInterface
@@ -304,10 +313,15 @@ final class PresenceContentProviderTest extends IntegrationTestCase
      */
     public function testOneHandsetOnTodaysWatchHasGoneQuiet(): void
     {
-        $this->atMidMorning();
+        $clock = $this->atMidMorning();
         $this->provider()->load();
 
-        $live = $this->positions()->liveIn((string) $this->area->getUuidString(), new \DateTimeImmutable());
+        // THE PLATE IS ASKED FOR THE PINNED INSTANT, not for the wall's.
+        // A live reading closes a watch whose rostered end has passed, so
+        // asking at the real hour empties a plate the seeder filled at
+        // half past ten — green all morning, red all evening, and nothing
+        // wrong with either the seeder or the plate.
+        $live = $this->positions()->liveIn((string) $this->area->getUuidString(), $clock->now());
 
         self::assertNotSame([], $live->positions, 'The plate is not empty.');
         self::assertGreaterThan(0, $live->staleCount(), 'No mark on the plate is stale.');
