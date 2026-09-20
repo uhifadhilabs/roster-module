@@ -133,6 +133,15 @@ final class RosterController
     /** Moving, taking out or putting back one of the rail's lists. */
     public const string RAIL_EDIT_ROUTE = 'roster_live_rail_edit';
 
+    /**
+     * WHAT THE ATLAS BRINGS BACK WITH THE PLATE, prefixed once.
+     *
+     * A row in the rail asks the plate to change in place and to carry its
+     * own list across from the same answer, so the row that was clicked
+     * returns wearing the mark. The id is the list's; this is its stem.
+     */
+    public const string RAIL_LIST_ID = 'rail-list-';
+
     /** The generated plan for a day, as slots to fill. */
     public const string PLAN_ROUTE = 'roster_plan';
 
@@ -563,10 +572,16 @@ final class RosterController
                 'mayCompose' => $mayCompose,
                 'centre' => $centre,
                 // THE RAIL'S OWN CHROME, asked for by the rail. The same
-                // partial renders in the widget library without either, and
-                // is then the list and nothing else.
+                // partial renders in the widget library without any of it,
+                // and is then the list and nothing else.
                 'cell' => ' rl-cell',
                 'head' => true,
+                // AND THE NAME THE ATLAS BRINGS BACK. A row asks the plate
+                // to swap itself and to carry this one region across with
+                // it, so the row that was clicked returns marked. Only the
+                // rail names it: the library draws this same list three
+                // times from one render, and three of one id is not a page.
+                'listId' => self::RAIL_LIST_ID.$id,
             ];
             $context = match ($id) {
                 'stations' => ['stations' => $stations, ...$common],

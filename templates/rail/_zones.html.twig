@@ -9,14 +9,38 @@
    plate AND at full size in the widget library, and a rule scoped to the
    rail would make the library show raw text. The rail's own chrome — the
    cell, its head, the scroller — stays on `.fg-side`, and the rail passes
-   `cell` and `head` to ask for it. #}
-<div class="fg-lst{{ cell|default('') }}" data-list="zones">
+   `cell` and `head` to ask for it.
+
+   THE ROW CHANGES THE PLATE IN PLACE. `data-atlas-swap` is the atlas's own
+   verb: it fetches where the row already points, takes the plate's subtrees
+   out of the answer and puts them in place of the live ones, and brings ONE
+   named region across with them — this list, so the row that was clicked
+   comes back marked. The server still decides everything; this module
+   writes an attribute and no map code at all.
+
+   THE HREF IS UNCHANGED AND STILL DOES THE WHOLE JOB: with no script, on a
+   middle click, or if anything goes wrong, the browser navigates and the
+   same page arrives the ordinary way.
+
+   ONLY IN THE RAIL. The library renders this same list as a twin — three
+   times over, from one render — so a row there must centre nothing and the
+   root must carry no id there would then be three of. The rail asks for
+   both by naming the list; nobody else does. #}
+{# A ROW GOES SOMEWHERE ONLY WHERE THERE IS A PLATE TO MOVE. The row
+   keeps its shape either way — same element, same classes, same centre
+   mark — because a twin in the library is a picture of this row and must
+   measure like one. What it does not keep is the destination: a picture
+   that quietly navigated somewhere would be the preview behaving as the
+   thing it stands for, and an anchor with no href is inert without
+   looking like anything else. #}
+{% set centring = listId|default('') %}
+<div class="fg-lst{{ cell|default('') }}"{% if listId|default('') %} id="{{ listId }}"{% endif %} data-list="zones">
 {% if head|default(false) %}{{ include('@UhifadhiRoster/rail/_cell.html.twig', {id: zones.id, label: zones.label, count: zones.count, position: position, total: total, mayCompose: mayCompose}, with_context: false) }}{% endif %}
 {% for section in zones.sections %}
     <div class="grp gsub">{{ section.label }}</div>
     {% for row in section.rows %}
         {% if row.centres %}
-            <a class="fg-zn{{ row.quiet ? ' quiet' : '' }}{{ row.centre == centre ? ' on' : '' }}" href="?centre={{ row.centre }}">
+            <a class="fg-zn{{ row.quiet ? ' quiet' : '' }}{{ row.centre == centre ? ' on' : '' }}" {% if centring %} href="?centre={{ row.centre }}" data-atlas-swap data-atlas-swap-also="#{{ listId }}"{% endif %}>
         {% else %}
             <div class="fg-zn{{ row.quiet ? ' quiet' : '' }}">
         {% endif %}

@@ -415,4 +415,28 @@ use Uhifadhi\Roster\Widget\RosterWidgets;
             (string) $door->attr('href'),
         );
     }
+
+    /**
+     * A TWIN CENTRES NOTHING, AND CARRIES NO ID.
+     *
+     * THE LIBRARY DRAWS EACH WIDGET THREE TIMES from one render, so an id
+     * on the list root would be three of one id — not a page. And a row
+     * here has no plate to move: the plate is on the Live tab, and a
+     * preview that quietly navigated to it would be a preview acting as
+     * the thing it is a picture of.
+     */
+    public function testATwinCentresNothingAndCarriesNoId(): void
+    {
+        $library = $this->open();
+
+        self::assertCount(0, $library->filter('.fg-lst[id]'), 'Three renders of one list cannot share an id.');
+        self::assertCount(0, $library->filter('.fg-lst [data-atlas-swap]'), 'A preview has no plate to move.');
+        self::assertCount(0, $library->filter('.fg-lst a[href]'), 'And nowhere to send anybody: an anchor with no href is inert.');
+
+        // BUT THE ROW KEEPS ITS SHAPE. Same element, same classes, same
+        // centre mark — a twin that dropped the affordance would measure
+        // differently from the row it stands for, which is the one thing
+        // the library exists to show.
+        self::assertGreaterThan(0, $library->filter('.fg-lst a.fg-stn .loc')->count());
+    }
 }

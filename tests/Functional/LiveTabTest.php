@@ -19,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
+use Uhifadhi\Bundle\AreaBundle\Entity\Zone;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Roster\Controller\RosterController;
 use Uhifadhi\Roster\Entity\Duty;
@@ -79,6 +80,14 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
             ->setPoint('{"type":"Point","coordinates":[12.3,-5.7]}');
         $this->em->persist($gate);
         $this->gate = $gate;
+
+        // A ZONE, so the zones list has a row that centres on something.
+        // The rail draws one row per zone whether or not anybody is posted
+        // in it, which is the whole point of the list: an empty zone is an
+        // answer.
+        $this->em->persist(new Zone()->setArea($this->area)->setName('north sector')->setGeom(
+            '{"type":"MultiPolygon","coordinates":[[[[12.25,-5.75],[12.45,-5.75],[12.45,-5.55],[12.25,-5.55],[12.25,-5.75]]]]}',
+        ));
         $this->em->persist(new User()->setPassword('x')->setEmail(FixedManageVoter::MANAGER_EMAIL)->setFirstName('Mara')->setLastName('Manager'));
         $this->em->flush();
 
@@ -528,5 +537,55 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
             'appVersion' => '1.4.0',
         ]);
         $this->em->flush();
+    }
+
+    /**
+     * A ROW CHANGES THE PLATE IN PLACE, and says so with the atlas's own
+     * verb rather than with JavaScript of this module's.
+     *
+     * THE PLATE IS THE ATLAS'S TO MOVE. The row already points at the
+     * answer — `?centre=…`, which the server computes with `focusOn()` —
+     * and the verb only says "fetch that and swap yourself" and "bring this
+     * one region with you", so the row that was clicked comes back marked.
+     * The href is untouched and is still the whole behaviour without a
+     * script.
+     */
+    public function testEveryCentringRowAsksThePlateToSwapAndBringItsListBack(): void
+    {
+        $this->compose($this->open(), 'add', 'zones');
+        $page = $this->open();
+
+        foreach (['stations', 'zones'] as $list) {
+            $root = $page->filter('.rl-cell[data-list="'.$list.'"]');
+            self::assertSame(RosterController::RAIL_LIST_ID.$list, (string) $root->attr('id'), 'The region the answer brings back is named.');
+
+            $rows = $root->filter('a[href*="centre="]');
+            self::assertGreaterThan(0, $rows->count(), \sprintf('The %s list has a row to centre on.', $list));
+
+            $rows->each(static function (\Symfony\Component\DomCrawler\Crawler $row) use ($list): void {
+                self::assertNotNull($row->attr('data-atlas-swap'), 'Every centring row changes the plate in place.');
+                self::assertSame('#'.RosterController::RAIL_LIST_ID.$list, (string) $row->attr('data-atlas-swap-also'), 'And brings its own list back with it.');
+            });
+        }
+    }
+
+    /**
+     * AND THE VERB NAMES NO PLATE. With one plate on the page the link it
+     * sits beside is unambiguous, and a module naming the atlas's element
+     * by selector is a module that breaks when the atlas renames it.
+     */
+    public function testTheRowNamesNoPlate(): void
+    {
+        $row = $this->open()->filter('.rl-cell[data-list="stations"] a.fg-stn')->first();
+
+        self::assertSame('', (string) $row->attr('data-atlas-swap'));
+    }
+
+    /** AND THE HREF IS UNTOUCHED, because it is still the whole behaviour. */
+    public function testTheRowStillCarriesTheAddressThatDoesTheWholeJob(): void
+    {
+        $row = $this->open()->filter('.rl-cell[data-list="stations"] a.fg-stn')->first();
+
+        self::assertStringContainsString('centre='.$this->gate->getUuidString(), (string) $row->attr('href'));
     }
 }
