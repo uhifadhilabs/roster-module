@@ -3,6 +3,7 @@
     "description": "Roster: who is due on watch, where and when — rotations that generate duties, swaps and absences, and the on-duty presence read back from the area's check-ins.",
     "type": "symfony-bundle",
     "keywords": [
+        "symfony-ux",
         "roster",
         "duty-roster",
         "rotation",
