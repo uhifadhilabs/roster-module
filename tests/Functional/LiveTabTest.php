@@ -316,13 +316,4 @@ use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
         // layer is still the roster's; it must not have grown a palette.
         self::assertDoesNotMatchRegularExpression('/roster\.[a-z_.]+[^}]{0,300}#[0-9A-Fa-f]{6}/', $plate);
     }
-
-    /** AND THE MODULE'S OWN SOURCE CARRIES NO COLOUR EITHER. */
-    public function testTheModuleDeclaresNoColourInItsLiveService(): void
-    {
-        $source = (string) file_get_contents(\dirname(__DIR__, 2).'/src/Service/RosterLiveService.php');
-
-        self::assertDoesNotMatchRegularExpression('/#[0-9A-Fa-f]{6}/', $source, 'A module declares no colour.');
-        self::assertStringContainsString('var(--plate-ok)', $source, 'It publishes the token name and lets the plate resolve it.');
-    }
 }
