@@ -338,7 +338,29 @@ final readonly class PresenceContentProvider implements ContentProviderInterface
      */
     private function workTheWatch(AreaOfInterest $area, Duty $duty, ShiftWindow $window, array $statuses, \DateTimeImmutable $now, ?DemoWatchScript $script = null): void
     {
-        $draw = DemoDraw::of('watch', (string) $duty->getUuid());
+        /*
+         * THE DRAW IS KEYED ON WHAT THE WATCH IS, NEVER ON ITS ROW.
+         *
+         * `DemoDraw` promises variety that is "stable across runs, machines
+         * and PHP versions" — and it keeps that promise only if the thing
+         * it hashes is stable. A duty's uuid is minted fresh every time the
+         * seeder runs, so keying on it made the demo different on every
+         * seed: a screenshot did not reproduce, and two assertions about
+         * the day rode on a coin toss. It cost three CI investigations, the
+         * last of which was green on one matrix leg and red on the other
+         * for no reason but the draw.
+         *
+         * The station, the shift and the day ARE the watch — "the day watch
+         * at ST-01 on the 19th" is the same watch whoever seeds it and
+         * whenever — so the same park now produces the same demo, which is
+         * the whole point of the class.
+         */
+        $draw = DemoDraw::of(
+            'watch',
+            $duty->getStation()->getCode() ?? (string) $duty->getStation()->getName(),
+            $duty->getShiftKey(),
+            $duty->getOnDay()->format('Y-m-d'),
+        );
         $day = $duty->getOnDay();
         $isToday = $day->format('Y-m-d') === $now->format('Y-m-d');
 

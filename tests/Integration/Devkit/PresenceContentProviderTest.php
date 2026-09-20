@@ -49,6 +49,17 @@ final class PresenceContentProviderTest extends IntegrationTestCase
     {
         parent::setUp();
 
+        $this->aParkWithFourStations();
+    }
+
+    /**
+     * THE PARK THIS SUITE SEEDS INTO, built the way an installation builds
+     * one — and built by a method rather than inline because one test
+     * builds it TWICE, on two empty databases, to prove the demo comes out
+     * the same both times.
+     */
+    private function aParkWithFourStations(): void
+    {
         $this->area = $this->anArea();
 
         $postings = $this->service(PostingService::class);
@@ -427,6 +438,78 @@ final class PresenceContentProviderTest extends IntegrationTestCase
         self::assertInstanceOf(MockClock::class, $clock);
 
         self::assertGreaterThan(0, $this->claimsRecordedOn($clock->now()));
+    }
+
+    /**
+     * THE SAME PARK SEEDS THE SAME DEMO, TWICE, ON TWO EMPTY DATABASES.
+     *
+     * THIS IS THE PROMISE `DemoDraw` MAKES IN ITS OWN DOCBLOCK — "stable
+     * across runs, machines and PHP versions" — and it was not kept. The
+     * draw was keyed on the duty's UUID, minted fresh on every seed, so the
+     * variety it produced was different every time: a screenshot did not
+     * reproduce, a bug somebody saw once could not be got back, and two
+     * assertions in this very file rode on a coin toss. It read as a
+     * PHP-version bug on CI, green on one matrix leg and red on the other
+     * for no reason but the draw.
+     *
+     * A STATION, A SHIFT AND A DAY ARE WHAT A WATCH IS. Keying on those
+     * makes the demo a function of the park, which is the only version of
+     * "stable" worth having — and it is what this test measures, rather
+     * than measuring that one figure came out the way it did today.
+     */
+    public function testTheSameParkSeedsTheSameDemoTwice(): void
+    {
+        $this->atMidMorning();
+        $this->provider()->load();
+        $first = $this->everyClaim();
+
+        self::assertNotSame([], $first, 'A demo that seeded nothing would pass this test for the wrong reason.');
+
+        // A SECOND INSTALLATION OF THE SAME PARK — empty database, same
+        // fixture, same hour. The identity map goes with the tables: the
+        // ids restart at one, and a manager still holding the first park's
+        // objects would refuse the second park's as collisions.
+        self::freshDatabase($this->em);
+        $this->em->clear();
+        $this->aParkWithFourStations();
+        $this->atMidMorning();
+        $this->provider()->load();
+
+        self::assertSame($first, $this->everyClaim(), 'The same park seeded a different demo.');
+    }
+
+    /**
+     * EVERY CLAIM THE SEEDER WROTE, as comparable text — keyed by what the
+     * watch IS, never by a row id, because the row ids are exactly what
+     * differ between two seeds of one park.
+     *
+     * @return list<string>
+     */
+    private function everyClaim(): array
+    {
+        $em = self::getContainer()->get('doctrine.orm.entity_manager');
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        $rows = $em->getConnection()->fetchAllAssociative(
+            <<<'SQL'
+                SELECT s.code, u.email, k.status_key AS status, c.local_date,
+                       c.occurred_at, c.ended_at,
+                       (SELECT COUNT(*) FROM duty_position p WHERE p.checkin_id = c.id) AS pings
+                FROM duty_checkin c
+                JOIN team_user u ON u.id = c.person_id
+                JOIN duty_checkin_status k ON k.id = c.status_id
+                LEFT JOIN station s ON s.id = c.station_id
+                ORDER BY s.code NULLS FIRST, u.email, c.local_date, c.occurred_at
+                SQL,
+        );
+
+        return array_map(
+            static fn (array $row): string => implode('|', array_map(
+                static fn (mixed $cell): string => \is_scalar($cell) ? (string) $cell : '—',
+                $row,
+            )),
+            $rows,
+        );
     }
 
     /** How many check-ins the seeder wrote for that day. */
