@@ -1,45 +1,57 @@
 {# ============================================================================
-   SETTINGS — the answers this module cannot guess about an organization,
-   ported from the design's configure.html, plus the shift vocabulary it reads
-   and the check-in statuses list the area owns.
+   SETTINGS — what is neither a shift nor a rule.
 
-   THREE OF THE DRAWN SIX ARE NOT HERE. The ping interval, the default
-   catchment and the late threshold became three of the five RULES on the
-   Watches section when that card was ruled (20–21 sep), and the drawn
-   settings page predates it. Leaving them here as well would be two editors
-   for one fact — the exact drift every ruling on this module has been
-   about — so they are named on the section they moved to and this page
-   keeps only what is genuinely its own. THIS IS A DEPARTURE FROM THE DRAWN
-   PAGE and is flagged for a verdict rather than settled here.
+   PORTED FROM the design's configure.html as the design agent trimmed it
+   (uhifadhi-web 8e422aa). TWO ROWS, and that is the whole page besides the
+   statuses card: the ping interval, the default catchment and the late and
+   vacancy thresholds all became RULES on the Watches section, and the shift
+   vocabulary is named and coloured there too. A fact with two editors is a
+   fact that disagrees with itself the first time somebody uses the other
+   one, so this page keeps only what neither card can hold.
 
-   EVERY ONE OF THESE WAS AN OPEN VERDICT while the module was being designed.
-   They are fields now, each with its default and the CONSEQUENCE of choosing
-   wrong stated beside it — which is the only honest way to ship a question
-   nobody could answer on somebody else's behalf. The consequence text is not
-   decoration and it is not an essay: it is the one fact that makes the field
-   answerable.
+   COVERAGE MANIFEST — every element of the drawn page.
+
+   | element                       | type    | source                   | interaction      | status |
+   |-------------------------------|---------|--------------------------|------------------|--------|
+   | page subline, three fragments | chrome  | static                   | none             | done   |
+   | h2.zone + subhead → Watches   | chrome  | static                   | door to Watches  | done   |
+   | Settings card head + caption  | chrome  | static                   | none             | done   |
+   | Off days on a tour            | control | AreaRosterSettings       | two-state switch | done   |
+   | Leave approval                | control | AreaRosterSettings       | two-state switch | done   |
+   | Discard / Save settings       | control | —                        | reload / write   | done   |
+   | Check-in statuses card        | data    | the AREA's list          | none — read here | done   |
+   | one .rstat per status         | data    | CheckInStatus            | none             | done   |
+   | retired row, dimmed and kept  | state   | CheckInStatus            | none             | done   |
+   | empty status list             | state   | the area offers none     | none             | done   |
+   | ping / catchment / thresholds | —       | —                        | —                | MOVED to Watches, ruled 20–21 sep |
+   | shift vocabulary row          | —       | —                        | —                | MOVED to Watches, ruled 21 sep |
+   | .rstat re-order / edit / retire | —     | —                        | —                | NOT THIS MODULE'S: the area writes them |
+
+   THE ONE "post" LEFT ON THIS PAGE IS THE AREA'S CHECK-IN STATUS — the
+   `at_post` key, its "At post" label and the kind it carries. The key is
+   issued once and every stored check-in holds it, the label is the area's
+   to reword and not this module's, and the kind's wording is the area
+   module's enum. It stays until the owner rules on it.
    ========================================================================== #}
 {% extends '@UhifadhiRoster/configure/_frame.html.twig' %}
 
-{# THE DESIGN'S OWN SUBLINE, as a fragment. #}
-{% block shell_page_subtitle %}What this module cannot guess about this organization &middot; each answer a field, with a default and the consequence of choosing wrong{% endblock %}
+{# THE DESIGN'S OWN SUBLINE, as fragments. #}
+{% block shell_page_subtitle %}What this module cannot guess about this organization &middot; each answer a field, with a default and the consequence of choosing wrong &middot; shifts and rules live on Watches{% endblock %}
 
 {% block roster_section %}
+<h2 class="zone" id="settings">Settings</h2>
+<p class="pgsub">What is neither a shift nor a rule &middot; shifts and the rules that read them are edited once, on <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::WATCHES_ROUTE'), {uuid: area.uuid}) }}">Watches</a></p>
+
 <form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SAVE_SETTINGS_ROUTE'), {uuid: area.uuid}) }}">
     <input type="hidden" name="_token" value="{{ csrfToken }}">
     <div class="c rband">
         {# HEADER = IDENTITY ONLY, no door: ruled 2026-09-20. #}
         <div class="rb-hd">
             <span class="tab">Settings</span>
-            <span class="rb-ttl">the answers this module cannot guess &mdash; each with the consequence of getting it wrong</span>
+            <span class="rb-ttl">two answers &mdash; neither of them a shift or a rule &middot; each with the consequence of getting it wrong</span>
         </div>
         <div class="rb-body">
 
-            {# PING INTERVAL, DEFAULT CATCHMENT AND THE LATE THRESHOLD ARE
-               NOT HERE ANY MORE. They are three of the five RULES now, on the
-               Watches section, where a station may also overrule any of them
-               — and a fact with two editors is a fact that disagrees with
-               itself the first time somebody uses the other one. #}
             <div class="rset">
                 <span class="lb"><b>Off days on a tour</b><em>what an off day in a cycle produces</em></span>
                 <span class="ct">
@@ -48,7 +60,7 @@
                         <label class="{{ settings.offDayHasNoState ? '' : 'on' }}"><input type="radio" name="off_day_has_no_state" value="0" {{ settings.offDayHasNoState ? '' : 'checked' }} {{ mayManage ? '' : 'disabled' }}>no check-in</label>
                     </span>
                 </span>
-                <span class="why"><b>Default: no state.</b> A ranger the ring stands down is not expected to check in and has failed at nothing. Choose <i>no check-in</i> only if this organisation requires a daily check-in from everyone, on or off &mdash; it will colour every rest day red.</span>
+                <span class="why"><b>Default: no state.</b> A ranger stood down owes no check-in &middot; choose <i>no check-in</i> only where everyone owes one daily &mdash; it colours every rest day red.</span>
             </div>
 
             <div class="rset">
@@ -59,46 +71,30 @@
                         <label class="{{ settings.leaveApprovalShown ? 'on' : '' }}"><input type="radio" name="leave_approval_shown" value="1" {{ settings.leaveApprovalShown ? 'checked' : '' }} {{ mayManage ? '' : 'disabled' }}>on</label>
                     </span>
                 </span>
-                <span class="why"><b>Default: off.</b> The roster records an ABSENCE &mdash; person, from, to, kind, recorded by &mdash; because the hole it makes is this module&rsquo;s to show. Approval belongs to Team; turning it on here adds only a read-only state chip on the absence row.</span>
+                <span class="why"><b>Default: off.</b> The roster records an absence &middot; approval belongs to Team &middot; on adds a read-only state chip, nothing more.</span>
             </div>
-
-            <div class="rset">
-                <span class="lb"><b>Shift vocabulary</b><em>the named shifts and their windows</em></span>
-                <span class="ct">
-                    {% for shift in shifts %}
-                        {# THE COLOUR IS THE SHIFT'S OWN STORED SLOT, kept on
-                           every surface — this chip, the sheet, the day board
-                           and the cycle strip all read the same value, so
-                           reordering the list recolours nothing. #}
-                        <span class="r-sh {{ shift.isOpen ? '' : 'closed' }}" data-cat="{{ shift.colour }}"><i></i>{{ shift.label|lower }} {{ shift.startsAt }}&ndash;{{ shift.endsAt }}</span>
-                    {% endfor %}
-                </span>
-                <span class="why"><b>One list for the whole area.</b> Every pattern, every sheet cell and every day-board block reads from it, so a fifth shift is a fifth chip everywhere and nothing has to be redrawn. It is <b>named and coloured on the Watches section</b>; a shift in use cannot be deleted, only closed.</span>
-            </div>
-
 
             {# Save at the END of the form body, right-aligned — the house's
                own .staddrow, not a footer strip. #}
             {% if mayManage %}
-                <div class="staddrow"><span class="sp"></span><button type="submit" class="cta">Save settings</button></div>
+                <div class="staddrow">
+                    <span class="sp"></span>
+                    <a class="btn sm" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SETTINGS_ROUTE'), {uuid: area.uuid}) }}">Discard</a>
+                    <button type="submit" class="cta">Save settings</button>
+                </div>
             {% endif %}
         </div>
     </div>
 </form>
 
 {# THE CHECK-IN STATUSES A RANGER IS OFFERED are the AREA's list, not this
-   module's: the check-in belongs to the area, and so do the statuses it can
-   carry. The design puts them on this page because this is where somebody
-   configuring the roster looks for them — read here, written there.
-
-   READ, ORDERED, RETIRED ROWS DIMMED AND KEPT. Each one carries the KIND the
-   platform reasons about, which is what says why "at post" is the only
-   status a verified/unverified reading can come from. #}
+   module's. The design puts them on this page because this is where somebody
+   configuring the roster looks for them — read here, written there. #}
 <div style="height:12px"></div>
 <div class="c rband">
     <div class="rb-hd">
         <span class="tab">Check-in statuses</span>
-        <span class="rb-ttl">what a ranger is offered on the handset &mdash; the <b>area&rsquo;s</b> list, read here and written there</span>
+        <span class="rb-ttl">what a ranger is offered on the handset &middot; the <b>area&rsquo;s</b> list, read here and written there</span>
     </div>
     <div class="rb-body">
         {% for status in checkInStatuses %}
@@ -109,16 +105,14 @@
                 <span class="st">
                     {%- if status.isActive %}
                         offered on the handset
-                        {%- if status.kind.value == 'at_post' %} · verified / unverified derive from this one{% endif %}
                     {%- else %}
-                        retired &mdash; kept, because a past day has to keep the word that described it
+                        retired &middot; kept, so a past day keeps its word
                     {%- endif %}
                 </span>
             </div>
         {% else %}
-            <div class="rfrag"><b>This area offers no check-in status</b><em>a ranger with nothing to declare cannot check in, so presence cannot be derived at all &mdash; the area&rsquo;s own configure page is where the list is written</em></div>
+            <div class="rfrag"><b>This area offers no check-in status</b><em>nothing to declare &middot; no presence to derive</em></div>
         {% endfor %}
-        <div class="rfrag"><b>Not this module&rsquo;s to write</b><em>a check-in belongs to the area, and so do the statuses it can carry &mdash; the roster reads them and derives presence from them</em></div>
     </div>
 </div>
 {% endblock %}

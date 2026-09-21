@@ -60,10 +60,11 @@
 
 {% block roster_section %}
 <h2 class="zone" id="patterns">Patterns</h2>
-{# FRAGMENTS, NOT SENTENCES — and the one door the drawn intro carried is
-   kept, because the sheet's fill row is where a pattern is applied and this
-   page offers no station picker at all. #}
-<p class="pgsub">Said as a sentence out of this area&rsquo;s own shifts &middot; the name is derived from the cycle &middot; applied from the <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid}) }}">Week sheet</a>&rsquo;s fill row &middot; editing reaches future fills only</p>
+{# TWO FRAGMENTS, no more. The derivation and the cycle are already said in
+   the page subline above; what is left for the section to add is the one
+   door — the sheet's fill row is where a pattern is applied, and this page
+   offers no station picker at all — and what an edit reaches. #}
+<p class="pgsub">Applied from the <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid}) }}">Week sheet</a>&rsquo;s fill row &middot; editing reaches future fills only</p>
 
 <div class="grid g2">
 

@@ -448,7 +448,6 @@ final class RosterConfigureController
             // shows them because this is where somebody configuring the
             // roster looks for them, and links to where they are edited.
             'checkInStatuses' => $this->checkInStatuses->offeredBy($area),
-            'shifts' => $this->shifts->forArea($area),
             'mayManage' => $this->authorization->isGranted(self::MANAGE_PERMISSION, $area),
             'csrfToken' => $this->csrfTokenManager->getToken(self::CSRF_TOKEN_ID)->getValue(),
         ]));
