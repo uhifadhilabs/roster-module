@@ -60,34 +60,63 @@ trait FreshDatabase
     {
         $connection = $em->getConnection();
 
-        $tables = $connection->fetchFirstColumn(<<<'SQL'
-            SELECT c.relname
+        /*
+         * TABLES AND THE SEQUENCES NOBODY OWNS ANY MORE.
+         *
+         * An identity sequence goes with its table, so a clean database
+         * never needs the second half — but a CREATE that fails PART WAY
+         * leaves both behind, and dropping only the tables leaves the
+         * orphaned sequences to fail the NEXT create with "relation
+         * area_of_interest_id_seq already exists". That is how one broken
+         * run turned into every run after it being broken, which is the
+         * opposite of what a fresh-database routine is for. So the reset
+         * is a reset: a sequence with no owning column goes too.
+         *
+         * A relation belonging to an EXTENSION is left alone — PostGIS
+         * ships its own, and dropping those would take the geometry type
+         * with them. `objsubid = 0` is the relation itself: without it a
+         * COLUMN's dependency answers for its table, and a table with a
+         * geometry column reads as part of PostGIS and is never dropped.
+         */
+        $relations = $connection->fetchAllAssociative(<<<'SQL'
+            SELECT c.relkind, c.relname
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE n.nspname = 'public'
-              AND c.relkind = 'r'
+              AND c.relkind IN ('r', 'S')
               AND NOT EXISTS (
                   SELECT 1 FROM pg_depend d
-                  WHERE d.objid = c.oid AND d.deptype = 'e'
+                  WHERE d.objid = c.oid AND d.objsubid = 0 AND d.deptype = 'e'
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM pg_depend d
+                  WHERE d.objid = c.oid AND d.deptype = 'a'
               )
             SQL);
 
-        if ([] === $tables) {
-            return;
+        $tables = [];
+        $sequences = [];
+        foreach ($relations as $relation) {
+            $name = $relation['relname'];
+            \assert(\is_string($name));
+
+            if ('S' === $relation['relkind']) {
+                $sequences[] = $connection->quoteSingleIdentifier($name);
+
+                continue;
+            }
+
+            $tables[] = $connection->quoteSingleIdentifier($name);
         }
 
-        // One statement, not one per table: this runs before every test and
-        // Postgres resolves the dependency order itself.
-        $connection->executeStatement(\sprintf(
-            'DROP TABLE IF EXISTS %s CASCADE',
-            implode(', ', array_map(
-                static function (mixed $table) use ($connection): string {
-                    \assert(\is_string($table));
+        // One statement each, not one per relation: this runs before every
+        // test and Postgres resolves the dependency order itself.
+        if ([] !== $tables) {
+            $connection->executeStatement('DROP TABLE IF EXISTS '.implode(', ', $tables).' CASCADE');
+        }
 
-                    return $connection->quoteSingleIdentifier($table);
-                },
-                $tables,
-            )),
-        ));
+        if ([] !== $sequences) {
+            $connection->executeStatement('DROP SEQUENCE IF EXISTS '.implode(', ', $sequences).' CASCADE');
+        }
     }
 }
