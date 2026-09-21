@@ -19,6 +19,8 @@ use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Service\StationService;
 use Uhifadhi\Roster\Entity\ShiftRule;
 use Uhifadhi\Roster\Entity\StationRuleException;
+use Uhifadhi\Roster\Enum\ForbiddenDay;
+use Uhifadhi\Roster\Enum\NightThenDay;
 use Uhifadhi\Roster\Enum\RuleChoiceInterface;
 use Uhifadhi\Roster\Enum\RuleKind;
 use Uhifadhi\Roster\Model\RuleValue;
@@ -238,6 +240,26 @@ final readonly class ShiftRuleService
         }
 
         return $this->rules->findOneByAreaAndKind($area, $kind)?->getChoice() ?? $kind->standardChoice();
+    }
+
+    /**
+     * WHAT THIS STATION DOES ABOUT A DAY WATCH THE MORNING AFTER A NIGHT
+     * ONE — the chosen rule, typed, so the fill is not handed an
+     * interface and left to narrow it.
+     */
+    public function nightThenDayAt(Station $station): NightThenDay
+    {
+        $choice = $this->effectiveChoice($station, RuleKind::NightThenDay);
+
+        return $choice instanceof NightThenDay ? $choice : NightThenDay::Never;
+    }
+
+    /** AND WHAT IT DOES WITH A DAY ITS OWN RULES FORBID. */
+    public function forbiddenDayAt(Station $station): ForbiddenDay
+    {
+        $choice = $this->effectiveChoice($station, RuleKind::ForbiddenDay);
+
+        return $choice instanceof ForbiddenDay ? $choice : ForbiddenDay::LeftUnfilled;
     }
 
     /**

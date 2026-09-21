@@ -95,6 +95,27 @@ final class EditedDayRepository extends ServiceEntityRepository
     }
 
     /**
+     * EVERY HAND MARK AT ONE STATION IN A WINDOW — the station-wide ones
+     * and the rangers' own alike, because a fill has to leave both alone.
+     *
+     * @return list<EditedDay>
+     */
+    public function findByStationBetween(Station $station, \DateTimeImmutable $from, \DateTimeImmutable $through): array
+    {
+        /** @var list<EditedDay> $rows */
+        $rows = $this->createQueryBuilder('e')
+            ->andWhere('e.station = :station')
+            ->andWhere('e.onDay BETWEEN :from AND :through')
+            ->setParameter('station', $station)
+            ->setParameter('from', $from->setTime(0, 0))
+            ->setParameter('through', $through->setTime(0, 0))
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
+    /**
      * THE PROTECTED DAYS IN A WINDOW, as Y-m-d strings, because that is the
      * shape the generator compares against and turning each row back into a
      * date object per planned duty is work nobody reads.

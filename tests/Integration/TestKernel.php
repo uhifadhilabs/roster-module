@@ -278,6 +278,10 @@ final class TestKernel extends Kernel
             \Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository::class => \Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository::class,
             // The two demo-content providers. They are tagged for devkit,
             // which is not installed here, so a test reaches them by id.
+            // The sheet's own two, so the reading and the filling can be
+            // exercised without going through a controller.
+            \Uhifadhi\Roster\Service\SheetService::class => 'roster.sheet',
+            \Uhifadhi\Roster\Service\SheetFillService::class => 'roster.sheet_fill',
             \Uhifadhi\Roster\Devkit\RosterContentProvider::class => 'roster.devkit.content',
             \Uhifadhi\Roster\Devkit\PresenceContentProvider::class => 'roster.devkit.presence_content',
             // The registry's own two, so a functional fixture can do what an

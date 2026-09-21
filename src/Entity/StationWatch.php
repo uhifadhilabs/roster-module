@@ -139,6 +139,28 @@ class StationWatch
     #[ORM\JoinColumn(name: 'pattern_id', nullable: true, onDelete: 'SET NULL')]
     private ?Pattern $pattern = null;
 
+    /**
+     * THE DAY THE CYCLE STARTS FROM — the anchor, and the one thing that
+     * turns a ring of days into dates.
+     *
+     * IT IS THE START DATE SOMEBODY TYPED IN THE FILL ROW, kept, because
+     * "a later start date changes only the days after it" can only be
+     * true if the earlier one is still known. Null until a pattern has
+     * been run here, and null means the station expects nothing of
+     * anybody: a station nobody has filled yet has no gaps, only
+     * emptiness, and drawing a fortnight of alarm ink at it would be the
+     * sheet shouting about a decision nobody has made.
+     */
+    #[ORM\Column(name: 'pattern_from', type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $patternFrom = null;
+
+    /**
+     * HOW FAR AHEAD IT IS FILLED. What the band means by "filled to 28
+     * oct", and what the next run starts checking from.
+     */
+    #[ORM\Column(name: 'filled_through', type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $filledThrough = null;
+
     public function __construct(
         Station $station,
         int $silenceWindowMinutes,
@@ -285,6 +307,40 @@ class StationWatch
     public function filledBy(?Pattern $pattern): static
     {
         $this->pattern = $pattern;
+
+        return $this;
+    }
+
+    public function getPatternFrom(): ?\DateTimeImmutable
+    {
+        return $this->patternFrom;
+    }
+
+    public function getFilledThrough(): ?\DateTimeImmutable
+    {
+        return $this->filledThrough;
+    }
+
+    /**
+     * THE FILL SAYS WHERE THE RING STARTS AND HOW FAR IT REACHED.
+     *
+     * The anchor is only taken the FIRST time, or when the pattern
+     * itself changes: a second run from a later monday must not slide
+     * the ring under the days already standing, which is what "a later
+     * start date changes only the days after it" means.
+     */
+    public function filledFrom(\DateTimeImmutable $from, \DateTimeImmutable $through): static
+    {
+        $this->patternFrom ??= $from->setTime(0, 0);
+        $this->filledThrough = $through->setTime(0, 0);
+
+        return $this;
+    }
+
+    /** A pattern change re-anchors the ring; there is nothing to keep in step with. */
+    public function reanchor(?\DateTimeImmutable $from): static
+    {
+        $this->patternFrom = $from?->setTime(0, 0);
 
         return $this;
     }

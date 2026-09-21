@@ -40,6 +40,8 @@ use Uhifadhi\Roster\Service\RotaService;
 use Uhifadhi\Roster\Service\RotationEditor;
 use Uhifadhi\Roster\Service\RotationGenerator;
 use Uhifadhi\Roster\Service\RotationPreview;
+use Uhifadhi\Roster\Service\SheetFillService;
+use Uhifadhi\Roster\Service\SheetService;
 use Uhifadhi\Roster\Service\ShiftRuleService;
 use Uhifadhi\Roster\Service\ShiftVocabularyService;
 use Uhifadhi\Roster\Service\StationWatchService;
@@ -229,6 +231,39 @@ return static function (ContainerConfigurator $container): void {
             service(DutyRepository::class),
             service(RotationRepository::class),
             service(ShiftRepository::class),
+        ]);
+
+    /*
+     * THE PLANNING SHEET. Four queries for the whole window whatever its
+     * size: thirty-four rangers over twenty-eight days is 952 cells, and
+     * anything asked per cell is asked 952 times.
+     */
+    $services->set('roster.sheet', SheetService::class)
+        ->args([
+            service('Uhifadhi\Bundle\AreaBundle\Repository\StationRepository'),
+            service('Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository'),
+            service(StationWatchRepository::class),
+            service(DutyRepository::class),
+            service(EditedDayRepository::class),
+            service(ShiftRepository::class),
+        ]);
+
+    /*
+     * AND FILLING IT FROM A PATTERN. It obeys the four rules the Watches
+     * card sets, never touches a day somebody edited, and never writes
+     * the past — a fill is a plan, and rewriting a watch already stood
+     * would be rewriting a record of what happened.
+     */
+    $services->set('roster.sheet_fill', SheetFillService::class)
+        ->args([
+            service('doctrine.orm.entity_manager'),
+            service('Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository'),
+            service(StationWatchRepository::class),
+            service(DutyRepository::class),
+            service(EditedDayRepository::class),
+            service(ShiftRepository::class),
+            service('roster.shift_rules'),
+            service('clock'),
         ]);
 
     /*
