@@ -85,10 +85,17 @@ class EditedDay
     private ?UserInterface $person = null;
 
     /**
-     * WHETHER THE HAND LEFT THE DAY OFF OR LEFT IT OPEN. Both are a day
-     * with no duty on it, and they are not the same fact: one is a ranger
-     * deliberately stood down and draws nothing, the other a seat the
-     * station still needs somebody on and draws as unfilled.
+     * WHETHER THE HAND LEFT THE DAY OFF OR MERELY CHANGED IT. Both are a
+     * mark on one ranger's day, and they are not the same fact: one is a
+     * ranger deliberately stood down, the other an edit that left a watch
+     * standing.
+     *
+     * NEITHER CHANGES WHAT THE CELL DRAWS any more. RULED 21 sep: a ranger
+     * is on a shift or off, and a gap belongs to the station — so this is
+     * kept for the rule that is coming, not for the sheet. The day an
+     * approved absence is ruled to read differently from an unexplained
+     * one, that rule needs to know which marks were absences, and it
+     * belongs on Watches with the others.
      */
     #[ORM\Column(name: 'left_off')]
     private bool $leftOff = false;
