@@ -406,14 +406,25 @@
 
             {% for swap in recent %}
                 <div class="rln">
+                    {#- THE STATION BY ITS CODE, and after the chip the design's phrase for
+                        the state. An offer's sent time is the instant its identifier was
+                        minted — a v7 uuid carries it, so no column says it twice. -#}
                     <span><b>{{ swap.offeredTo.fullName }}</b> <span class="mono">
                         {{- swap.state.value == 'accepted' ? 'took' : (swap.state.value == 'offered' ? 'takes' : 'asked for') }}
-                        {{ swap.duty.person.fullName }}&rsquo;s {{ swap.duty.onDay.format('D j')|lower }} {{ swap.duty.shiftKey }} at {{ swap.duty.station.name }}</span></span>
+                        {{ swap.duty.person.fullName }}&rsquo;s {{ swap.duty.onDay.format('D j')|lower }} {{ swap.duty.shiftKey }} at {{ swap.duty.station.code }}</span></span>
                     <span style="display:flex;align-items:center;gap:9px">
                         <span class="chip {{ {'offered': 'acc', 'accepted': 'ok', 'declined': 'fail', 'withdrawn': 'idle'}[swap.state.value] }}">{{ swap.state.label }}</span>
-                        {%- if swap.respondedAt %}
-                            <span class="mono d"><time datetime="{{ swap.respondedAt.format('c') }}" data-localtime-format="time">{{ swap.respondedAt.format('H:i') }}</time></span>
-                        {%- endif %}
+                        <span class="mono d">
+                            {%- if swap.state.value == 'offered' -%}
+                                sent <time datetime="{{ swap.uuid.dateTime.format('c') }}" data-localtime-format="time">{{ swap.uuid.dateTime.format('H:i') }}</time>, not answered
+                            {%- elseif swap.state.value == 'accepted' -%}
+                                accepted on the handset {% if swap.respondedAt %}<time datetime="{{ swap.respondedAt.format('c') }}" data-localtime-format="time">{{ swap.respondedAt.format('H:i') }}</time>{% endif %}
+                            {%- elseif swap.state.value == 'declined' -%}
+                                declined {% if swap.respondedAt %}<time datetime="{{ swap.respondedAt.format('c') }}" data-localtime-format="time">{{ swap.respondedAt.format('H:i') }}</time>{% endif %} &mdash; {{ swap.note ?: 'no reason given' }}
+                            {%- else -%}
+                                withdrawn by {{ swap.offeredBy ? swap.offeredBy.fullName : 'the duty officer' }}
+                            {%- endif -%}
+                        </span>
                     </span>
                 </div>
             {% else %}

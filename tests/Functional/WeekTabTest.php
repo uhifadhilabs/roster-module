@@ -28,6 +28,7 @@ use Uhifadhi\Roster\Entity\SheetPreference;
 use Uhifadhi\Roster\Model\Cycle;
 use Uhifadhi\Roster\Service\PatternService;
 use Uhifadhi\Roster\Service\StationWatchService;
+use Uhifadhi\Roster\Service\SwapService;
 use Uhifadhi\Roster\Tests\FreshDatabase;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
 
@@ -91,6 +92,45 @@ final class WeekTabTest extends WebTestCase
         $this->everyAreaRunsTheRoster($this->em);
 
         $this->monday = new \DateTimeImmutable('today')->modify('monday this week');
+    }
+
+    /**
+     * THE SWAPS REGISTER SAYS WHAT HAPPENED TO EACH OFFER, in the design's
+     * words: the station by its code, and after the state chip a phrase
+     * for that state — "sent 11:38, not answered", "accepted on the
+     * handset 16:02", "declined 09:14 — no reason given", "withdrawn by …".
+     * An offer's sent time is the instant its identifier was minted.
+     */
+    public function testTheSwapsRegisterSaysWhatHappenedToEachOffer(): void
+    {
+        $swaps = static::getContainer()->get('test_public.'.SwapService::class);
+        self::assertInstanceOf(SwapService::class, $swaps);
+        $other = new User()->setPassword('x')->setEmail('other@example.test')->setFirstName('Oren')->setLastName('Other');
+        $this->em->persist($other);
+        $duties = [];
+        for ($i = 0; $i < 4; ++$i) {
+            $duties[] = $duty = new Duty($this->area, $this->gate, $this->ada, 'day', $this->monday->modify(\sprintf('+%d days', $i)));
+            $this->em->persist($duty);
+        }
+        $this->em->flush();
+
+        $at = new \DateTimeImmutable('today 09:14');
+        $swaps->offer($duties[0], $other);
+        $swaps->accept($swaps->offer($duties[1], $other), $at->setTime(16, 2));
+        $swaps->decline($swaps->offer($duties[2], $other), $at);
+        $swaps->withdraw($swaps->offer($duties[3], $other, $this->ada), $at);
+        $this->em->flush();
+
+        $rows = $this->open()->filter('h2.zone + .grid > .c')->eq(1)->filter('.rln')->each(static fn (Crawler $r): string => html_entity_decode(preg_replace('/\s+/', ' ', trim($r->text())) ?? ''));
+        self::assertCount(4, $rows);
+        $all = implode("\n", $rows);
+
+        self::assertStringContainsString(' at '.$this->gate->getCode(), $all, 'The station by its code.');
+        self::assertStringNotContainsString(' at '.$this->gate->getName(), $all);
+        self::assertMatchesRegularExpression('/takes .* offered sent \d\d:\d\d, not answered/', $all);
+        self::assertMatchesRegularExpression('/took .* accepted accepted on the handset 16:02/', $all);
+        self::assertMatchesRegularExpression('/asked for .* declined declined 09:14 — no reason given/', $all);
+        self::assertMatchesRegularExpression('/asked for .* withdrawn withdrawn by /', $all);
     }
 
     private function aStation(string $name, string $code): Station
