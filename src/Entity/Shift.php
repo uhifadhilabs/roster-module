@@ -92,7 +92,29 @@ class Shift
     #[ORM\Column(name: 'closed_at', type: 'date_immutable', nullable: true)]
     private ?\DateTimeImmutable $closedAt = null;
 
-    public function __construct(AreaOfInterest $area, string $key, string $label, string $startsAt, string $endsAt, int $position = 0)
+    /**
+     * THE SLOT ON THE HOUSE PLATE PALETTE THIS SHIFT WAS GIVEN WHEN IT WAS
+     * CREATED, and keeps on every surface.
+     *
+     * RULED 21 sep. A shift is given a colour at creation and the shift
+     * row, the sheet, the calendar and the day board all read this stored
+     * value — none of them decides from a POSITION in a list, which is
+     * what made a colour change the day somebody reordered the shifts or
+     * closed one.
+     *
+     * A SLOT AND NOT A COLOUR. The house owns the palette and ships
+     * `[data-cat="1".."18"]`; this module stores which of the eighteen and
+     * names no hue at all, so a theme change reaches every shift in the
+     * product without a migration.
+     */
+    #[ORM\Column]
+    private int $colour = self::FIRST_SLOT;
+
+    /** The plate palette's first slot, and how many there are. */
+    public const int FIRST_SLOT = 1;
+    public const int SLOTS = 18;
+
+    public function __construct(AreaOfInterest $area, string $key, string $label, string $startsAt, string $endsAt, int $position = 0, int $colour = self::FIRST_SLOT)
     {
         $this->uuid = Uuid::v7();
         $this->area = $area;
@@ -101,6 +123,30 @@ class Shift
         $this->startsAt = $startsAt;
         $this->endsAt = $endsAt;
         $this->position = $position;
+        $this->colour = self::slot($colour);
+    }
+
+    /** Which of the palette's slots this shift wears. */
+    public function getColour(): int
+    {
+        return $this->colour;
+    }
+
+    public function recolour(int $colour): static
+    {
+        $this->colour = self::slot($colour);
+
+        return $this;
+    }
+
+    /**
+     * A SLOT THE PALETTE ACTUALLY HAS. A number outside it would render
+     * with no colour at all — the house's fallback — which reads as a
+     * shift nobody gave one rather than as a number somebody mistyped.
+     */
+    private static function slot(int $colour): int
+    {
+        return $colour >= self::FIRST_SLOT && $colour <= self::SLOTS ? $colour : self::FIRST_SLOT;
     }
 
     public function getId(): ?int

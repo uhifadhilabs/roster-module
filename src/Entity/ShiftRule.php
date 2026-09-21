@@ -1,0 +1,123 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of the UhifadhiLabs Roster Module.
+ *
+ * (c) Ezekiel Mjema <https://github.com/eemjema>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Uhifadhi\Roster\Entity;
+
+use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Uid\Uuid;
+use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
+use Uhifadhi\Roster\Entity\Trait\TimestampableTrait;
+use Uhifadhi\Roster\Enum\RuleKind;
+use Uhifadhi\Roster\Enum\RuleUnit;
+use Uhifadhi\Roster\Model\RuleValue;
+use Uhifadhi\Roster\Repository\ShiftRuleRepository;
+
+/**
+ * ONE OF THE FIVE RULES, AS THIS AREA SETS IT — the default every station
+ * follows unless its own row says otherwise.
+ *
+ * RULED 20 sep, twice over. "Forcing predefined options is stupid": the
+ * value is a number somebody typed and a unit they picked, and both halves
+ * are stored so the field comes back saying what was put in it. And
+ * "rules configurable like exceptions": every one of the five is an area
+ * default with a per-station exception available under it — both, always,
+ * with nothing in the product assuming one way of working.
+ *
+ * ONE ROW PER KIND PER AREA. Five columns on one row would make adding a
+ * sixth rule a migration on every installation; five rows make it a new
+ * case on an enum and a row nobody has written yet, which reads as the
+ * standard until somebody does.
+ */
+#[ORM\Entity(repositoryClass: ShiftRuleRepository::class)]
+#[ORM\Table(name: 'roster_shift_rule')]
+#[ORM\UniqueConstraint(name: 'uniq_roster_rule_area_kind', columns: ['area_id', 'kind'])]
+#[ORM\UniqueConstraint(name: 'uniq_roster_shift_rule_uuid', columns: ['uuid'])]
+#[ORM\Index(name: 'idx_roster_shift_rule_area', columns: ['area_id'])]
+#[ORM\HasLifecycleCallbacks]
+class ShiftRule
+{
+    use TimestampableTrait;
+
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column]
+    private ?int $id = null; // @phpstan-ignore property.unusedType (assigned by Doctrine via reflection)
+
+    #[ORM\Column(type: 'uuid')]
+    private Uuid $uuid;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'area_id', nullable: false, onDelete: 'CASCADE')]
+    private AreaOfInterest $area;
+
+    #[ORM\Column(length: 32, enumType: RuleKind::class)]
+    private RuleKind $kind;
+
+    /**
+     * THE NUMBER AS TYPED. A float because 1.5 km and 1.5 hours are both
+     * things somebody writes, and rounding them on the way in would answer
+     * a form with a different number than it sent.
+     */
+    #[ORM\Column(type: 'float')]
+    private float $value;
+
+    #[ORM\Column(length: 16, enumType: RuleUnit::class)]
+    private RuleUnit $unit;
+
+    public function __construct(AreaOfInterest $area, RuleKind $kind, RuleValue $value)
+    {
+        $this->uuid = Uuid::v7();
+        $this->area = $area;
+        $this->kind = $kind;
+        $this->set($value);
+    }
+
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getUuid(): Uuid
+    {
+        return $this->uuid;
+    }
+
+    public function getArea(): AreaOfInterest
+    {
+        return $this->area;
+    }
+
+    public function getKind(): RuleKind
+    {
+        return $this->kind;
+    }
+
+    /** The pair, as one object — what everything reads and nothing reassembles. */
+    public function getValue(): RuleValue
+    {
+        return new RuleValue($this->value, $this->unit);
+    }
+
+    /**
+     * @throws \InvalidArgumentException when the unit cannot measure this kind
+     */
+    public function set(RuleValue $value): static
+    {
+        $checked = $this->kind->valueOf($value->value, $value->unit);
+
+        $this->value = $checked->value;
+        $this->unit = $checked->unit;
+
+        return $this;
+    }
+}

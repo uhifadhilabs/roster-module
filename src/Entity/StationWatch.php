@@ -46,6 +46,7 @@ use Uhifadhi\Roster\Repository\StationWatchRepository;
  */
 #[ORM\Entity(repositoryClass: StationWatchRepository::class)]
 #[ORM\Table(name: 'roster_station_watch')]
+#[ORM\Index(name: 'idx_roster_station_watch_pattern', columns: ['pattern_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_roster_watch_station', columns: ['station_id'])]
 #[ORM\HasLifecycleCallbacks]
 class StationWatch
@@ -101,6 +102,42 @@ class StationWatch
      */
     #[ORM\Column(name: 'catchment_metres')]
     private int $catchmentMetres;
+
+    /**
+     * HOW MANY PEOPLE THIS STATION NEEDS ON EACH SHIFT IT RUNS, keyed by
+     * shift key — "day 2, night 2".
+     *
+     * RULED 21 sep: how many a station needs LIVES WITH THE STATION. It
+     * was a column on the ring, which made it a property of the pattern —
+     * and a pattern is one shared object now, so a need kept there would
+     * say that every station running the same cycle needs the same number
+     * of people, which is not a thing about cycles at all.
+     *
+     * IT IS WHAT A SHORTFALL IS MEASURED AGAINST, so it is a DECLARATION
+     * and never a count of who turned up: a station whose need nobody has
+     * stated is short of nobody, and a station that asks for two and
+     * staffs one is short of one however the pattern is going.
+     *
+     * @var array<string, int>
+     */
+    #[ORM\Column(name: 'needs_per_shift', type: Types::JSON)]
+    private array $needsPerShift = [];
+
+    /**
+     * THE CYCLE THIS STATION IS FILLED FROM, or null where nobody has
+     * applied one.
+     *
+     * NULL IS A REAL ANSWER AND THE COMMON ONE. A station with no pattern
+     * is filled by hand on the sheet; it is never short of a pattern, and
+     * nothing on any screen asks it to have one.
+     *
+     * SET NULL AND NOT CASCADE: deleting a pattern must not delete the
+     * stations that ran it. They stop being filled and keep everything
+     * else about themselves.
+     */
+    #[ORM\ManyToOne(targetEntity: Pattern::class)]
+    #[ORM\JoinColumn(name: 'pattern_id', nullable: true, onDelete: 'SET NULL')]
+    private ?Pattern $pattern = null;
 
     public function __construct(
         Station $station,
@@ -206,5 +243,49 @@ class StationWatch
         if ($this->offlineAfterMinutes <= $this->silenceWindowMinutes) {
             throw new \InvalidArgumentException(\sprintf('Offline (%d min) has to come after late (%d min), or a post would never read as late at all.', $this->offlineAfterMinutes, $this->silenceWindowMinutes));
         }
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function getNeedsPerShift(): array
+    {
+        return $this->needsPerShift;
+    }
+
+    /** How many this station needs on one shift; none where it has not said. */
+    public function needsOn(string $shiftKey): int
+    {
+        return max(0, $this->needsPerShift[$shiftKey] ?? 0);
+    }
+
+    /**
+     * @param array<string, int> $needs
+     */
+    public function setNeedsPerShift(array $needs): static
+    {
+        $kept = [];
+        foreach ($needs as $key => $count) {
+            if ('' !== $key && $count > 0) {
+                $kept[$key] = $count;
+            }
+        }
+
+        $this->needsPerShift = $kept;
+
+        return $this;
+    }
+
+    public function getPattern(): ?Pattern
+    {
+        return $this->pattern;
+    }
+
+    /** Apply a cycle to this station, or take it off one. */
+    public function filledBy(?Pattern $pattern): static
+    {
+        $this->pattern = $pattern;
+
+        return $this;
     }
 }
