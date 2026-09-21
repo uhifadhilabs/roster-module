@@ -96,7 +96,27 @@ final readonly class RotationGenerator
         $protectedDays = $this->editedDays->protectedDaysBetween($station, $from, $through);
         $protected = array_fill_keys($protectedDays, true);
 
-        $replaced = $this->clearOwnWork($rotation, $from, $through, $protected);
+        /*
+         * AND THE MARKS THAT NAME A RANGER.
+         *
+         * The sheet's by-hand menu and an accepted swap both mark the
+         * RANGER'S day, not the station's — standing a whole post down
+         * because one cell was edited would be the opposite of what the
+         * mark says. So the ring asks the narrower question too, and a
+         * day two people agreed to trade is not handed back to whoever
+         * the pattern says should have had it.
+         */
+        $protectedFor = [];
+        foreach ($this->editedDays->protectedPersonDaysBetween($station, $from, $through) as $day => $people) {
+            foreach ($people as $personId) {
+                $protectedFor[$day][self::personKey($personId)] = true;
+            }
+        }
+
+        $protectedDays = array_values(array_unique([...$protectedDays, ...array_keys($protectedFor)]));
+        sort($protectedDays);
+
+        $replaced = $this->clearOwnWork($rotation, $from, $through, $protected, $protectedFor);
 
         // Read what is left AFTER the clear, so a hand-made duty is seen and
         // this rotation's own removed rows are not.
@@ -125,6 +145,12 @@ final readonly class RotationGenerator
             if (isset($away[$day][self::personKey($personId)])) {
                 ++$skippedAbsent;
 
+                continue;
+            }
+
+            // A day this ranger's own hand mark protects is theirs, and the
+            // ring writes nothing over it.
+            if (isset($protectedFor[$day][self::personKey($personId)])) {
                 continue;
             }
 
@@ -177,13 +203,22 @@ final readonly class RotationGenerator
     /**
      * REMOVE WHAT THIS ROTATION PUT THERE, sparing the days somebody edited.
      *
-     * @param array<string, true> $protected
+     * @param array<string, true>                $protected    Y-m-d => true
+     * @param array<string, array<string, true>> $protectedFor Y-m-d => person key => true
      */
-    private function clearOwnWork(Rotation $rotation, \DateTimeImmutable $from, \DateTimeImmutable $through, array $protected): int
+    private function clearOwnWork(Rotation $rotation, \DateTimeImmutable $from, \DateTimeImmutable $through, array $protected, array $protectedFor): int
     {
         $removed = 0;
         foreach ($this->duties->findGeneratedBy($rotation, $from, $through) as $duty) {
-            if (isset($protected[$duty->getOnDay()->format('Y-m-d')])) {
+            $day = $duty->getOnDay()->format('Y-m-d');
+
+            if (isset($protected[$day])) {
+                continue;
+            }
+
+            // A watch somebody now holds by hand survives the rewrite: the
+            // mark is on THEIR day, and the row it protects is this one.
+            if (isset($protectedFor[$day][self::personKey($duty->getPerson()->getId())])) {
                 continue;
             }
 

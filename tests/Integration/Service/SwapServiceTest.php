@@ -17,6 +17,7 @@ use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Roster\Entity\Duty;
+use Uhifadhi\Roster\Entity\EditedDay;
 use Uhifadhi\Roster\Entity\Rotation;
 use Uhifadhi\Roster\Entity\RotationPoolMember;
 use Uhifadhi\Roster\Enum\RotationScope;
@@ -241,5 +242,55 @@ final class SwapServiceTest extends IntegrationTestCase
 
         self::assertCount(1, $stillTheirs);
         self::assertSame('ben@example.test', $stillTheirs[0]->getPerson()->getEmail(), 'Ben agreed to take the watch; the generator must not hand it back to Ada.');
+    }
+
+    /**
+     * AN ACCEPTED EXCHANGE MARKS THE TWO PEOPLE IN IT, and nobody else.
+     *
+     * A mark with no ranger on it is a mark on the WHOLE STATION for that
+     * day, so every colleague's cell wears the amber corner and the
+     * nightly generator is told to leave their days alone too. Two people
+     * agreed to trade; that is a fact about two cells.
+     */
+    public function testAnAcceptedExchangeMarksTheTwoCellsAndNoOthers(): void
+    {
+        $cara = $this->aPerson('cara@example.test', 'Cara');
+        $this->em->flush();
+
+        $mine = $this->aDuty($this->ada, 'day', '2026-09-19');
+        $theirs = $this->aDuty($this->ben, 'night', '2026-09-19');
+        $this->aDuty($cara, 'day', '2026-09-19');
+
+        $swap = $this->swaps()->offer($mine, $this->ben, $this->ada, $theirs);
+        $this->swaps()->accept($swap, new \DateTimeImmutable('2026-09-18 20:00'));
+
+        $marks = $this->em->getRepository(EditedDay::class)->findBy(['onDay' => new \DateTimeImmutable('2026-09-19')]);
+
+        $marked = array_map(static fn (EditedDay $mark) => $mark->getPerson()?->getId(), $marks);
+        sort($marked);
+
+        self::assertSame([$this->ada->getId(), $this->ben->getId()], $marked, 'The two in the trade, each named.');
+        self::assertNotContains(null, $marked, 'A mark with no ranger on it marks the whole station.');
+    }
+
+    /**
+     * AND A HAND-OVER MARKS BOTH ENDS TOO: the one who now holds the day,
+     * and the one who no longer works it.
+     */
+    public function testAnAcceptedHandOverMarksBothEnds(): void
+    {
+        $duty = $this->aDuty($this->ada, 'day', '2026-09-19');
+        $swap = $this->swaps()->offer($duty, $this->ben, $this->ada);
+
+        $this->swaps()->accept($swap, new \DateTimeImmutable('2026-09-18 20:00'));
+
+        $marks = $this->em->getRepository(EditedDay::class)->findBy(['onDay' => new \DateTimeImmutable('2026-09-19')]);
+        $marked = array_map(static fn (EditedDay $mark) => $mark->getPerson()?->getId(), $marks);
+        sort($marked);
+
+        self::assertSame([$this->ada->getId(), $this->ben->getId()], $marked);
+
+        $left = array_values(array_filter($marks, fn (EditedDay $mark) => $mark->getPerson()?->getId() === $this->ada->getId()));
+        self::assertTrue($left[0]->isLeftOff(), 'The one who handed the day over is absent from it, not a declared gap.');
     }
 }

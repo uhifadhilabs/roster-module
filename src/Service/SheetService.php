@@ -167,9 +167,29 @@ final readonly class SheetService
         }
 
         if (null !== $mark) {
+            /*
+             * THE HAND SAYS WHAT IT DID; THE CYCLE SAYS HOW IT READS.
+             *
+             * Standing somebody down is an ABSENCE, not a verdict on the
+             * seat — so on a day the ring wanted covered it reads as the
+             * gap it is, and on a day nothing was asked of it draws
+             * nothing at all. "Mark unfilled" is the other thing: the
+             * verb IS the decision, so it outlines the day whatever the
+             * ring says.
+             *
+             * `leftOff` is kept on the row rather than collapsed into
+             * the kind, because the day an approved absence is ruled to
+             * read as "off" that rule needs to know which marks were
+             * absences — and that rule belongs on Watches with the
+             * others (design note, day-menu flow-b).
+             */
+            $absence = $mark['leftOff'];
+
             return new SheetCell(
                 day: $day,
-                kind: $mark['leftOff'] ? SheetCellKind::Off : SheetCellKind::Unfilled,
+                kind: $absence && null === $expects ? SheetCellKind::Off : SheetCellKind::Unfilled,
+                shiftKey: $absence ? $expects : null,
+                shiftLabel: $absence && null !== $expects ? ($shifts[$expects]['label'] ?? $expects) : null,
                 editedByHand: true,
                 isToday: $isToday,
             );

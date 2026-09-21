@@ -142,4 +142,46 @@ final class EditedDayRepository extends ServiceEntityRepository
 
         return array_map(static fn (array $row): string => $row['on_day']->format('Y-m-d'), $rows);
     }
+
+    /**
+     * AND THE DAYS PROTECTED FOR ONE RANGER AT A TIME.
+     *
+     * A HAND MARK NAMING A RANGER PROTECTS THAT RANGER'S DAY AND NOBODY
+     * ELSE'S. The whole sheet is marked this way — every item on the
+     * by-hand menu, and both ends of an accepted swap — so a ring that
+     * only read the station-wide mark would rebuild a day two people
+     * agreed to trade and hand it back to whoever the pattern says.
+     *
+     * Shaped day => the rangers marked on it, which is how the generator
+     * asks: it holds a planned duty and wants one question answered, not
+     * a scan. The ids come back raw; keying them is the caller's, because
+     * a lookup key is the caller's own shape.
+     *
+     * @return array<string, list<int|string>> Y-m-d => person ids
+     */
+    public function protectedPersonDaysBetween(Station $station, \DateTimeImmutable $from, \DateTimeImmutable $through): array
+    {
+        /** @var list<array{on_day: \DateTimeImmutable, person_id: int|string|null}> $rows */
+        $rows = $this->createQueryBuilder('e')
+            ->select('e.onDay AS on_day', 'IDENTITY(e.person) AS person_id')
+            ->andWhere('e.station = :station')
+            ->andWhere('e.person IS NOT NULL')
+            ->andWhere('e.onDay BETWEEN :from AND :through')
+            ->setParameter('station', $station)
+            ->setParameter('from', $from->setTime(0, 0))
+            ->setParameter('through', $through->setTime(0, 0))
+            ->getQuery()
+            ->getArrayResult();
+
+        $protected = [];
+        foreach ($rows as $row) {
+            if (null === $row['person_id']) {
+                continue;
+            }
+
+            $protected[$row['on_day']->format('Y-m-d')][] = $row['person_id'];
+        }
+
+        return $protected;
+    }
 }

@@ -18,11 +18,9 @@ use Symfony\Component\Uid\Uuid;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Contracts\Entity\UserInterface;
 use Uhifadhi\Roster\Entity\Duty;
-use Uhifadhi\Roster\Entity\EditedDay;
 use Uhifadhi\Roster\Entity\Swap;
 use Uhifadhi\Roster\Enum\SwapState;
 use Uhifadhi\Roster\Repository\DutyRepository;
-use Uhifadhi\Roster\Repository\EditedDayRepository;
 use Uhifadhi\Roster\Repository\SwapRepository;
 
 /**
@@ -50,7 +48,7 @@ final readonly class SwapService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private SwapRepository $swaps,
-        private EditedDayRepository $editedDays,
+        private SheetDayService $days,
         private DutyRepository $duties,
         private RosteredPeople $pool,
     ) {
@@ -98,12 +96,26 @@ final readonly class SwapService
         $taking = $swap->getOfferedTo();
 
         $this->moveDutyTo($duty, $taking);
-        $this->markEdited($duty, $taking, $at);
 
         if (null !== $counter) {
             $this->moveDutyTo($counter, $giving);
-            $this->markEdited($counter, $taking, $at);
         }
+
+        /*
+         * BOTH ENDS OF THE TRADE, EACH BY NAME.
+         *
+         * A TRUE EXCHANGE leaves both people working, each on the
+         * other's watch, so neither day is an absence. A HAND-OVER
+         * leaves the giver not working a day they were down for, which
+         * is an absence — and whether that opens a gap is the station's
+         * ring to answer, exactly as it is when the day is moved from
+         * the sheet's own menu.
+         */
+        $station = $duty->getStation();
+        $onDay = $duty->getOnDay();
+
+        $this->days->markByHand($station, $onDay, $taking, false, $taking, $at);
+        $this->days->markByHand($station, $onDay, $giving, null === $counter, $taking, $at);
 
         $this->entityManager->flush();
 
@@ -226,24 +238,5 @@ final readonly class SwapService
     private function moveDutyTo(Duty $duty, UserInterface $person): void
     {
         $duty->reassignTo($person);
-    }
-
-    /**
-     * MARK THE DAY SO THE GENERATOR LEAVES IT ALONE. Without this the
-     * nightly run would rebuild the day from the ring and put both people
-     * back where the pattern says they belong — quietly undoing an agreement
-     * two people made, with nothing anywhere saying why.
-     */
-    private function markEdited(Duty $duty, UserInterface $by, \DateTimeImmutable $at): void
-    {
-        $existing = $this->editedDays->findOneFor($duty->getStation(), $duty->getOnDay());
-
-        if (null !== $existing) {
-            $existing->touch($by, $at);
-
-            return;
-        }
-
-        $this->entityManager->persist(new EditedDay($duty->getStation(), $duty->getOnDay(), $by, $at));
     }
 }

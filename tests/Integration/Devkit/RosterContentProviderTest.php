@@ -569,6 +569,10 @@ final class RosterContentProviderTest extends IntegrationTestCase
     /**
      * AN ACCEPTED TRADE MARKS ITS DAY, so the next generation leaves the
      * agreement two people made exactly where they put it.
+     *
+     * AND IT MARKS THE TWO RANGERS IN IT, not the post: the mark names
+     * whose day was changed, so a colleague on the same morning is left
+     * to the ring.
      */
     public function testAnAcceptedTradeProtectsItsDay(): void
     {
@@ -576,7 +580,7 @@ final class RosterContentProviderTest extends IntegrationTestCase
 
         $protected = 0;
         foreach ($this->em->getRepository(Station::class)->findBy(['area' => $this->area]) as $post) {
-            $protected += \count($this->repository(EditedDayRepository::class)->protectedDaysBetween($post, $this->monthStart(), $this->monthEnd()));
+            $protected += \count($this->repository(EditedDayRepository::class)->protectedPersonDaysBetween($post, $this->monthStart(), $this->monthEnd()));
         }
 
         self::assertGreaterThan(0, $protected);

@@ -59,13 +59,21 @@ final readonly class SheetDayService
         return $duty;
     }
 
-    /** THE DAY GIVEN TO SOMEBODY ELSE — both people's days were decided by hand. */
+    /**
+     * THE DAY GIVEN TO SOMEBODY ELSE — both people's days were decided
+     * by hand.
+     *
+     * THE ORIGIN IS AN ABSENCE, not a gap declared by hand: the person
+     * is simply no longer working that day. Whether that leaves a HOLE
+     * is the station's ring to answer, and where it wanted cover the
+     * sheet outlines it and the station head counts one more.
+     */
     public function moveTo(Duty $duty, UserInterface $person, ?UserInterface $by): Duty
     {
         $from = $duty->getPerson();
         $duty->reassignTo($person);
 
-        $this->mark($duty->getStation(), $duty->getOnDay(), $from, false, $by);
+        $this->mark($duty->getStation(), $duty->getOnDay(), $from, true, $by);
         $this->mark($duty->getStation(), $duty->getOnDay(), $person, false, $by);
 
         $this->entityManager->flush();
@@ -111,12 +119,28 @@ final readonly class SheetDayService
     }
 
     /**
+     * ONE RANGER'S DAY, MARKED, FOR ANYBODY WHO CHANGES ONE.
+     *
+     * THE RULE IS HERE SO THERE IS ONE OF IT. A swap accepted on the
+     * handset changes two people's days exactly as the menu does, and a
+     * second copy of "which row, whose day, absence or gap" is a second
+     * chance to mark the whole station by leaving the ranger off.
+     *
+     * THE CALLER OWNS THE FLUSH: a swap writes two marks and moves two
+     * duties, and that is one act.
+     */
+    public function markByHand(Station $station, \DateTimeImmutable $onDay, UserInterface $person, bool $leftOff, ?UserInterface $by, ?\DateTimeImmutable $at = null): void
+    {
+        $this->mark($station, $onDay, $person, $leftOff, $by, $at);
+    }
+
+    /**
      * ONE RANGER'S DAY, MARKED — written once and touched after that, so
      * two edits to one day are one mark with the later name on it.
      */
-    private function mark(Station $station, \DateTimeImmutable $onDay, UserInterface $person, bool $leftOff, ?UserInterface $by): void
+    private function mark(Station $station, \DateTimeImmutable $onDay, UserInterface $person, bool $leftOff, ?UserInterface $by, ?\DateTimeImmutable $at = null): void
     {
-        $at = \DateTimeImmutable::createFromInterface($this->clock->now());
+        $at ??= \DateTimeImmutable::createFromInterface($this->clock->now());
         $mark = $this->marks->findOneForPerson($station, $onDay, $person);
 
         if (null === $mark) {

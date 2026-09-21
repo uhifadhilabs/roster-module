@@ -207,7 +207,10 @@ return static function (ContainerConfigurator $container): void {
         ->args([
             service('doctrine.orm.entity_manager'),
             service(SwapRepository::class),
-            service(EditedDayRepository::class),
+            // The by-hand mark is the sheet's own rule, and there is one of
+            // it: an accepted swap changes two people's days exactly as the
+            // sheet's menu does.
+            service('roster.sheet_day'),
             service(DutyRepository::class),
             service('roster.rostered_people'),
         ]);
