@@ -65,7 +65,7 @@
 
         {% if hasWatch %}
             {# CHANGE THE SHIFT — the area's own shifts, as chips. #}
-            <button type="button" class="dmr" role="menuitem" aria-expanded="false" data-action="roster--day-menu#step" data-roster--day-menu-step-param="shift">
+            <button type="button" class="dmr" role="menuitem" aria-expanded="false" data-step-name="shift">
                 {{ ux_icon('roster:replace') }}<span class="l">Change the shift</span>
             </button>
             <form class="dmstep" method="post" action="{{ dayRoute }}" data-step="shift" hidden>
@@ -80,7 +80,7 @@
             </form>
 
             {# MOVE TO SOMEONE ELSE — stationed here, as a list. #}
-            <button type="button" class="dmr" role="menuitem" aria-expanded="false" data-action="roster--day-menu#step" data-roster--day-menu-step-param="move">
+            <button type="button" class="dmr" role="menuitem" aria-expanded="false" data-step-name="move">
                 {{ ux_icon('roster:user-round-plus') }}<span class="l">Move to someone else</span>
             </button>
             <form class="dmstep who" method="post" action="{{ dayRoute }}" data-step="move" hidden>
@@ -99,7 +99,7 @@
             {# SWAP WITH ANOTHER — offered, not applied: the other person
                accepts it on the handset, and the sheet shows both cells
                exchanged after that. #}
-            <button type="button" class="dmr" role="menuitem" aria-expanded="false" data-action="roster--day-menu#step" data-roster--day-menu-step-param="swap">
+            <button type="button" class="dmr" role="menuitem" aria-expanded="false" data-step-name="swap">
                 {{ ux_icon('roster:arrow-right-left') }}<span class="l">Swap with another</span>
             </button>
             <form class="dmstep who" method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OFFER_SWAP_ROUTE'), {uuid: area.uuid}) }}" data-step="swap" hidden>

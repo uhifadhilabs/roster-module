@@ -78,6 +78,15 @@ export default class extends Controller {
             }
         };
         this.follow = () => this.schedule();
+        this.stepClick = (event) => {
+            const row = event.target.closest('.dmr[data-step-name]');
+            if (!row || !this.menu || !this.menu.contains(row)) {
+                return;
+            }
+
+            event.preventDefault();
+            this.step(row, row.dataset.stepName);
+        };
 
         document.addEventListener('click', this.dismiss);
         document.addEventListener('keydown', this.escape);
@@ -132,6 +141,15 @@ export default class extends Controller {
         menu.style.removeProperty('--pm-left');
         this.layer().appendChild(menu);
 
+        /* THE ROWS ARE HEARD FROM HERE, not through `data-action`. Once the
+           panel is on the body layer it is outside this controller's
+           element, and Stimulus binds an action only inside its scope — so
+           a `data-action` on a lifted row is a row that clicks into
+           nothing. The owner saw exactly that: "Change the shift" lit up and
+           nothing opened. The panel is listened to directly for as long as
+           it is lifted, and let go on close. */
+        menu.addEventListener('click', this.stepClick);
+
         if (this.anchored) {
             this.flip();
 
@@ -142,9 +160,7 @@ export default class extends Controller {
     }
 
     /** ONE VERB'S SECOND STEP, under the row it belongs to. */
-    step(event) {
-        const wanted = event.params.step;
-        const row = event.currentTarget;
+    step(row, wanted) {
         /* SCOPED TO THE PANEL THIS ROW IS IN. The controller sits on the
            card, so every cell's steps are its targets; `shift` means this
            cell's shift chips, not the first pair of them on the sheet. */
@@ -306,6 +322,7 @@ export default class extends Controller {
             row.classList.remove('open');
         });
 
+        this.menu.removeEventListener('click', this.stepClick);
         this.home.classList.remove('on');
         this.home.appendChild(this.menu);
 

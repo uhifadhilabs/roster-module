@@ -410,7 +410,15 @@ final class SheetSeamTest extends TestCase
         self::assertStringNotContainsString('class="cl unf"', $cell, 'And no cell wears the retired kind.');
     }
 
-    /** AND A VERB THAT TAKES A VALUE GROWS ITS CHOICE UNDER ITS OWN ROW. */
+    /**
+     * AND A VERB THAT TAKES A VALUE GROWS ITS CHOICE UNDER ITS OWN ROW.
+     *
+     * THE ROW IS NOT A STIMULUS ACTION. The panel is lifted onto a layer on
+     * the body when it opens, outside the controller's element, and an
+     * action attribute on a lifted row binds to nothing — "Change the
+     * shift" lit up and nothing opened. The row names its step in
+     * `data-step-name` and the controller listens on the panel it lifted.
+     */
     public function testEveryValueTakingVerbOpensItsStepInline(): void
     {
         $cell = self::read(self::CELL);
@@ -418,10 +426,13 @@ final class SheetSeamTest extends TestCase
         $css = self::read(self::SHEET_CSS);
 
         foreach (['shift', 'move', 'swap'] as $verb) {
-            self::assertStringContainsString('data-roster--day-menu-step-param="'.$verb.'"', $cell);
+            self::assertStringContainsString('data-step-name="'.$verb.'"', $cell);
             self::assertStringContainsString('data-step="'.$verb.'"', $cell);
         }
+        self::assertStringNotContainsString('day-menu#step', $cell, 'No action binds on a row the layer will lift.');
 
+        self::assertStringContainsString("menu.addEventListener('click', this.stepClick)", $js, 'The lifted panel is listened to directly.');
+        self::assertStringContainsString("this.menu.removeEventListener('click', this.stepClick)", $js, 'And let go on close.');
         self::assertStringContainsString('.dmstep[data-step="${wanted}"]', $js, 'The row opens the step it names.');
         self::assertStringContainsString('.dm .dmstep', $css, 'And the step is shipped.');
     }
