@@ -33,6 +33,7 @@ use Uhifadhi\Roster\Entity\Rotation;
 use Uhifadhi\Roster\Entity\RotationPoolMember;
 use Uhifadhi\Roster\Enum\AbsenceKind;
 use Uhifadhi\Roster\Enum\RotationScope;
+use Uhifadhi\Roster\Enum\RuleKind;
 use Uhifadhi\Roster\Enum\SwapState;
 use Uhifadhi\Roster\Model\Cycle;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
@@ -282,7 +283,7 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         // day somebody is away — which is the behaviour worth showing, and
         // it can only show if the absence is already on the books.
         foreach ($rings as $rotation) {
-            $this->generator->generate($rotation, $this->windowStart(), $this->monthEnd());
+            $this->generator->generate($rotation, $this->windowStart(), $this->fillHorizon());
         }
 
         $this->seedSwaps($area);
@@ -930,6 +931,22 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         $month = $this->monthStart();
 
         return $fortnight < $month ? $fortnight : $month;
+    }
+
+    /**
+     * WHERE THE DEMO'S PLAN ENDS — the later of the month's last day and
+     * the area's fill-ahead reach, six weeks from today by default. The
+     * month alone left the second week of the sheet's own fortnight empty
+     * from the third week of every month: a Week tab whose right half is
+     * a wall of short cover is not a demo of a roster.
+     */
+    private function fillHorizon(): \DateTimeImmutable
+    {
+        $standard = RuleKind::FillAhead->standard();
+        $ahead = $this->today()->modify(\sprintf('+%d days', (int) round($standard->value) * $standard->unit->days()));
+        $month = $this->monthEnd();
+
+        return $ahead > $month ? $ahead : $month;
     }
 
     private function monthStart(): \DateTimeImmutable

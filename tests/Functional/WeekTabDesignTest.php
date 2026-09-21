@@ -22,6 +22,7 @@ use Uhifadhi\Bundle\AreaBundle\Entity\Posting;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
+use Uhifadhi\Roster\Entity\Duty;
 use Uhifadhi\Roster\Model\Cycle;
 use Uhifadhi\Roster\Service\PatternService;
 use Uhifadhi\Roster\Service\StationWatchService;
@@ -124,6 +125,32 @@ final class WeekTabDesignTest extends WebTestCase
         // A KPI ROW IS FOUR, never five — and there is no second idiom on
         // the page: the band or the cards, never both.
         self::assertCount(0, $this->open()->filter('.kstrip'));
+    }
+
+    /**
+     * DAYS PLANNED SAYS HOW FAR THE PLAN REACHES. The design's figure reads
+     * "325 this fortnight · filled to 28 oct": the count is the window's,
+     * the suffix is the last day any watch stands for the area, wherever
+     * that falls — a planner reads in one glance whether the fill has run
+     * ahead of the sheet or stops inside it. With nothing filled there is
+     * no suffix, because "filled to" nowhere is not a fact.
+     */
+    public function testDaysPlannedSaysHowFarTheSheetIsFilled(): void
+    {
+        self::assertStringNotContainsString('filled to', $this->open()->filter('.factband')->text());
+
+        $gate = $this->em->getRepository(Station::class)->findOneBy(['code' => 'ST-01']);
+        $ranger = $this->em->getRepository(User::class)->findOneBy(['email' => 'ada@example.test']);
+        self::assertInstanceOf(Station::class, $gate);
+        self::assertInstanceOf(User::class, $ranger);
+        $far = new \DateTimeImmutable('today')->modify('+40 days');
+        $this->em->persist(new Duty($this->area, $gate, $ranger, 'day', new \DateTimeImmutable('today')));
+        $this->em->persist(new Duty($this->area, $gate, $ranger, 'day', $far));
+        $this->em->flush();
+
+        $planned = $this->open()->filter('.factband .f')->eq(1);
+        self::assertSame('Days planned', trim($planned->filter('.k')->text()));
+        self::assertStringContainsString('this fortnight · filled to '.strtolower($far->format('j M')), html_entity_decode($planned->filter('em')->text()));
     }
 
     /**
@@ -232,7 +259,12 @@ final class WeekTabDesignTest extends WebTestCase
         self::assertCount(0, $key->filter('i.k.u'), 'And the retired mark is off the key.');
     }
 
-    /** THE SWAP SECTION IS LABELLED and is two house cards. */
+    /**
+     * THE SWAP SECTION IS LABELLED and is two house cards STACKED, each the
+     * full width — the design's one-column grid. Side by side halved the
+     * rows a trade states and put the register where the eye reads a
+     * comparison, not a sequence.
+     */
     public function testTheSwapSectionIsLabelled(): void
     {
         $crawler = $this->open();
@@ -241,7 +273,10 @@ final class WeekTabDesignTest extends WebTestCase
             'The swap in progress',
             $crawler->filter('h2.zone')->each(static fn (Crawler $h): string => html_entity_decode(trim($h->text()))),
         );
-        self::assertCount(2, $crawler->filter('.grid.g2 > .c'));
+        $grid = $crawler->filter('h2.zone + .grid');
+        self::assertCount(1, $grid);
+        self::assertStringNotContainsString('g2', (string) $grid->attr('class'), 'One column, never two.');
+        self::assertCount(2, $grid->children('.c'));
     }
 
     /**

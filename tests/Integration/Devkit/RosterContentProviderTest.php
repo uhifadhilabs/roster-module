@@ -137,6 +137,15 @@ final class RosterContentProviderTest extends IntegrationTestCase
         return new \DateTimeImmutable('last day of this month')->setTime(0, 0);
     }
 
+    /** Six weeks from today (the fill-ahead default), or the month's end when that reaches further. */
+    private function fillHorizon(): \DateTimeImmutable
+    {
+        $ahead = new \DateTimeImmutable('today')->modify('+6 weeks');
+        $month = $this->monthEnd();
+
+        return $ahead > $month ? $ahead : $month;
+    }
+
     /** THE ORDER IT IS SEEDED IN is stated as what it is built on. */
     public function testItIsSeededAfterTheContentItHangsOn(): void
     {
@@ -280,33 +289,54 @@ final class RosterContentProviderTest extends IntegrationTestCase
 
     /**
      * NOTHING IS ROSTERED OUTSIDE THE WINDOW THE TABS LOOK AT, and that
-     * window is the FORTNIGHT-OR-MONTH, not the month alone.
+     * window is the FORTNIGHT-OR-MONTH behind, and the FILL HORIZON ahead.
      *
-     * IT WAS THE MONTH, AND THAT WAS WRONG ON TWO DAYS IN EVERY MONTH.
-     * The Week tab opens on fourteen days from the Monday of this week, so
-     * in the first days of a month it reaches back into the last one: a
-     * demo bounded at the first drew those days as holes it had simply
-     * never generated, which reads as a park that forgot to staff itself.
-     * And the presence demo can only report from watches that have already
-     * happened — on the 1st a month-bounded plan has none, so a park seeded
-     * that morning had no worked history and no state for any screen to
-     * draw. Ruled 20 sep: roster from the earlier of the two, through the
-     * end of the month.
+     * BEHIND: the Week tab opens on fourteen days from the Monday of this
+     * week, so in the first days of a month it reaches back into the last
+     * one; a demo bounded at the first drew those days as holes. And the
+     * presence demo can only report from watches that have already
+     * happened. Ruled 20 sep: roster from the earlier of the two.
      *
-     * THE UPPER BOUND IS STILL THE MONTH. Nothing beyond it, because that
-     * is where every tab's own reading stops.
+     * AHEAD: the plan reaches as far as the area's fill-ahead rule says a
+     * pattern fills — six weeks from today by default — or the end of the
+     * month, whichever is further. The month alone left the second week of
+     * the sheet's own fortnight empty from the third week of every month,
+     * and a Week tab whose right half is a wall of short cover is not a
+     * demo of a roster, it is a demo of a park that stopped planning.
      */
-    public function testItRostersNothingOutsideTheFortnightOrTheMonth(): void
+    public function testItRostersNothingOutsideTheWindowBehindOrTheHorizonAhead(): void
     {
         $this->provider()->load();
 
         $duties = $this->repository(DutyRepository::class);
 
         $before = $duties->findByAreaBetween($this->area, $this->windowStart()->modify('-2 months'), $this->windowStart()->modify('-1 day'));
-        $after = $duties->findByAreaBetween($this->area, $this->monthEnd()->modify('+1 day'), $this->monthEnd()->modify('+2 months'));
+        $after = $duties->findByAreaBetween($this->area, $this->fillHorizon()->modify('+1 day'), $this->fillHorizon()->modify('+2 months'));
 
         self::assertSame([], $before);
         self::assertSame([], $after);
+    }
+
+    /**
+     * THE FORTNIGHT AFTER THIS ONE IS ROSTERED TOO, every day of it, and
+     * so is the last day of the horizon — the sheet's default window and
+     * the four-week view under it are populated whatever the date.
+     */
+    public function testItRostersThroughTheFillHorizon(): void
+    {
+        $this->provider()->load();
+
+        $days = [];
+        foreach ($this->repository(DutyRepository::class)->findByAreaBetween($this->area, $this->windowStart(), $this->fillHorizon()) as $duty) {
+            $days[$duty->getOnDay()->format('Y-m-d')] = true;
+        }
+
+        $fortnight = RotaService::start(new \DateTimeImmutable('today'));
+        for ($i = 0; $i < 28; ++$i) {
+            $day = $fortnight->modify(\sprintf('+%d days', $i))->format('Y-m-d');
+            self::assertArrayHasKey($day, $days, \sprintf('%s is rostered.', $day));
+        }
+        self::assertArrayHasKey($this->fillHorizon()->format('Y-m-d'), $days, 'The last day of the horizon is rostered.');
     }
 
     /**

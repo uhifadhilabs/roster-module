@@ -759,6 +759,12 @@
 .psheetwrap.w4 > table.csheet thead th.who { z-index: 7; }
 
 table.csheet td { padding: 2px 3px; }
+/* EVERY RANGER ROW IS THE SAME HEIGHT, drawn or not. A row is 57px because its
+   tallest cell is a 52px block in 2px of padding — so a ranger with no watch in
+   the window collapsed to a name line, and the sheet read as two row sizes.
+   The height is the block's, declared once, so an empty fortnight keeps the
+   rhythm; the four-week view sets its own under .w4. */
+table.csheet tr.strow > td { height: 57px; box-sizing: border-box; }
 table.csheet td.sep { padding: 0; }
 
 /* TODAY IS ONE TINT DOWN THE COLUMN, not an outline on each of 34 cells. */
@@ -1135,6 +1141,7 @@ td.sep:not([colspan]) > .stfoldb {
 .psheetwrap.w4 .csheet th { font-size: 7.5px; letter-spacing: .03em; padding: 0 2px 8px; }
 .psheetwrap.w4 .csheet th em { font-size: 9px; }
 .psheetwrap.w4 .csheet td { padding: 2px 1px; }
+.psheetwrap.w4 .csheet tr.strow > td { height: 21px; }
 .psheetwrap.w4 .csheet td.who { max-width: 140px; }
 .psheetwrap.w4 .csheet td.who b { font-size: 11.5px; }
 

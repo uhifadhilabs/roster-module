@@ -35,6 +35,8 @@ final readonly class Sheet
         public array $bands,
         /** Every station on the area's books, whether anybody is stationed there or not. */
         public int $stations,
+        /** The last day any watch stands for the area — the fill horizon, which may run past the window. */
+        public ?\DateTimeImmutable $filledTo = null,
     ) {
     }
 

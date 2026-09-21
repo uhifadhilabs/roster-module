@@ -132,7 +132,7 @@
        nobody could check against the picture. #}
     <div class="factband">
         <span class="f"><span class="k">Rangers</span><span class="v">{{ sheet.rangers }}<em>across {{ sheet.stations }} station{{ sheet.stations == 1 ? '' : 's' }}</em></span></span>
-        <span class="f"><span class="k">Days planned</span><span class="v">{{ sheet.daysPlanned }}<em>{{ window.weeks == 1 ? 'this week' : (window.weeks == 2 ? 'this fortnight' : 'these four weeks') }}</em></span></span>
+        <span class="f"><span class="k">Days planned</span><span class="v">{{ sheet.daysPlanned }}<em>{{ window.weeks == 1 ? 'this week' : (window.weeks == 2 ? 'this fortnight' : 'these four weeks') }}{% if sheet.filledTo %} &middot; filled to {{ sheet.filledTo|date('j M')|lower }}{% endif %}</em></span></span>
         <span class="f"><span class="k">Short cover</span><span class="v">{{ sheet.shortCover }}<em>station-days under the number</em></span></span>
         <span class="f"><span class="k">Edited by hand</span><span class="v">{{ sheet.editedByHand }}<em>a pattern will not touch them</em></span></span>
         <span class="sp"></span>
@@ -368,8 +368,9 @@
        in. A swap is offered to the handset and accepted there, so the web
        app never puts a person on a watch they have not seen.
        ==================================================================== #}
+    {# ONE COLUMN, the design's: the trade above, the register under it, each the full width — two cards side by side halved the rows a trade states. #}
     <h2 class="zone">The swap in progress</h2>
-    <div class="grid g2">
+    <div class="grid">
 
         <div class="c">
             <span class="tab">Swap a watch<span class="src">&middot; two cells, and what the trade costs</span></span>

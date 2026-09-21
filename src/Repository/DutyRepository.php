@@ -68,6 +68,24 @@ final class DutyRepository extends ServiceEntityRepository
     }
 
     /**
+     * THE LAST DAY ANY WATCH STANDS FOR THE AREA — how far the plan is
+     * filled, wherever that falls. Null when nothing stands at all.
+     */
+    public function findLastDayByArea(AreaOfInterest $area): ?\DateTimeImmutable
+    {
+        /** @var Duty|null $last */
+        $last = $this->createQueryBuilder('d')
+            ->andWhere('d.area = :area')
+            ->setParameter('area', $area)
+            ->orderBy('d.onDay', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $last?->getOnDay();
+    }
+
+    /**
      * @return list<Duty>
      */
     public function findByStationBetween(Station $station, \DateTimeImmutable $from, \DateTimeImmutable $through): array

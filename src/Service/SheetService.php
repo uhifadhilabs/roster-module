@@ -135,7 +135,7 @@ final readonly class SheetService
             );
         }
 
-        return new Sheet($window, $bands, \count($stations));
+        return new Sheet($window, $bands, \count($stations), $this->duties->findLastDayByArea($area));
     }
 
     /**
