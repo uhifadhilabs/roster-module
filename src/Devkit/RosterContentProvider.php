@@ -253,8 +253,11 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         // people were never marked, and the next post to be rung drew
         // them straight back — a park that had merely been seeded twice
         // had rangers standing two watches on one morning.
+        // AND THEY ARE EXTENDED below, once the new rings have run.
         $ringed = [];
+        $standingRings = [];
         foreach ($this->rings->findByArea($area) as $standing) {
+            $standingRings[] = $standing;
             foreach ($standing->getPool() as $member) {
                 $ringed[(string) $member->getPerson()->getUuidString()] = true;
             }
@@ -284,6 +287,19 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         // it can only show if the absence is already on the books.
         foreach ($rings as $rotation) {
             $this->generator->generate($rotation, $this->windowStart(), $this->fillHorizon());
+        }
+
+        // A STANDING RING IS EXTENDED, NEVER REDRAWN: it runs only from the
+        // day after it was last generated through, so the duties, hand marks
+        // and trades an earlier run put on the books stay exactly where they
+        // are. Redrawing it would be the planner's own "fill again", which
+        // clears the ring's work first — and a seed is not a planner.
+        foreach ($standingRings as $rotation) {
+            $through = $rotation->getGeneratedThrough();
+            if (null === $through || $through >= $this->fillHorizon()) {
+                continue;
+            }
+            $this->generator->generate($rotation, $through->modify('+1 day'), $this->fillHorizon());
         }
 
         $this->seedSwaps($area);

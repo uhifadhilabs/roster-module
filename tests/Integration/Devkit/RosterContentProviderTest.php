@@ -340,6 +340,39 @@ final class RosterContentProviderTest extends IntegrationTestCase
     }
 
     /**
+     * A SECOND SEED EXTENDS WHAT STANDS. A park seeded last month has rings
+     * whose duties stop where that run's horizon did; running the demo
+     * again carries every standing ring on from there to today's horizon,
+     * and touches nothing a ring has already drawn — its duties, hand
+     * marks and trades stay exactly where the first run put them.
+     */
+    public function testASecondSeedExtendsTheStandingRingsToTheHorizon(): void
+    {
+        $this->provider()->load();
+
+        $duties = $this->repository(DutyRepository::class);
+        $cut = $this->windowStart()->modify('+13 days');
+        $kept = \count($duties->findByAreaBetween($this->area, $this->windowStart(), $cut));
+
+        // The first run stopped at the fortnight's end, as an older demo did.
+        foreach ($duties->findByAreaBetween($this->area, $cut->modify('+1 day'), $this->fillHorizon()) as $duty) {
+            $this->em->remove($duty);
+        }
+        foreach ($this->repository(RotationRepository::class)->findByArea($this->area) as $ring) {
+            $ring->setGeneratedThrough($cut);
+        }
+        $this->em->flush();
+        $this->em->clear();
+        self::assertSame([], $duties->findByAreaBetween($this->area, $cut->modify('+1 day'), $this->fillHorizon()));
+
+        $this->provider()->load();
+        $this->em->clear();
+
+        self::assertNotEmpty($duties->findByAreaBetween($this->area, $cut->modify('+1 day'), $this->fillHorizon()), 'The standing rings were carried on to the horizon.');
+        self::assertSame($kept, \count($duties->findByAreaBetween($this->area, $this->windowStart(), $cut)), 'And what stood already was not redrawn.');
+    }
+
+    /**
      * AND THERE IS ALWAYS SOMETHING BEHIND TODAY TO REPORT ON. This is the
      * property the window exists for: whatever date the suite runs on,
      * including the 1st, the plan reaches back far enough that the presence
