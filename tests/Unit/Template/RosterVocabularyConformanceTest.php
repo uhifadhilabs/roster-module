@@ -64,4 +64,39 @@ final class RosterVocabularyConformanceTest extends VocabularyConformanceTestCas
             \dirname((new \ReflectionClass(\Uhifadhi\Bundle\AreaBundle\AreaBundle::class))->getFileName() ?: '').'/public/area.css',
         ];
     }
+
+    /**
+     * EVERY REPEATED ROW FAMILY CANCELS ITS RULE ON THE LAST ONE.
+     *
+     * THE SHELL DOES NOT SHIP THIS CHECK and it is worth the module keeping
+     * it: a list whose final row is underlined reads as a list that was CUT
+     * OFF rather than one that ended, and it is the single easiest thing to
+     * lose when a row family is copied to make the next one. Each family
+     * below draws a hairline between its rows, so each has to say where the
+     * hairlines stop.
+     *
+     * @return iterable<string, array{string, string}>
+     */
+    public static function rowFamilies(): iterable
+    {
+        yield 'a shift row' => ['.wsh', '.wsh:last-of-type'];
+        yield 'a rule row' => ['.rl', '.rl:last-of-type'];
+        yield 'an area setting' => ['.rset', '.rset:last-of-type'];
+        yield 'a check-in status' => ['.rstat', '.rstat:last-of-type'];
+        yield 'a station in the table' => ['table.wmx td', 'table.wmx tr:last-child td'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('rowFamilies')]
+    public function testEveryRepeatedRowFamilyCancelsItsRuleOnTheLastRow(string $family, string $cancel): void
+    {
+        $sheet = file_get_contents(self::bundlePath().'/public/roster.css');
+        self::assertIsString($sheet);
+
+        self::assertStringContainsString($family.' {', $sheet, $family.' draws a rule between its rows.');
+        self::assertMatchesRegularExpression(
+            '/'.preg_quote($cancel, '/').'\s*\{[^}]*border-bottom:\s*0/',
+            $sheet,
+            $cancel.' has to cancel it, or the list reads as cut off.',
+        );
+    }
 }
