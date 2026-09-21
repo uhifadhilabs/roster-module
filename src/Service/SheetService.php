@@ -22,6 +22,8 @@ use Uhifadhi\Roster\Model\Sheet;
 use Uhifadhi\Roster\Model\SheetBand;
 use Uhifadhi\Roster\Model\SheetCell;
 use Uhifadhi\Roster\Model\SheetCellKind;
+use Uhifadhi\Roster\Model\SheetCover;
+use Uhifadhi\Roster\Model\SheetCoverState;
 use Uhifadhi\Roster\Model\SheetRow;
 use Uhifadhi\Roster\Model\SheetWindow;
 use Uhifadhi\Roster\Repository\DutyRepository;
@@ -38,19 +40,19 @@ use Uhifadhi\Roster\Repository\StationWatchRepository;
  * stations, the postings, the duties and the hand marks each come back
  * once and are indexed here.
  *
- * WHAT MAKES A CELL UNFILLED, and it is the whole reason this tab
- * exists. A day is unfilled when the station's own cycle expects somebody
- * on it and nobody is — not when a duty happens to be missing, because a
- * missing duty on a day nothing was asked of is simply an off day. So the
- * expectation is computed from the station's pattern, anchored on the day
- * its fill started, offset by the ranger's seat: each person enters the
- * ring one day later than the last, which is how one cycle staffs a
- * station without anybody writing a rota.
+ * A GAP BELONGS TO THE STATION, NOT TO A RANGER. RULED 21 sep. A
+ * ranger's cell is a shift or it is off, and that is the whole of it;
+ * what can be SHORT is the place on the day, against the number the place
+ * says it needs. So every band's head row carries one cover token per day
+ * — how many of the needed places are covered, out of how many the
+ * station asked for — and the alarm ink is spent once, where the decision
+ * is actually made.
  *
- * AND A STATION NOBODY HAS FILLED EXPECTS NOTHING. Null anchor, no
+ * AND A STATION THAT NAMES NO NUMBER EXPECTS NOTHING. No needs, no
  * expectation, no alarm ink — a fortnight of it at a station nobody has
  * made a decision about would be the sheet shouting at somebody who has
- * done nothing wrong.
+ * done nothing wrong. Null and zero are different facts: nothing asked
+ * reads as a dash, never as 0/0.
  *
  * NOTHING HERE IS PRESENCE. The sheet says who is DUE; whether they came
  * is the area's reading and belongs on the tabs that ask that question.
@@ -88,6 +90,7 @@ final readonly class SheetService
         $people = $this->peopleByStation($area);
         $watches = $this->watchesByStation($area);
         $duties = $this->dutiesByPersonAndDay($area, $window);
+        $onStation = $this->dutiesByStationDayAndShift($area, $window);
         $marks = $this->marksByPersonAndDay($area, $window);
         $shifts = $this->shiftFacts($area);
         $days = $window->days();
@@ -95,7 +98,7 @@ final readonly class SheetService
         $bands = [];
         foreach ($stations as $station) {
             $uuid = (string) $station->getUuidString();
-            $expected = $this->expectationOf($watches[$uuid] ?? null);
+            $needs = isset($watches[$uuid]) ? $watches[$uuid]->getNeedsPerShift() : [];
 
             $rows = [];
             foreach ($people[$uuid] ?? [] as $seat => $person) {
@@ -106,7 +109,6 @@ final readonly class SheetService
                         $window,
                         $duties[$person['uuid']][$day->format('Y-m-d')] ?? null,
                         $marks[$person['uuid']][$day->format('Y-m-d')] ?? null,
-                        null === $expected ? null : $expected($day, $seat),
                         $shifts,
                     );
                 }
@@ -120,11 +122,17 @@ final readonly class SheetService
                 );
             }
 
+            $cover = [];
+            foreach ($days as $day) {
+                $cover[] = $this->cover($day, $window, $needs, $onStation[$uuid][$day->format('Y-m-d')] ?? []);
+            }
+
             $bands[] = new SheetBand(
                 stationUuid: $uuid,
                 stationName: (string) $station->getName(),
                 stationCode: $station->getCode(),
                 rows: $rows,
+                cover: $cover,
             );
         }
 
@@ -132,12 +140,13 @@ final readonly class SheetService
     }
 
     /**
-     * ONE DAY OF ONE ROW.
+     * ONE DAY OF ONE ROW — and there are only two answers.
      *
      * THE ORDER OF THE QUESTIONS IS THE RULING. A duty that stands is a
-     * watch whatever else is true of the day; then the hand, which says
-     * which of the two empty answers it meant; then the cycle, which is
-     * what turns an ordinary empty day into a gap.
+     * watch whatever else is true of the day; anything else is off, and
+     * the hand mark only says that a person decided it rather than a
+     * pattern. A ranger is never "unfilled": what is short is the
+     * station, on the day, and {@see self::cover()} states it there.
      *
      * @param array{key: string, uuid: string}|null            $duty
      * @param array{leftOff: bool}|null                        $mark
@@ -148,7 +157,6 @@ final readonly class SheetService
         SheetWindow $window,
         ?array $duty,
         ?array $mark,
-        ?string $expects,
         array $shifts,
     ): SheetCell {
         $isToday = $day == $window->today;
@@ -166,72 +174,58 @@ final readonly class SheetService
             );
         }
 
-        if (null !== $mark) {
-            /*
-             * THE HAND SAYS WHAT IT DID; THE CYCLE SAYS HOW IT READS.
-             *
-             * Standing somebody down is an ABSENCE, not a verdict on the
-             * seat — so on a day the ring wanted covered it reads as the
-             * gap it is, and on a day nothing was asked of it draws
-             * nothing at all. "Mark unfilled" is the other thing: the
-             * verb IS the decision, so it outlines the day whatever the
-             * ring says.
-             *
-             * `leftOff` is kept on the row rather than collapsed into
-             * the kind, because the day an approved absence is ruled to
-             * read as "off" that rule needs to know which marks were
-             * absences — and that rule belongs on Watches with the
-             * others (design note, day-menu flow-b).
-             */
-            $absence = $mark['leftOff'];
-
-            return new SheetCell(
-                day: $day,
-                kind: $absence && null === $expects ? SheetCellKind::Off : SheetCellKind::Unfilled,
-                shiftKey: $absence ? $expects : null,
-                shiftLabel: $absence && null !== $expects ? ($shifts[$expects]['label'] ?? $expects) : null,
-                editedByHand: true,
-                isToday: $isToday,
-            );
-        }
-
         return new SheetCell(
             day: $day,
-            kind: null === $expects ? SheetCellKind::Off : SheetCellKind::Unfilled,
-            shiftKey: $expects,
-            shiftLabel: null === $expects ? null : ($shifts[$expects]['label'] ?? $expects),
+            kind: SheetCellKind::Off,
+            editedByHand: null !== $mark,
             isToday: $isToday,
         );
     }
 
     /**
-     * WHAT THIS STATION EXPECTS OF A SEAT ON A DAY — a closure, because
-     * the answer is arithmetic on a ring and the alternative is
-     * materialising 952 of them.
+     * ONE STATION'S COVER ON ONE DAY, counted per shift and stated as one
+     * figure.
      *
-     * Null where the station has no pattern or has never been filled: it
-     * expects nothing of anybody, which is not the same as expecting
-     * nobody.
+     * PER SHIFT, BECAUSE THE SUM LIES. A station needing two on days and
+     * two on nights, with five people on the day watch and nobody on the
+     * night watch, has five people and is still short: only the covered
+     * part of each shift counts, so that day reads 2/4 and wears the
+     * alarm ink it has earned.
      *
-     * @return (\Closure(\DateTimeImmutable, int): ?string)|null the shift key expected, or null for a day the ring stands the seat down
+     * A SHIFT THE STATION NAMES NO NUMBER FOR IS NOT AN EXPECTATION, so
+     * people on it are neither counted nor missed — and a station that
+     * names no number at all reads as a dash.
+     *
+     * @param array<string, int> $needs how many this station needs, per shift key
+     * @param array<string, int> $on    how many are actually on, per shift key
      */
-    private function expectationOf(?StationWatch $watch): ?\Closure
+    private function cover(\DateTimeImmutable $day, SheetWindow $window, array $needs, array $on): SheetCover
     {
-        $pattern = $watch?->getPattern();
-        $anchor = $watch?->getPatternFrom();
+        $isToday = $day == $window->today;
+        $wanted = 0;
+        $covered = 0;
 
-        if (null === $pattern || null === $anchor) {
-            return null;
+        foreach ($needs as $key => $count) {
+            $count = max(0, $count);
+            if (0 === $count) {
+                continue;
+            }
+
+            $wanted += $count;
+            $covered += min($count, max(0, $on[$key] ?? 0));
         }
 
-        $cycle = $pattern->getCycle();
+        if (0 === $wanted) {
+            return new SheetCover($day, null, null, SheetCoverState::Nothing, $isToday);
+        }
 
-        return static function (\DateTimeImmutable $day, int $seat) use ($cycle, $anchor): ?string {
-            $offset = (int) $anchor->diff($day->setTime(0, 0))->format('%r%a') - $seat;
-            $position = $cycle->at($offset);
-
-            return $cycle::OFF === $position ? null : $position;
+        $state = match (true) {
+            $covered >= $wanted => SheetCoverState::Met,
+            0 === $covered => SheetCoverState::Nobody,
+            default => SheetCoverState::Short,
         };
+
+        return new SheetCover($day, $covered, $wanted, $state, $isToday);
     }
 
     /**
@@ -301,6 +295,33 @@ final readonly class SheetService
         }
 
         return $duties;
+    }
+
+    /**
+     * EVERY STANDING DUTY IN THE WINDOW COUNTED BY STATION, DAY AND
+     * SHIFT — the one read the cover token needs.
+     *
+     * IT COUNTS DUTIES AND NOT PEOPLE, deliberately: the station's
+     * question is how many of its places are covered, and one person
+     * cannot stand two of them.
+     *
+     * @return array<string, array<string, array<string, int>>> by station uuid, day and shift key
+     */
+    private function dutiesByStationDayAndShift(AreaOfInterest $area, SheetWindow $window): array
+    {
+        $on = [];
+        foreach ($this->duties->findByAreaBetween($area, $window->from, $window->through) as $duty) {
+            if (!$duty->getState()->isStanding()) {
+                continue;
+            }
+
+            $station = (string) $duty->getStation()->getUuidString();
+            $day = $duty->getOnDay()->format('Y-m-d');
+            $key = $duty->getShiftKey();
+            $on[$station][$day][$key] = ($on[$station][$day][$key] ?? 0) + 1;
+        }
+
+        return $on;
     }
 
     /**

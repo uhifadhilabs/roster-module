@@ -57,6 +57,16 @@ final class TheRingBecomesAPatternTest extends MigrationsTestCase
         $this->assertOneCycleBecameOnePatternRunAtTwoStations();
         $this->assertEachStationKeptWhatItNeeds();
         $this->assertEveryShiftHasItsOwnColour();
+
+        // AND THE REST OF THE JOURNEY, to the head of the line: a gap
+        // becomes the station's, and the rule about it is renamed with
+        // the thing it asks about.
+        $this->rebootKernel();
+        $this->console('doctrine:migrations:migrate', ['--no-interaction' => true]);
+
+        $renamed = $this->connection->fetchAllAssociative("SELECT kind FROM roster_shift_rule WHERE area_id = 901 AND kind LIKE 'raise%'");
+        self::assertCount(1, $renamed);
+        self::assertSame(RuleKind::RaiseShortCover->value, self::asText($renamed[0]['kind']));
     }
 
     /**
@@ -139,7 +149,10 @@ final class TheRingBecomesAPatternTest extends MigrationsTestCase
         self::assertSame('1500 m', $rules[RuleKind::CheckInWithin->value], 'And so did the catchment.');
         self::assertSame('4 hours', $rules[RuleKind::LateAfter->value], 'The area named a fixed threshold, so it is kept.');
         self::assertSame('1 days', $rules[RuleKind::OfflineAfter->value]);
-        self::assertSame('4 hours', $rules[RuleKind::RaiseUnfilled->value]);
+        // THE FIFTH RULE IS STILL UNDER ITS OLD NAME AT THIS VERSION. It
+        // is renamed to `raise_short_cover` by Version20260921000400, once
+        // a gap became the station's — which is the assertion below.
+        self::assertSame('4 hours', $rules['raise_unfilled']);
     }
 
     /**

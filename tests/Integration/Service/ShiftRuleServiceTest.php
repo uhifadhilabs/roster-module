@@ -180,7 +180,7 @@ final class ShiftRuleServiceTest extends IntegrationTestCase
             RuleKind::OfflineAfter->value => new RuleValue(3.0, RuleUnit::Days),
             RuleKind::PingEvery->value => new RuleValue(15.0, RuleUnit::Minutes),
             RuleKind::CheckInWithin->value => new RuleValue(800.0, RuleUnit::Metres),
-            RuleKind::RaiseUnfilled->value => new RuleValue(6.0, RuleUnit::Hours),
+            RuleKind::RaiseShortCover->value => new RuleValue(6.0, RuleUnit::Hours),
             RuleKind::RestBetween->value => new RuleValue(9.0, RuleUnit::Hours),
             RuleKind::FillAhead->value => new RuleValue(3.0, RuleUnit::Weeks),
         ];

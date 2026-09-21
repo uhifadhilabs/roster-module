@@ -17,10 +17,15 @@ namespace Uhifadhi\Roster\Model;
  * ONE STATION'S BAND OF THE SHEET — its head, and the rangers stationed
  * at it.
  *
- * A BAND FOLDS, and a FOLDED BAND STILL STATES ITS UNFILLED DAYS. Folding
- * is for length — a sheet of 34 rangers is not read by scrolling for ages
- * — and it may never hide a gap, which is why {@see $unfilled} is on the
- * head and not only in the rows underneath it.
+ * A BAND FOLDS, and a FOLDED BAND STILL STATES HOW MANY DAYS IT IS SHORT.
+ * Folding is for length — a sheet of 34 rangers is not read by scrolling
+ * for ages — and it may never hide a gap, which is why {@see $cover} sits
+ * on the head row and not only in the rows underneath it.
+ *
+ * THE COVER IS THE BAND'S, NOT A RANGER'S. RULED 21 sep: what can be
+ * short is the station on the day, against the number the station says it
+ * needs, so the head row carries one token per day and a ranger's cell
+ * carries none.
  *
  * A STATION WITH NOBODY STATIONED AT IT STILL GETS A BAND. It is on the
  * area's books, and a sheet that quietly left it out would be a sheet
@@ -29,13 +34,15 @@ namespace Uhifadhi\Roster\Model;
 final readonly class SheetBand
 {
     /**
-     * @param list<SheetRow> $rows
+     * @param list<SheetRow>   $rows
+     * @param list<SheetCover> $cover one per day of the window, in order
      */
     public function __construct(
         public string $stationUuid,
         public string $stationName,
         public ?string $stationCode,
         public array $rows,
+        public array $cover = [],
     ) {
     }
 
@@ -44,14 +51,17 @@ final readonly class SheetBand
         return \count($this->rows);
     }
 
-    public function unfilled(): int
+    /** How many of this band's days stand under the number the station names. */
+    public function shortDays(): int
     {
-        $unfilled = 0;
-        foreach ($this->rows as $row) {
-            $unfilled += $row->unfilled();
+        $short = 0;
+        foreach ($this->cover as $day) {
+            if ($day->state->isUnder()) {
+                ++$short;
+            }
         }
 
-        return $unfilled;
+        return $short;
     }
 
     /** The code the fold is keyed by; a station with none is keyed by its uuid. */

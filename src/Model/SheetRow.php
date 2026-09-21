@@ -37,18 +37,6 @@ final readonly class SheetRow
     ) {
     }
 
-    public function unfilled(): int
-    {
-        $unfilled = 0;
-        foreach ($this->cells as $cell) {
-            if ($cell->isUnfilled()) {
-                ++$unfilled;
-            }
-        }
-
-        return $unfilled;
-    }
-
     public function editedByHand(): int
     {
         $edited = 0;

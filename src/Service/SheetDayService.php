@@ -94,18 +94,6 @@ final readonly class SheetDayService
         $this->entityManager->flush();
     }
 
-    /**
-     * THE DAY MARKED UNFILLED. The watch goes and the seat stays open,
-     * in the alarm ink, until somebody decides otherwise.
-     */
-    public function markUnfilled(Duty $duty, ?UserInterface $by): void
-    {
-        $this->mark($duty->getStation(), $duty->getOnDay(), $duty->getPerson(), false, $by);
-        $this->entityManager->remove($duty);
-
-        $this->entityManager->flush();
-    }
-
     /** AND HANDING THE DAY BACK TO THE PATTERN. */
     public function clearTheMark(Station $station, \DateTimeImmutable $onDay, UserInterface $person): void
     {

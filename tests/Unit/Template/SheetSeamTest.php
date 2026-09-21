@@ -374,14 +374,15 @@ final class SheetSeamTest extends TestCase
     }
 
     /**
-     * SIX VERBS, IN THE RULED ORDER, WITH THE RULED MARKS — option B.
+     * FIVE VERBS, IN THE RULED ORDER, WITH THE RULED MARKS — option B.
      *
-     * The order is the ruling: the destructive one is LAST and in red
-     * ink, and the two that take a value open their choice INLINE. A row
-     * that lost its mark, or a seventh that crept in, changes what the
-     * owner ruled on.
+     * The order is the ruling, and so is the count: "mark the day
+     * unfilled" went with the cell kind it wrote, because RULED 21 sep a
+     * gap belongs to the station and not to a ranger. A row that lost its
+     * mark, or a sixth that crept back in, changes what the owner ruled
+     * on.
      */
-    public function testTheMenuIsTheSixRuledVerbsInOrder(): void
+    public function testTheMenuIsTheFiveRuledVerbsInOrder(): void
     {
         $cell = self::read(self::CELL);
 
@@ -392,9 +393,8 @@ final class SheetSeamTest extends TestCase
             'Swap with another',
             'Give the day off',
             'Clear the hand mark',
-            'Mark unfilled',
             'Clear the hand mark',
-        ], $verbs[1], 'Six verbs on a watch, in order; the mark-clearing one again where there is no watch left.');
+        ], $verbs[1], 'Five verbs on a watch, in order; the mark-clearing one again where there is no watch left.');
 
         foreach ([
             'roster:replace',
@@ -402,13 +402,12 @@ final class SheetSeamTest extends TestCase
             'roster:arrow-right-left',
             'roster:circle-slash',
             'roster:eraser',
-            'roster:circle-dashed',
         ] as $mark) {
             self::assertStringContainsString("ux_icon('".$mark."')", $cell, 'The ruled mark, verbatim.');
         }
 
-        self::assertStringContainsString('class="dmr dg"', $cell, 'The destructive verb is the one in red.');
-        self::assertStringContainsString('name="op" value="unfill"', substr($cell, strpos($cell, 'class="dmr dg"') ?: 0), 'And it is last.');
+        self::assertStringNotContainsString('value="unfill"', $cell, 'A ranger is never marked unfilled; the station is short.');
+        self::assertStringNotContainsString('class="cl unf"', $cell, 'And no cell wears the retired kind.');
     }
 
     /** AND A VERB THAT TAKES A VALUE GROWS ITS CHOICE UNDER ITS OWN ROW. */

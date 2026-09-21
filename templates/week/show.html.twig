@@ -78,6 +78,16 @@
 
 {% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / week{% endblock %}
 
+{# THE PAGE'S OWN ACTIONS, IN THE TOP HEADER and never floating in the body:
+   the accent verb first, Configure last. The design puts "Plan the day" here
+   because the sheet is where a planner notices the day that needs one. #}
+{% block shell_page_actions %}
+    {% if mayPlan %}
+        <a class="cta" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::PLAN_ROUTE'), {uuid: area.uuid, day: window.today.format('Y-m-d')}) }}">{{ ux_icon('roster:pencil') }} Plan the day</a>
+    {% endif %}
+    <a class="tgl w-act" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SETTINGS_ROUTE'), {uuid: area.uuid}) }}">{{ ux_icon('roster:settings') }} Configure</a>
+{% endblock %}
+
 {% block roster_page %}
     {% set here = constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE') %}
     {% set base = {uuid: area.uuid, weeks: window.weeks} %}
@@ -89,7 +99,7 @@
     <div class="factband">
         <span class="f"><span class="k">Rangers</span><span class="v">{{ sheet.rangers }}<em>across {{ sheet.stations }} station{{ sheet.stations == 1 ? '' : 's' }}</em></span></span>
         <span class="f"><span class="k">Days planned</span><span class="v">{{ sheet.daysPlanned }}<em>{{ window.weeks == 1 ? 'this week' : (window.weeks == 2 ? 'this fortnight' : 'these four weeks') }}</em></span></span>
-        <span class="f"><span class="k">Unfilled</span><span class="v">{{ sheet.unfilled }}<em>{{ sheet.unfilled ? 'nobody on them yet' : 'every day the cycles ask for is filled' }}</em></span></span>
+        <span class="f"><span class="k">Short cover</span><span class="v">{{ sheet.shortCover }}<em>station-days under the number</em></span></span>
         <span class="f"><span class="k">Edited by hand</span><span class="v">{{ sheet.editedByHand }}<em>a pattern will not touch them</em></span></span>
         <span class="sp"></span>
         <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SETTINGS_ROUTE'), {uuid: area.uuid}) }}">Roster settings &rarr;</a>
@@ -245,24 +255,42 @@
                                    columns have to stay in one grid across every
                                    station. Same chevron, same head line. #}
                                 <tr class="stfold {{ shut ? 'shut' : 'open' }}" data-fold="{{ band.foldKey }}">
-                                    <td class="sep" colspan="{{ days|length + 1 }}">
+                                    {# THE HEAD'S LEADING CELL IS ONE COLUMN WIDE, so the
+                                       station reads down two lines instead of across a
+                                       merged band: the name and the fold, then the code,
+                                       how many are stationed there, and how many days it
+                                       stands short. #}
+                                    <td class="sep">
                                         <button type="button" class="stfoldb" aria-expanded="{{ shut ? 'false' : 'true' }}"
                                                 data-action="roster--sheet-folds#toggle">
-                                            {{ ux_icon('roster:chevron-down', {class: 'pmf-car', width: 12, height: 12}) }}
-                                            <b>{{ band.stationName }}</b>
-                                            {%- if band.stationCode %}<span class="mono">{{ band.stationCode }}</span>{% endif %}
-                                            <span class="stn">{{ band.rangers ? band.rangers ~ ' ranger' ~ (band.rangers == 1 ? '' : 's') : 'nobody stationed here' }}</span>
-                                            {# A FOLDED STATION STILL STATES ITS
-                                               UNFILLED DAYS, in the alarm ink:
-                                               folding is for length and may never
-                                               hide a gap. #}
-                                            {% if band.unfilled %}
-                                                <span class="stun">{{ band.unfilled }} unfilled</span>
-                                            {% else %}
-                                                <span class="stok">nothing unfilled</span>
-                                            {% endif %}
+                                            <span class="stline">
+                                                {{ ux_icon('roster:chevron-down', {class: 'pmf-car', width: 12, height: 12}) }}
+                                                <b>{{ band.stationName }}</b>
+                                            </span>
+                                            {# A FOLDED STATION STILL STATES HOW MANY DAYS
+                                               IT IS SHORT, in the alarm ink: folding is for
+                                               length and may never hide a gap. #}
+                                            <span class="stmeta">
+                                                {%- if band.stationCode %}<span class="mono">{{ band.stationCode }}</span> &middot; {% endif -%}
+                                                {%- if band.rangers -%}
+                                                    {{ band.rangers }} ranger{{ band.rangers == 1 ? '' : 's' }}
+                                                    {%- if band.shortDays %} &middot; <span class="sh">{{ band.shortDays }} short this window</span>{% endif -%}
+                                                {%- else -%}
+                                                    <span class="ok">nobody stationed here</span>
+                                                {%- endif -%}
+                                            </span>
                                         </button>
                                     </td>
+
+                                    {# AND ONE COVER TOKEN UNDER EVERY DAY COLUMN. A GAP
+                                       BELONGS TO THE STATION, NOT TO A RANGER: what is
+                                       short is this place on this day, against the number
+                                       this place says it needs. A station that names no
+                                       number reads as a dash — nothing asked is not a
+                                       failure. #}
+                                    {% for day in band.cover %}
+                                        <td class="sepd{{ day.isToday ? ' today' : '' }}"><span class="cvr {{ day.state.className }}">{{ day.label }}</span></td>
+                                    {% endfor %}
                                 </tr>
 
                                 {% for row in band.rows %}
@@ -290,10 +318,9 @@
                         <span><i class="k" data-cat="{{ shift.colour }}"></i>{{ shift.label|lower }}</span>
                     {% endfor %}
                     <span><i class="k o"></i>off &mdash; nothing drawn</span>
-                    <span><i class="k u"></i>unfilled</span>
                     <span><i class="k h"></i>edited by hand</span>
                     <span class="sp"></span>
-                    <span>{{ sheet.unfilled }} unfilled day{{ sheet.unfilled == 1 ? '' : 's' }} &middot; {{ sheet.editedByHand }} edited by hand &middot; {{ sheet.rangers }} ranger{{ sheet.rangers == 1 ? '' : 's' }} &middot; {{ window.label }}</span>
+                    <span>{{ sheet.shortCover }} short station-day{{ sheet.shortCover == 1 ? '' : 's' }} &middot; {{ sheet.editedByHand }} edited by hand &middot; {{ sheet.rangers }} ranger{{ sheet.rangers == 1 ? '' : 's' }} &middot; {{ window.label }}</span>
                 </div>
             {% endif %}
         </div>

@@ -39,14 +39,13 @@ use Uhifadhi\Roster\Tests\Integration\IntegrationTestCase;
  * rows and drew the wrong cell would be the defect the frames exist to
  * prevent.
  *
- * AND THE ONE THAT KEEPS BEING READ WRONGLY IS THE DAY OFF. Standing
- * somebody down on a day the station's cycle wanted covered is a gap: the
- * seat is open and nobody is on it. On a day the cycle asked nothing of
- * them it is simply a quiet day. So the mark records what the HAND did
- * and the cycle decides how it READS, which is why one verb has two
- * tests. (Design note, day-menu flow-b: an approved day off reading as
- * "off" rather than "unfilled" would be a rule, and rules live on
- * Watches — so until one is written, cover expected means unfilled.)
+ * AND THE ONE THAT KEEPS BEING READ WRONGLY IS THE DAY OFF. RULED 21
+ * sep: the CELL is the same either way — the watch goes, the day draws
+ * nothing, and the hand mark says a person decided it. What differs is
+ * the STATION: standing somebody down on a day the place needs covered
+ * leaves that place short, and the band's head row says so. A gap
+ * belongs to the station, which is why one verb has two tests and
+ * neither of them is about the ranger.
  */
 final class SheetDayServiceTest extends IntegrationTestCase
 {
@@ -103,6 +102,9 @@ final class SheetDayServiceTest extends IntegrationTestCase
 
         $watch = $watches->addToRoster($this->gate);
         $watch->expect(['day']);
+        // AND THE STATION SAYS HOW MANY IT NEEDS. RULED 21 sep: cover is
+        // counted against the number the place names, not against a ring.
+        $watch->setNeedsPerShift(['day' => 1]);
         $patterns->applyTo($watch, $patterns->create($this->area, Cycle::of(['day'])));
         $watch->filledFrom($this->monday, $this->monday->modify('+27 days'));
         $this->em->flush();
@@ -130,9 +132,10 @@ final class SheetDayServiceTest extends IntegrationTestCase
         self::fail('That ranger has no row on the sheet.');
     }
 
-    private function unfilledAtTheStation(): int
+    /** HOW MANY OF THIS STATION'S DAYS STAND UNDER THE NUMBER IT NAMES. */
+    private function shortDaysAtTheStation(): int
     {
-        return $this->sheet()->read($this->area, SheetWindow::of($this->monday, 2, new \DateTimeImmutable('today')))->bands[0]->unfilled();
+        return $this->sheet()->read($this->area, SheetWindow::of($this->monday, 2, new \DateTimeImmutable('today')))->bands[0]->shortDays();
     }
 
     /** CHANGE THE SHIFT — the cell wears the new shift and carries the hand mark. */
@@ -151,21 +154,13 @@ final class SheetDayServiceTest extends IntegrationTestCase
 
     /**
      * MOVE TO SOMEONE ELSE — the day sits on the other ranger's row, and
-     * the origin is UNFILLED because the cycle expected cover there.
+     * the origin draws NOTHING. A ranger is on a shift or off; what the
+     * move can leave short is the STATION, and the head row says so.
      */
-    public function testMovingTheDayLeavesTheOriginUnfilledWhereCoverWasExpected(): void
+    public function testMovingTheDayLeavesTheOriginOffAndTheStationShort(): void
     {
-        /*
-         * THE DESIGN'S OWN FRAME: the ranger taking the day was already
-         * covered that day, so the station head goes up by one — the
-         * origin opens and nothing closes. Where the destination was
-         * itself a gap the move only carries the gap across, and the
-         * head is unchanged; that is arithmetic, not a different rule.
-         */
         $this->theCycleExpectsCoverEveryDay();
         $duty = $this->aDuty($this->ada);
-        $this->aDuty($this->bea, 'day');
-        $before = $this->unfilledAtTheStation();
 
         $this->days()->moveTo($duty, $this->bea, null);
 
@@ -174,10 +169,8 @@ final class SheetDayServiceTest extends IntegrationTestCase
         self::assertTrue($taken->editedByHand);
 
         $origin = $this->mondayOf($this->ada);
-        self::assertSame(SheetCellKind::Unfilled, $origin->kind, 'Nobody is on a day the ring asked for.');
+        self::assertSame(SheetCellKind::Off, $origin->kind, 'A ranger is on a shift or off, and never a gap.');
         self::assertTrue($origin->editedByHand);
-
-        self::assertSame($before + 1, $this->unfilledAtTheStation(), 'The station head counts one more gap.');
     }
 
     /** AND WHERE THE CYCLE ASKED NOTHING, the origin is simply empty. */
@@ -188,31 +181,32 @@ final class SheetDayServiceTest extends IntegrationTestCase
         $this->days()->moveTo($duty, $this->bea, null);
 
         $origin = $this->mondayOf($this->ada);
-        self::assertSame(SheetCellKind::Off, $origin->kind, 'No ring, no expectation, no alarm ink.');
+        self::assertSame(SheetCellKind::Off, $origin->kind, 'No number named, no expectation, no alarm ink.');
         self::assertTrue($origin->editedByHand);
-        self::assertSame(0, $this->unfilledAtTheStation());
+        self::assertSame(0, $this->shortDaysAtTheStation());
     }
 
     /**
-     * GIVE THE DAY OFF — the watch goes, and on a day the cycle wanted
-     * covered the cell reads UNFILLED, not empty. The seat is open.
+     * GIVE THE DAY OFF — the watch goes, the cell draws nothing and
+     * carries the hand mark, and the STATION's day goes short because
+     * nobody is standing what it needs.
      */
-    public function testGivingTheDayOffReadsUnfilledWhereCoverWasExpected(): void
+    public function testGivingTheDayOffDrawsNothingAndLeavesTheStationShort(): void
     {
         $this->theCycleExpectsCoverEveryDay();
-        $duty = $this->aDuty($this->ada);
-        $before = $this->unfilledAtTheStation();
+        $duty = $this->aDuty($this->ada, 'day');
+        $before = $this->shortDaysAtTheStation();
 
         $this->days()->giveTheDayOff($duty, null);
 
         $cell = $this->mondayOf($this->ada);
-        self::assertSame(SheetCellKind::Unfilled, $cell->kind);
+        self::assertSame(SheetCellKind::Off, $cell->kind);
         self::assertTrue($cell->editedByHand);
-        self::assertSame($before + 1, $this->unfilledAtTheStation());
+        self::assertSame($before + 1, $this->shortDaysAtTheStation(), 'The station head counts one more short day.');
     }
 
-    /** AND ON A DAY NOTHING WAS ASKED OF, the day off draws nothing at all. */
-    public function testGivingTheDayOffDrawsNothingWhereNothingWasExpected(): void
+    /** AND WHERE THE STATION NAMES NO NUMBER, nothing goes short at all. */
+    public function testGivingTheDayOffLeavesNothingShortWhereNothingWasExpected(): void
     {
         $duty = $this->aDuty($this->ada);
 
@@ -221,23 +215,7 @@ final class SheetDayServiceTest extends IntegrationTestCase
         $cell = $this->mondayOf($this->ada);
         self::assertSame(SheetCellKind::Off, $cell->kind);
         self::assertTrue($cell->editedByHand);
-        self::assertSame(0, $this->unfilledAtTheStation());
-    }
-
-    /**
-     * MARK UNFILLED — the destructive one. The seat stays open in the
-     * alarm ink whatever the ring says, because the verb IS the decision.
-     */
-    public function testMarkingUnfilledOutlinesTheDayEvenWithNoCycle(): void
-    {
-        $duty = $this->aDuty($this->ada);
-
-        $this->days()->markUnfilled($duty, null);
-
-        $cell = $this->mondayOf($this->ada);
-        self::assertSame(SheetCellKind::Unfilled, $cell->kind);
-        self::assertTrue($cell->editedByHand);
-        self::assertSame(1, $this->unfilledAtTheStation(), 'Raised as needing a decision.');
+        self::assertSame(0, $this->shortDaysAtTheStation());
     }
 
     /** CLEAR THE HAND MARK — the mark goes, the shift stays, the next fill owns the day again. */

@@ -23,12 +23,13 @@ use Uhifadhi\Roster\Model\RuleValue;
  * each and a per-station exception under any of them, and nothing in the
  * product assumes one way of working.
  *
- * RAISE UNFILLED IS ABOUT THE DASHBOARD AND NOT ABOUT THE SHEET (ruled 21
- * sep, and the reason the checkbox beside it is gone). An unfilled shift
- * is on the sheet the moment it exists — always, with no setting. This
- * rule says only when it is RAISED as needing a decision, which is why the
- * row reads "raise unfilled 4 hours before it starts · as needing a
- * decision" and there is nothing to tick.
+ * RAISE SHORT COVER IS ABOUT THE DASHBOARD AND NOT ABOUT THE SHEET (ruled
+ * 21 sep, and the reason the checkbox beside it is gone). A station-day
+ * under the number it names is on the sheet the moment it is true —
+ * always, with no setting, as a cover token on the station's own row.
+ * This rule says only when that station-day is RAISED as needing a
+ * decision, which is why the row reads "raise short cover 4 hours before
+ * it starts · as needing a decision" and there is nothing to tick.
  */
 enum RuleKind: string
 {
@@ -36,7 +37,7 @@ enum RuleKind: string
     case OfflineAfter = 'offline_after';
     case PingEvery = 'ping_every';
     case CheckInWithin = 'check_in_within';
-    case RaiseUnfilled = 'raise_unfilled';
+    case RaiseShortCover = 'raise_short_cover';
 
     /*
      * ---- FILLING. RULED 21 sep -------------------------------------------
@@ -59,7 +60,7 @@ enum RuleKind: string
             self::OfflineAfter => 'Offline after',
             self::PingEvery => 'Ping every',
             self::CheckInWithin => 'Check-in within',
-            self::RaiseUnfilled => 'Raise unfilled',
+            self::RaiseShortCover => 'Raise short cover',
             self::RestBetween => 'Rest between watches',
             self::NightThenDay => 'Night then day',
             self::FillAhead => 'Fill ahead',
@@ -94,7 +95,7 @@ enum RuleKind: string
             self::OfflineAfter => 'the map stops claiming to know',
             self::PingEvery => 'per handset',
             self::CheckInWithin => 'of the station',
-            self::RaiseUnfilled => 'before it starts · as needing a decision',
+            self::RaiseShortCover => 'before it starts · as needing a decision',
             self::RestBetween => 'one watch ending to the next starting',
             self::NightThenDay => 'a day watch the morning after a night watch',
             self::FillAhead => 'refilled every night',
@@ -197,7 +198,7 @@ enum RuleKind: string
             self::OfflineAfter => new RuleValue(1.0, RuleUnit::Days),
             self::PingEvery => new RuleValue(30.0, RuleUnit::Minutes),
             self::CheckInWithin => new RuleValue(1.5, RuleUnit::Kilometres),
-            self::RaiseUnfilled => new RuleValue(4.0, RuleUnit::Hours),
+            self::RaiseShortCover => new RuleValue(4.0, RuleUnit::Hours),
         };
     }
 

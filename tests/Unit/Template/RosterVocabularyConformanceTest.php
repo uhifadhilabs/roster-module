@@ -124,7 +124,9 @@ final class RosterVocabularyConformanceTest extends VocabularyConformanceTestCas
     public function testTheSheetDrawsNoRuleUnderItsLastRow(): void
     {
         self::assertMatchesRegularExpression(
-            '/table\.csheet tr:last-child td\s*\{[^}]*border-bottom:\s*0/',
+            // The sheet's table IS `.fg-rota csheet`, and the design draws
+            // the dashed rule — and cancels it — on the family, once.
+            '/\.fg-rota tr:last-child td\s*\{[^}]*border-bottom:\s*0/',
             self::theOwnSheet(),
         );
     }

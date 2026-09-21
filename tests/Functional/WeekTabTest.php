@@ -136,6 +136,8 @@ final class WeekTabTest extends WebTestCase
 
         $watch = $watches->addToRoster($this->gate);
         $watch->expect(['day']);
+        // AND THE NUMBER THE PLACE NAMES: cover is counted against it.
+        $watch->setNeedsPerShift(['day' => 2]);
         $patterns->applyTo($watch, $patterns->create($this->area, Cycle::of(['day'])));
         $watch->filledFrom($this->monday, $this->monday->modify('+41 days'));
         $this->em->flush();
@@ -201,17 +203,23 @@ final class WeekTabTest extends WebTestCase
     }
 
     /**
-     * A GAP SHOWS AT ONCE — the one thing this tab exists for, and the
-     * only outlined thing on the sheet.
+     * A GAP SHOWS AT ONCE — the one thing this tab exists for — AND IT IS
+     * THE STATION'S. RULED 21 sep: one cover token per day on the band's
+     * own head row, and not a mark on any ranger.
      */
-    public function testAGapShowsAtOnce(): void
+    public function testAGapShowsAtOnceOnTheStationsOwnRow(): void
     {
         $this->aFilledGate();
 
         $crawler = $this->open();
 
-        self::assertCount(28, $crawler->filter('.cl.unf'), 'Two rangers, fourteen days, nobody on any of them.');
-        self::assertStringContainsString('28 unfilled', $crawler->filter('tr.stfold')->eq(0)->text());
+        self::assertCount(0, $crawler->filter('.cl.unf'), 'A ranger is on a shift or off, and never a gap.');
+
+        $gate = $crawler->filter('tr.stfold[data-fold="ST-01"]');
+        self::assertCount(14, $gate->filter('.cvr'), 'One cover token under every day column.');
+        self::assertCount(14, $gate->filter('.cvr.none'), 'The station needs two a day and nobody is on.');
+        self::assertSame('0/2', $gate->filter('.cvr')->eq(0)->text());
+        self::assertStringContainsString('14 short this window', $crawler->filter('tr.stfold')->eq(0)->text());
     }
 
     /** A DAY WITH A DUTY IS THE CALENDAR'S BAR, in the shift's own colour. */
@@ -227,7 +235,7 @@ final class WeekTabTest extends WebTestCase
         self::assertStringContainsString('day', $bar->text());
     }
 
-    /** A FOLDED STATION STILL STATES ITS UNFILLED DAYS, and its rows are hidden. */
+    /** A FOLDED STATION STILL STATES HOW MANY DAYS IT IS SHORT, and its rows are hidden. */
     public function testAFoldedStationHidesItsRowsAndKeepsItsGapCount(): void
     {
         $this->aFilledGate();
@@ -242,7 +250,7 @@ final class WeekTabTest extends WebTestCase
 
         $band = $crawler->filter('tr.stfold')->eq(0);
         self::assertStringContainsString('shut', (string) $band->attr('class'));
-        self::assertStringContainsString('28 unfilled', $band->text(), 'Folding is for length and may never hide a gap.');
+        self::assertStringContainsString('14 short this window', $band->text(), 'Folding is for length and may never hide a gap.');
         self::assertIsString($crawler->filter('tr.strow')->eq(0)->attr('hidden'));
     }
 
@@ -322,10 +330,11 @@ final class WeekTabTest extends WebTestCase
     }
 
     /**
-     * THE BY-HAND MENU MARKS THE DAY UNFILLED — and the mark is what stops
-     * a later fill deciding the day again.
+     * AND THERE IS NO SIXTH VERB. "Mark the day unfilled" went with the
+     * cell kind it wrote: a ranger is on a shift or off, so the menu
+     * offers five things and the server refuses the retired one.
      */
-    public function testMarkingADayUnfilledLeavesTheMarkBehind(): void
+    public function testTheRetiredUnfillVerbIsNeitherOfferedNorAccepted(): void
     {
         $duty = new Duty($this->area, $this->gate, $this->ada, 'day', $this->monday);
         $this->em->persist($duty);
@@ -333,6 +342,10 @@ final class WeekTabTest extends WebTestCase
 
         $crawler = $this->open();
         self::assertCount(1, $crawler->filter('.pmenuwrap .pmenu'), 'A day with a watch on it opens a menu.');
+        // Four on an unedited day — the fifth, clearing the hand mark,
+        // appears once there is a mark to clear. Never a sixth.
+        self::assertCount(4, $crawler->filter('.pmenuwrap .pmenu .dmr'));
+        self::assertStringNotContainsString('Mark unfilled', $crawler->filter('.pmenuwrap .pmenu')->text());
 
         $this->client->request('POST', '/areas/'.$this->area->getUuidString().'/modules/roster/sheet/day', [
             '_token' => $this->token($crawler),
@@ -343,9 +356,8 @@ final class WeekTabTest extends WebTestCase
         self::assertResponseRedirects();
         $this->em->clear();
 
-        self::assertSame(0, $this->em->getRepository(Duty::class)->count(['station' => $this->gate]));
-        self::assertCount(1, $this->em->getRepository(EditedDay::class)->findAll());
-        self::assertStringContainsString('edited by hand', $this->open()->filter('.pkey')->text());
+        self::assertSame(1, $this->em->getRepository(Duty::class)->count(['station' => $this->gate]), 'The watch stands; the verb is gone.');
+        self::assertCount(0, $this->em->getRepository(EditedDay::class)->findAll());
     }
 
     /** AND CLEARING THE MARK HANDS THE DAY BACK TO THE PATTERN. */

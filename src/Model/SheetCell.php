@@ -40,9 +40,4 @@ final readonly class SheetCell
         public bool $isToday = false,
     ) {
     }
-
-    public function isUnfilled(): bool
-    {
-        return SheetCellKind::Unfilled === $this->kind;
-    }
 }

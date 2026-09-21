@@ -116,7 +116,7 @@ final class WeekTabDesignTest extends WebTestCase
 
         self::assertCount(1, $band);
         self::assertSame(
-            ['Rangers', 'Days planned', 'Unfilled', 'Edited by hand'],
+            ['Rangers', 'Days planned', 'Short cover', 'Edited by hand'],
             $band->filter('.f .k')->each(static fn (Crawler $cell): string => trim($cell->text())),
         );
         self::assertSame('Roster settings →', html_entity_decode(trim($band->filter('a.more')->text())));
@@ -223,11 +223,13 @@ final class WeekTabDesignTest extends WebTestCase
         self::assertCount(1, $key);
 
         $text = html_entity_decode($key->text());
-        foreach (['off — nothing drawn', 'unfilled', 'edited by hand'] as $mark) {
+        foreach (['off — nothing drawn', 'edited by hand', 'short station-day'] as $mark) {
             self::assertStringContainsString($mark, $text);
         }
 
         self::assertGreaterThan(0, $key->filter('i.k[data-cat]')->count(), 'A shift\'s colour is the shift\'s.');
+        self::assertStringNotContainsString('unfilled', $text, 'A ranger is never unfilled; the station is short.');
+        self::assertCount(0, $key->filter('i.k.u'), 'And the retired mark is off the key.');
     }
 
     /** THE SWAP SECTION IS LABELLED and is two house cards. */

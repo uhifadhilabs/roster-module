@@ -18,9 +18,11 @@
    for swaps could be designed better, otherwise it looks like a card with
    paragraphs, not actions." So it is the house dropdown's own panel with one
    verb per 30px row, a lucide mark, and no sentence anywhere: a fact about
-   the day belongs on the cell, not in the menu. One line of facts on top,
-   six verbs under it, the destructive one last in red ink and never on a red
-   ground.
+   the day belongs on the cell, not in the menu. One line of facts on top and
+   FIVE verbs under it — change the shift, move it, swap it, give the day off,
+   clear the hand mark. There is no sixth: "mark the day unfilled" went with
+   the cell kind it wrote, because a gap belongs to the station and not to a
+   ranger.
 
    A VERB THAT TAKES A VALUE GROWS ITS CHOICE UNDER ITSELF. The area's shifts
    as chips, the station's rangers as a list — inline, in the same panel,
@@ -28,8 +30,8 @@
    to read.
 
    THE MENU OPENS ON A DAY THERE IS SOMETHING TO DO WITH: a watch to move, or
-   a mark to clear. An unfilled day nobody has touched has neither, and a
-   menu of disabled items would be six ways of saying no. #}
+   a mark to clear. An untouched off day has neither, and a menu of disabled
+   items would be five ways of saying no. #}
 {% set hasWatch = cell.dutyUuid is not null %}
 {% set menu = mayPlan and (hasWatch or cell.editedByHand) %}
 {#  THE CELL THAT OPENS A MENU IS A REAL BUTTON, and the event is named.
@@ -46,8 +48,6 @@
 
 {% if cell.kind.value == 'watch' %}
     <{{ menu ? 'button' : 'span' }} class="cl bar" data-cat="{{ cell.colour }}"{{ menu ? act|raw : '' }}><i class="dot"></i>{{ cell.shiftLabel|lower }}{% if cell.editedByHand %}<i class="hm" title="Edited by hand"></i>{% endif %}</{{ menu ? 'button' : 'span' }}>
-{% elseif cell.kind.value == 'unfilled' %}
-    <{{ menu ? 'button' : 'span' }} class="cl unf" title="{{ cell.shiftLabel ? cell.shiftLabel|lower ~ ', nobody on it' : 'nobody on it' }}"{{ menu ? act|raw : '' }}>unfilled{% if cell.editedByHand %}<i class="hm" title="Marked unfilled by hand"></i>{% endif %}</{{ menu ? 'button' : 'span' }}>
 {% else %}
     <{{ menu ? 'button' : 'span' }} class="cl off"{{ menu ? act|raw : '' }}>{% if cell.editedByHand %}<i class="hm" title="Given the day off by hand"></i>{% endif %}</{{ menu ? 'button' : 'span' }}>
 {% endif %}
@@ -127,10 +127,6 @@
                         {{ ux_icon('roster:eraser') }}<span class="l">Clear the hand mark</span>
                     </button>
                 {% endif %}
-                <span class="dmsep"></span>
-                <button type="submit" class="dmr dg" role="menuitem" name="op" value="unfill">
-                    {{ ux_icon('roster:circle-dashed') }}<span class="l">Mark unfilled</span>
-                </button>
             </form>
         {% elseif cell.editedByHand %}
             {# CLEARING THE MARK IS AN ACT OF ITS OWN, and the common case

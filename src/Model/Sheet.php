@@ -48,14 +48,15 @@ final readonly class Sheet
         return $rangers;
     }
 
-    public function unfilled(): int
+    /** STATION-DAYS UNDER THE NUMBER — the window's one figure for short cover. */
+    public function shortCover(): int
     {
-        $unfilled = 0;
+        $short = 0;
         foreach ($this->bands as $band) {
-            $unfilled += $band->unfilled();
+            $short += $band->shortDays();
         }
 
-        return $unfilled;
+        return $short;
     }
 
     public function editedByHand(): int

@@ -606,49 +606,51 @@
  * many nights" — the question a planner opens this tab for — and a grid of
  * PEOPLE can, because the answer is one row long.
  *
- * `table-layout: fixed` so fourteen columns share the width evenly however
- * long a ranger's name is; a grid whose columns moved with the longest name
- * would redraw itself every time somebody was added. */
-.fg-rota { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 6px; }
+ * THE WIDTHS ARE DECLARED ON A COLGROUP, not on the header cells, and the
+ * table is NOT `table-layout: fixed`: a fixed layout refuses to give the
+ * name column the space fourteen 68px days leave over at 1440, and a width
+ * on a `<th>` is advisory besides — Chrome redistributes it and the name
+ * column silently crushed to 72px.
+ */
+.fg-rota { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 4px; }
 
 .fg-rota col.who { width: 172px; }
 .fg-rota col.dy { width: 68px; }
 
 .fg-rota th {
-    font: 600 8.5px var(--font-mono); color: var(--dim); text-transform: uppercase;
-    letter-spacing: .08em; text-align: left; padding: 0 3px 7px 0;
+    font: 600 8.5px var(--font-mono); letter-spacing: .09em; text-transform: uppercase;
+    color: var(--dim); text-align: center; padding: 0 0 7px;
     border-bottom: 1px solid var(--ln); vertical-align: bottom;
 }
+.fg-rota th.who { text-align: left; }
 
-.fg-rota th em { display: block; font-style: normal; font-size: 10px; color: var(--fog); }
+.fg-rota th em { display: block; font-style: normal; font-size: 10px; color: var(--fog); font-weight: 700; }
 .fg-rota th.today { color: var(--acc); }
 .fg-rota th.today em { color: var(--acc); }
 
 /* SATURDAY IS TINTED, not ruled: a fortnight needs a rhythm the eye can
    count in, and a line per week would cut the rows. */
-.fg-rota th.sat, .fg-rota td.sat { background: color-mix(in srgb, var(--fog) 5%, transparent); }
+.fg-rota th.sat, .fg-rota td.sat { background: color-mix(in srgb, var(--fog) 4%, transparent); }
 
-.fg-rota td { padding: 3px 3px 3px 0; vertical-align: top; }
+.fg-rota td { padding: 3px 2px; border-bottom: 1px dashed var(--ln); vertical-align: middle; }
+.fg-rota tr:last-child td { border-bottom: 0; }
 
+/* THE NAME AND THE CALL SIGN SIT ON ONE LINE: two lines per row over
+   thirty-four rows is thirty-four wasted lines, and the call sign is a
+   qualifier, not a second fact. */
 .fg-rota td.who {
-    font-size: 11.5px; font-weight: 600; color: var(--tx); padding-right: 10px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    padding-right: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 172px;
 }
-
 .fg-rota td.who b { font-size: 12px; font-weight: 600; color: var(--tx); }
-
 .fg-rota td.who em {
-    display: block; font: 500 8.5px var(--font-mono); color: var(--dim);
-    font-style: normal; text-transform: uppercase; letter-spacing: .06em;
+    font: 500 8.5px var(--font-mono); font-style: normal; color: var(--dim); margin-left: 6px;
 }
 
-/* THE POST'S OWN HEADING ROW — what it is, and what its watch asks for. */
-.fg-rota td.sep {
-    padding: 12px 0 5px; border-bottom: 1px solid var(--ln2);
-    font-size: 11.5px; color: var(--tx);
-}
-
-.fg-rota td.sep .mono { color: var(--dim); font-weight: 500; font-size: 10px; }
+/* THE STATION'S OWN HEAD ROW — its leading cell, one column wide. */
+.fg-rota td.sep { padding: 10px 0 4px; border-bottom: 1px solid var(--ln); }
+.fg-rota td.sep b { font-size: 12.5px; font-weight: 700; color: var(--tx); white-space: nowrap; }
+.fg-rota td.sep .mono { color: var(--dim); font-weight: 600; }
 
 /* ---- THE SHEET IS A BOUNDED CARD THAT SCROLLS INSIDE ITSELF -------------
  * RULED 21 sep. Owner: "contents of The sheet should scroll inside the sheet,
@@ -745,11 +747,8 @@
 .psheetwrap.w4 > table.csheet :is(th, td).who { position: sticky; left: 0; z-index: 5; background: var(--cv); }
 .psheetwrap.w4 > table.csheet thead th.who { z-index: 7; }
 
-table.csheet td { padding: 2px 3px; vertical-align: middle; border-bottom: 1px dashed var(--ln); }
-table.csheet tr:last-child td { border-bottom: 0; }
+table.csheet td { padding: 2px 3px; }
 table.csheet td.sep { padding: 0; }
-table.csheet td.who { max-width: 172px; }
-table.csheet th.who { text-align: left; }
 
 /* TODAY IS ONE TINT DOWN THE COLUMN, not an outline on each of 34 cells. */
 table.csheet td.today, table.csheet th.today { background: color-mix(in srgb, var(--acc) 7%, transparent); }
@@ -780,15 +779,10 @@ button.cl {
     font-size: 10.5px; color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cl:hover { cursor: pointer; }
+/* AN OFF DAY DRAWS NOTHING AT ALL, and there is no third kind of cell: a
+   ranger is on a shift or off, and a gap belongs to the station — it is
+   stated once, as a `.cvr` token on the band's own head row. */
 .cl.off { background: none; border: 0; }
-
-/* THE ONLY OUTLINED THING ON THE SHEET. A gap always shows at once, which is
-   the whole reason this tab exists. */
-.cl.unf {
-    border: 1px dotted color-mix(in srgb, var(--fail) 75%, transparent); border-radius: 5px;
-    color: var(--fail); font: 700 8.5px var(--font-mono); letter-spacing: .06em;
-    text-transform: uppercase; padding: 4px 5px; text-align: center;
-}
 
 /* THE CORNER MARK ON A DAY SOMEBODY EDITED. */
 .cl > .hm {
@@ -816,8 +810,8 @@ button.cl {
  *
  * It is a ROW and not a `<details>`, because a `<details>` cannot wrap
  * `<tr>`s and the day columns have to stay in one grid across every station.
- * A FOLDED STATION STILL STATES ITS UNFILLED DAYS, in the alarm ink: folding
- * is for length, and it may never hide a gap.
+ * A FOLDED STATION STILL STATES HOW MANY DAYS IT IS SHORT, in the alarm ink:
+ * folding is for length, and it may never hide a gap.
  */
 tr.stfold > td { border-bottom: 1px solid var(--ln); }
 .stfoldb {
@@ -830,17 +824,50 @@ tr.stfold > td { border-bottom: 1px solid var(--ln); }
 tr.stfold.shut .stfoldb .pmf-car { transform: rotate(-90deg); }
 .stfoldb > b { font-size: 13px; font-weight: 700; color: var(--tx); }
 .stfoldb > .mono { font-size: 10px; color: var(--dim); letter-spacing: .06em; }
-.stfoldb > .stn { font: 500 10.5px var(--font-mono); color: var(--fog); }
-.stfoldb > .stun {
-    margin-left: auto; font: 700 9.5px var(--font-mono); letter-spacing: .08em;
-    text-transform: uppercase; color: var(--fail);
-    border: 1px dotted color-mix(in srgb, var(--fail) 65%, transparent); border-radius: 6px; padding: 2px 7px;
-}
-.stfoldb > .stok {
-    margin-left: auto; font: 500 9.5px var(--font-mono); letter-spacing: .06em; color: var(--dim);
-}
 tr.stfold.shut > td { border-bottom: 1px dashed var(--ln); }
 tr.strow[hidden] { display: none; }
+
+/* ---- THE STATION'S COVER, ON THE STATION'S OWN ROW ----------------------
+ * RULED 21 sep, owner: "each station has a station name row which spans
+ * across all days… add on that row the count of rangers and colour them
+ * depending on whether the required number is met, very low or no one is
+ * there." So the head row stops being one merged band and becomes what it
+ * always looked like: the station on the left, and under every day column
+ * the cover for that day against what the station needs.
+ *
+ * A RANGER CELL NEVER READS "UNFILLED" any more — a ranger is on a shift or
+ * off — so a gap is stated once, where it is actually true: at the station,
+ * on the day.
+ *   → StationWatch::$needsPerShift, against the duties actually standing.
+ */
+.fg-rota td.sepd {
+    padding: 0 3px; border-bottom: 1px solid var(--ln); text-align: center; vertical-align: middle;
+}
+tr.stfold.shut > td.sepd { border-bottom: 1px dashed var(--ln); }
+.cvr {
+    display: inline-block; min-width: 30px; padding: 3px 5px; border-radius: 5px;
+    font: 700 9px var(--font-mono); letter-spacing: .06em;
+    font-variant-numeric: tabular-nums; color: var(--fog);
+}
+.cvr.nil { color: var(--dim); }
+.cvr.short { color: var(--fail); }
+.cvr.none { color: var(--accT); background: var(--fail); }
+
+/* The head's leading cell is ONE COLUMN WIDE, so the station reads down two
+   lines instead of across a merged band: the name and the fold, then the
+   code, the size, and how many days it is short. */
+td.sep:not([colspan]) > .stfoldb {
+    flex-direction: column; align-items: flex-start; gap: 3px; padding: 8px 4px 7px;
+}
+.stfoldb > .stline { display: flex; align-items: center; gap: 9px; min-width: 0; max-width: 100%; }
+.stfoldb > .stline > b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stfoldb > .stmeta {
+    font: 500 9px var(--font-mono); letter-spacing: .05em; color: var(--dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    padding-left: 21px;
+}
+.stfoldb > .stmeta .sh { color: var(--fail); font-weight: 700; }
+.stfoldb > .stmeta .ok { color: var(--fog); }
 
 /* ---- THE FILL ROW --------------------------------------------------------
  * Layout C: inline above the sheet, and the only thing above the sheet card.
@@ -1066,7 +1093,6 @@ tr.strow[hidden] { display: none; }
 .pkey i.k { width: 12px; height: 12px; border-radius: 4px; flex: none; }
 .pkey i.k[data-cat] { background: color-mix(in srgb, var(--cat) 40%, transparent); }
 .pkey i.k.o { border: 1px solid var(--ln2); background: none; opacity: .45; }
-.pkey i.k.u { border: 1px dotted color-mix(in srgb, var(--fail) 75%, transparent); }
 .pkey i.k.h { background: var(--warn); width: 7px; height: 7px; border-radius: 50%; }
 .pkey .sp { flex: 1; }
 
@@ -1084,7 +1110,6 @@ tr.strow[hidden] { display: none; }
 .psheetwrap.w4 .cl { min-height: 16px; padding: 0; font-size: 0; }
 .psheetwrap.w4 .cl.bar { height: 16px; gap: 0; padding: 0; justify-content: center; }
 .psheetwrap.w4 .cl.bar > .dot { display: none; }
-.psheetwrap.w4 .cl.unf { font-size: 0; height: 16px; padding: 0; }
 .psheetwrap.w4 .cl > .hm { width: 4px; height: 4px; top: 1px; right: 1px; }
 .psheetwrap.w4 .csheet th { font-size: 7.5px; letter-spacing: .03em; padding: 0 2px 8px; }
 .psheetwrap.w4 .csheet th em { font-size: 9px; }
@@ -1095,7 +1120,6 @@ tr.strow[hidden] { display: none; }
 @media (max-width: 640px) {
     .prow { flex-direction: column; align-items: stretch; }
     .prow .pact { margin-left: 0; }
-    .stfoldb > .stun, .stfoldb > .stok { margin-left: 0; }
     .psheetwrap.w2 > table.csheet, .psheetwrap.w4 > table.csheet { min-width: 900px; }
 }
 

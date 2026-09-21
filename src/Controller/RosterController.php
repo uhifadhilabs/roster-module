@@ -491,7 +491,6 @@ final class RosterController
                 'shift' => $this->days->changeShift($duty, (string) $request->request->get('shift'), $viewer),
                 'move' => $this->days->moveTo($duty, $this->person($area, (string) $request->request->get('person')), $viewer),
                 'off' => $this->days->giveTheDayOff($duty, $viewer),
-                'unfill' => $this->days->markUnfilled($duty, $viewer),
                 'clear' => $this->days->clearTheMark($duty->getStation(), $duty->getOnDay(), $duty->getPerson()),
                 default => $this->flash($request, 'error', 'That is not something a day can be asked to do.'),
             };
