@@ -115,6 +115,20 @@ final class RosterVocabularyConformanceTest extends VocabularyConformanceTestCas
         );
     }
 
+    /**
+     * AND THE SHEET'S OWN LAST ROW. The sheet is thirty-four dashed rows
+     * and the thirty-fourth is the one that would read as cut off — which
+     * on a bounded scroller is exactly the wrong thing to say, because the
+     * reader cannot tell a rule from the edge of the scrollport.
+     */
+    public function testTheSheetDrawsNoRuleUnderItsLastRow(): void
+    {
+        self::assertMatchesRegularExpression(
+            '/table\.csheet tr:last-child td\s*\{[^}]*border-bottom:\s*0/',
+            self::theOwnSheet(),
+        );
+    }
+
     private static function theOwnSheet(): string
     {
         $sheet = file_get_contents(self::bundlePath().'/public/roster.css');

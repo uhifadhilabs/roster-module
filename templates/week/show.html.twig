@@ -140,7 +140,11 @@
            moved to the Watches card, so this is a caption and nothing in it
            is clickable but the door. #}
         <div class="prow2">
-            Fills forward only &middot; leaves <b>{{ sheet.editedByHand }} edited day{{ sheet.editedByHand == 1 ? '' : 's' }}</b> as {{ sheet.editedByHand == 1 ? 'it is' : 'they are' }} &middot; a later start date changes only the days after it
+            {%- if fillPreview -%}
+                Would fill <b>{{ fillPreview.days }} day{{ fillPreview.days == 1 ? '' : 's' }}</b> to <time datetime="{{ fillPreview.through.format('Y-m-d') }}" data-localtime-format="day">{{ fillPreview.through.format('D j M')|lower }}</time> &middot; leaves <b>{{ fillPreview.leftAlone }} edited day{{ fillPreview.leftAlone == 1 ? '' : 's' }}</b> as {{ fillPreview.leftAlone == 1 ? 'it is' : 'they are' }} &middot; a later start date changes only the days after it
+            {%- else -%}
+                Fills forward only &middot; a later start date changes only the days after it
+            {%- endif -%}
             <span class="pfills">fills <b>{{ fillRules.ahead }}</b> ahead &middot; <b>{{ fillRules.rest }}</b> rest &middot; {{ fillRules.nightThenDay }} &middot; <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::WATCHES_ROUTE'), {uuid: area.uuid}) }}">Watches &rarr;</a></span>
         </div>
     {% endif %}

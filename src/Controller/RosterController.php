@@ -45,6 +45,7 @@ use Uhifadhi\Roster\Entity\Pattern;
 use Uhifadhi\Roster\Enum\NightThenDay;
 use Uhifadhi\Roster\Enum\RuleKind;
 use Uhifadhi\Roster\Model\AgendaFilter;
+use Uhifadhi\Roster\Model\FillPlan;
 use Uhifadhi\Roster\Model\PostPresence;
 use Uhifadhi\Roster\Model\PostState;
 use Uhifadhi\Roster\Model\Sheet;
@@ -359,6 +360,13 @@ final class RosterController
             // already showing could never be used to change it.
             'stationOptions' => self::stationOptions($whole),
             'startDates' => self::startDates($window),
+            // WHAT THE ROW WOULD DO AS IT STANDS, said in numbers rather
+            // than in general terms. The design states them at rest and
+            // not only after Preview is pressed, and it is right to: a
+            // caption that only says "it fills forward" is a caption
+            // nobody reads twice. It is the same walk Preview runs, with
+            // nothing written.
+            'fillPreview' => $this->previewOfTheRowAsItStands($area, $window),
             // WHAT A FILL OBEYS, READ-ONLY. RULED 21 sep: the rules live
             // on the Watches card, so the row states them and the door
             // goes there rather than offering a second place to set them.
@@ -588,6 +596,29 @@ final class RosterController
         $duty = $this->duties->findOneBy(['area' => $area, 'uuid' => Uuid::fromString($uuid)]);
 
         return $duty instanceof Duty ? $duty : null;
+    }
+
+    /**
+     * WHAT THE FILL ROW WOULD DO WITH THE OPTIONS IT OPENS ON — the first
+     * station on the books, its own pattern where it has one, from the
+     * window's own monday.
+     *
+     * NULL WHERE THERE IS NOTHING TO FILL, which is also when the row
+     * itself is not drawn.
+     */
+    private function previewOfTheRowAsItStands(AreaOfInterest $area, SheetWindow $window): ?FillPlan
+    {
+        $stations = $this->stationsOnTheBooks($area);
+        $patterns = $this->patterns->forArea($area);
+
+        if ([] === $stations || [] === $patterns) {
+            return null;
+        }
+
+        $station = $stations[0];
+        $pattern = $this->watches->findOneForStation($station)?->getPattern() ?? $patterns[0];
+
+        return $this->fills->preview($station, $pattern, $window->from);
     }
 
     /**

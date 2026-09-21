@@ -148,7 +148,17 @@ final class WeekTabDesignTest extends WebTestCase
      */
     public function testTheFillRowStatesTheRulesAndDoesNotOfferThem(): void
     {
-        $caption = $this->open()->filter('.prow2 .pfills');
+        $row = $this->open()->filter('.prow2');
+
+        // WHAT IT WOULD DO, IN NUMBERS, AT REST — the design states them
+        // before Preview is pressed, and it is right to: a caption that
+        // only said "it fills forward" is one nobody reads twice.
+        $said = html_entity_decode($row->text());
+        self::assertMatchesRegularExpression('/Would fill \d+ days? to /', $said);
+        self::assertStringContainsString('leaves 0 edited days as they are', $said);
+        self::assertStringContainsString('a later start date changes only the days after it', $said);
+
+        $caption = $row->filter('.pfills');
 
         self::assertCount(1, $caption);
 
