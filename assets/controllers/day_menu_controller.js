@@ -36,13 +36,34 @@ export default class extends Controller {
        no-anchor fallback. */
     static GUTTER = 8;
 
+    /* IS THE BROWSER DOING THE ATTACHING?
+     *
+     * ASKED TWO WAYS ON PURPOSE. A single `CSS.supports('position-anchor:
+     * --name')` answered FALSE on a browser that resolves both
+     * `anchor-name` and `position-anchor` perfectly well — and a false
+     * answer here is not a harmless fallback: the JS path writes an inline
+     * `top` in px, an inline length beats `top: anchor(bottom)`, and the
+     * panel freezes at the pixel it opened on while its cell scrolls away.
+     * Measured on the test bed: cell moved -120, menu moved 0, computed
+     * top stuck at 287.57px. So the question is asked about the property
+     * AND about the function, and either yes is a yes. */
+    static anchorPositioning() {
+        if ('object' !== typeof CSS || 'function' !== typeof CSS.supports) {
+            return false;
+        }
+
+        return CSS.supports('position-anchor', '--probe')
+            || CSS.supports('position-anchor: --probe')
+            || CSS.supports('top: anchor(bottom)');
+    }
+
     connect() {
         this.menu = null;
         this.home = null;
         this.cell = null;
         this.frame = 0;
 
-        this.anchored = CSS.supports?.(`position-anchor: ${this.constructor.ANCHOR}`) ?? false;
+        this.anchored = this.constructor.anchorPositioning();
 
         this.dismiss = (event) => {
             if (event.target.closest('.pmenu') || event.target.closest('[data-action*="day-menu#open"]')) {
@@ -105,6 +126,10 @@ export default class extends Controller {
 
         menu.classList.add('pmout');
         menu.classList.remove('flip');
+        // Nothing inline survives an open: a leftover offset from a
+        // previous run would place the panel at last time's pixel.
+        menu.style.removeProperty('--pm-top');
+        menu.style.removeProperty('--pm-left');
         this.layer().appendChild(menu);
 
         if (this.anchored) {
@@ -230,7 +255,15 @@ export default class extends Controller {
        under the cell where it fits, above it where it does not, and never
        off the side — a menu half off the screen is one nobody can finish. */
     place() {
-        if (!this.menu || !this.cell) {
+        /*
+         * THE ONE THING THIS METHOD MAY NEVER DO is run while the browser
+         * is attaching the panel itself. An inline `top` in px beats
+         * `top: anchor(bottom)`, so a single call here detaches the menu
+         * from its cell permanently — it is not a fallback that degrades,
+         * it is the bug. The guard is here rather than only at the two
+         * call sites, so a third call site cannot reintroduce it.
+         */
+        if (this.anchored || !this.menu || !this.cell) {
             return;
         }
 
@@ -246,8 +279,18 @@ export default class extends Controller {
         let left = cell.left;
         left = Math.min(Math.max(gutter, left), Math.max(gutter, window.innerWidth - box.width - gutter));
 
-        this.menu.style.top = `${Math.round(top)}px`;
-        this.menu.style.left = `${Math.round(left)}px`;
+        /*
+         * WRITTEN AS CUSTOM PROPERTIES, NEVER AS `top`/`left`.
+         *
+         * An inline length beats `top: anchor(bottom)` outright, so a
+         * script that guesses wrong about anchor positioning detaches the
+         * menu from its cell for good. These two feed a rule that only
+         * exists inside `@supports not (position-anchor: ...)`, so the
+         * BROWSER decides which positioning applies and a wrong answer
+         * from the feature test above can no longer cost anything.
+         */
+        this.menu.style.setProperty('--pm-top', `${Math.round(top)}px`);
+        this.menu.style.setProperty('--pm-left', `${Math.round(left)}px`);
     }
 
     close() {
@@ -268,8 +311,8 @@ export default class extends Controller {
 
         this.menu.classList.remove('pmout');
         this.menu.classList.remove('flip');
-        this.menu.style.top = '';
-        this.menu.style.left = '';
+        this.menu.style.removeProperty('--pm-top');
+        this.menu.style.removeProperty('--pm-left');
 
         if (this.cell) {
             this.cell.classList.remove('cl-on');

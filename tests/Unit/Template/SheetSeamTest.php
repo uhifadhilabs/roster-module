@@ -252,8 +252,26 @@ final class SheetSeamTest extends TestCase
         self::assertStringContainsString('top: anchor(bottom)', $css);
         self::assertStringContainsString('position-try-fallbacks', $css, 'Flipping and clamping are the browser\'s, not a handler\'s.');
 
-        self::assertStringContainsString('CSS.supports?.(`position-anchor: ${this.constructor.ANCHOR}`)', $js, 'The JS path is a fallback, asked for by feature test.');
+        self::assertStringContainsString('static anchorPositioning()', $js, 'The JS path is a fallback, asked for by feature test.');
         self::assertStringContainsString('requestAnimationFrame', $js, 'And it writes in a frame, never from the scroll event.');
+
+        /*
+         * AND THE FALLBACK REFUSES TO RUN WHERE THE BROWSER IS ATTACHING.
+         * An inline `top` in px out-ranks `top: anchor(bottom)`, so one
+         * call to the placement routine detaches the menu from its cell
+         * for good: measured on the test bed, the cell moved -120 and the
+         * menu moved 0, computed top frozen at 287.57px. The guard sits
+         * inside the method, not at its call sites, so a third call site
+         * cannot bring the defect back.
+         */
+        self::assertMatchesRegularExpression(
+            '/place\(\)\s*\{(?:\s*\/\*.*?\*\/)?\s*if \(this\.anchored \|\|/s',
+            $js,
+            'The inline-offset path has to refuse outright when anchor positioning is available.',
+        );
+        self::assertStringNotContainsString('.style.top =', $js, 'An inline length beats `top: anchor(bottom)`; the fallback may not write one.');
+        self::assertStringContainsString("setProperty('--pm-top'", $js, 'It writes a custom property instead.');
+        self::assertStringContainsString('@supports not (position-anchor:', self::read(self::SHEET_CSS), 'And the BROWSER decides which positioning applies, not the script.');
     }
 
     /**

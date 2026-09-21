@@ -61,6 +61,7 @@ const run = async (weeks, w, h) => {
       verbs: document.querySelectorAll('.pmenuwrap .dmr').length,
     };
   });
+  say(`browser: ${browser.version()}  (playwright chromium build)`);
   say(`anchor-positioning supported: ${geo.anchored}`);
   say(`card ${geo.card}px  scroller ${geo.wrap}px  chrome ${geo.chrome}px  --sheetmax ${geo.sheetmax}  row ${geo.rowH}px  rows visible ~${geo.rowsVisible}`);
   say(`cells with a menu: ${geo.menus}  verb rows in the document: ${geo.verbs}`);
@@ -145,10 +146,12 @@ const run = async (weeks, w, h) => {
       const b = m.getBoundingClientRect();
       const at = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
       const c = document.querySelector('.cl.cl-on');
-      return { top: b.top, cell: c ? c.getBoundingClientRect().top : null, hit: !!(at && at.closest('.pmenu')), scrolled: document.querySelector('.psheetwrap').scrollTop };
+      return { top: b.top, cell: c ? c.getBoundingClientRect().top : null, hit: !!(at && at.closest('.pmenu')),
+               scrolled: document.querySelector('.psheetwrap').scrollTop,
+               inlineTop: m.style.top || '(none)', computedTop: getComputedStyle(m).top };
     });
     if (after === null) { say(`         after a 120px scroll the menu CLOSED`); }
-    else say(`         scrolled ${after.scrolled}px: cell moved ${(after.cell - before.cell).toFixed(1)}, menu moved ${(after.top - before.menu).toFixed(1)}  ${Math.abs((after.cell - before.cell) - (after.top - before.menu)) < 1 ? 'TRACKS (pass)' : 'DRIFTED (FAIL)'}  elementFromPoint=menu:${after.hit ? 'YES' : 'NO'}`);
+    else say(`         scrolled ${after.scrolled}px: cell moved ${(after.cell - before.cell).toFixed(1)}, menu moved ${(after.top - before.menu).toFixed(1)}  ${Math.abs((after.cell - before.cell) - (after.top - before.menu)) < 1 ? 'TRACKS (pass)' : 'DRIFTED (FAIL)'}  elementFromPoint=menu:${after.hit ? 'YES' : 'NO'}  inline top:${after.inlineTop}`);
 
     await page.keyboard.press('Escape');
     await page.evaluate(() => { document.querySelector('.psheetwrap').scrollTop = 0; });

@@ -944,6 +944,20 @@ tr.strow[hidden] { display: none; }
     position-try-fallbacks: flip-block, --roster-day-above, flip-inline, --roster-day-right;
 }
 
+/* AND WHERE THERE IS NO ANCHOR POSITIONING, the controller's measurement is
+ * read from two custom properties instead. The rule lives inside
+ * `@supports not`, so the BROWSER decides which of the two applies: a
+ * script that guessed wrong about anchor positioning used to write an
+ * inline `top` in px, which beats `top: anchor(bottom)` outright and froze
+ * the panel while its cell scrolled away (measured on the test bed: cell
+ * -120, menu 0, computed top stuck at 287.57px). Nothing the controller
+ * writes can out-rank the anchored rule any more. */
+@supports not (position-anchor: --roster-day-cell) {
+    .pmenulayer > .pmenu.dm {
+        top: var(--pm-top, auto); left: var(--pm-left, auto); margin-top: 0;
+    }
+}
+
 /* AND THE FLIP, WHEN THERE IS NO ROOM UNDER THE CELL.
  *
  * `position-try-fallbacks` is declared above and is the right mechanism, but
