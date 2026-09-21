@@ -32,18 +32,24 @@
    menu of disabled items would be six ways of saying no. #}
 {% set hasWatch = cell.dutyUuid is not null %}
 {% set menu = mayPlan and (hasWatch or cell.editedByHand) %}
-{% set act = ' data-action="roster--day-menu#open"' %}
+{#  THE CELL THAT OPENS A MENU IS A REAL BUTTON, and the event is named.
+    Stimulus binds no default event to a `<span>`: the attribute renders,
+    the controller connects, the cell is in its scope — and the click does
+    nothing, which is exactly how this menu came to "open nothing" on a
+    real click while every server-side test passed. A button also brings
+    the keyboard with it, which a span never had. #}
+{% set act = ' type="button" data-action="click->roster--day-menu#open"' %}
 {% set dayRoute = path(constant('Uhifadhi\\Roster\\Controller\\RosterController::SHEET_DAY_ROUTE'), {uuid: area.uuid}) %}
 {% set others = band.rows|filter(o => o.personUuid != row.personUuid) %}
 
 {% if menu %}<span class="pmenuwrap">{% endif %}
 
 {% if cell.kind.value == 'watch' %}
-    <span class="cl bar" data-cat="{{ cell.colour }}"{{ menu ? act|raw : '' }}><i class="dot"></i>{{ cell.shiftLabel|lower }}{% if cell.editedByHand %}<i class="hm" title="Edited by hand"></i>{% endif %}</span>
+    <{{ menu ? 'button' : 'span' }} class="cl bar" data-cat="{{ cell.colour }}"{{ menu ? act|raw : '' }}><i class="dot"></i>{{ cell.shiftLabel|lower }}{% if cell.editedByHand %}<i class="hm" title="Edited by hand"></i>{% endif %}</{{ menu ? 'button' : 'span' }}>
 {% elseif cell.kind.value == 'unfilled' %}
-    <span class="cl unf" title="{{ cell.shiftLabel ? cell.shiftLabel|lower ~ ', nobody on it' : 'nobody on it' }}"{{ menu ? act|raw : '' }}>unfilled{% if cell.editedByHand %}<i class="hm" title="Marked unfilled by hand"></i>{% endif %}</span>
+    <{{ menu ? 'button' : 'span' }} class="cl unf" title="{{ cell.shiftLabel ? cell.shiftLabel|lower ~ ', nobody on it' : 'nobody on it' }}"{{ menu ? act|raw : '' }}>unfilled{% if cell.editedByHand %}<i class="hm" title="Marked unfilled by hand"></i>{% endif %}</{{ menu ? 'button' : 'span' }}>
 {% else %}
-    <span class="cl off"{{ menu ? act|raw : '' }}>{% if cell.editedByHand %}<i class="hm" title="Given the day off by hand"></i>{% endif %}</span>
+    <{{ menu ? 'button' : 'span' }} class="cl off"{{ menu ? act|raw : '' }}>{% if cell.editedByHand %}<i class="hm" title="Given the day off by hand"></i>{% endif %}</{{ menu ? 'button' : 'span' }}>
 {% endif %}
 
 {% if menu %}

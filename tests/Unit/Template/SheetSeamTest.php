@@ -324,6 +324,38 @@ final class SheetSeamTest extends TestCase
     }
 
     /**
+     * THE CELL THAT OPENS THE MENU IS A BUTTON, AND IT NAMES ITS EVENT.
+     *
+     * THIS IS THE ONE THE WHOLE SUITE MISSED. Stimulus binds no default
+     * event to a `<span>`: the attribute rendered, the controller
+     * connected, the cell was inside its scope — and a real click did
+     * NOTHING, while every server-side test passed, because a test that
+     * builds its own request never dispatches a click. Measured in a
+     * headless browser: zero of three rows opened. A real button also
+     * brings the keyboard, which a span never had.
+     */
+    public function testTheCellThatOpensTheMenuIsAButtonThatNamesItsEvent(): void
+    {
+        $cell = self::read(self::CELL);
+
+        preg_match("/\\{% set act = '([^']+)' %\\}/", $cell, $act);
+        $attributes = $act[1] ?? '';
+
+        self::assertStringContainsString('type="button"', $attributes, 'A span gets no click binding from Stimulus.');
+        self::assertStringContainsString('click->roster--day-menu#open', $attributes, 'And the event is named, never left to a default.');
+        self::assertStringNotContainsString('data-action="roster--day-menu#open"', $cell, 'The unnamed form is the defect.');
+
+        self::assertMatchesRegularExpression(
+            '/<\{\{ menu \? .button. : .span. \}\} class="cl/',
+            $cell,
+            'A cell with nothing to do stays a span; a cell with a menu is a button.',
+        );
+
+        self::assertStringContainsString('button.cl', self::read(self::SHEET_CSS), 'And the button needs its reset, or it sizes to content and measures 0px wide at four weeks.');
+        self::assertStringContainsString('.dm .dmstep[hidden]', self::read(self::SHEET_CSS), 'A display of our own beats [hidden]; the closed step has to be said out loud.');
+    }
+
+    /**
      * SIX VERBS, IN THE RULED ORDER, WITH THE RULED MARKS — option B.
      *
      * The order is the ruling: the destructive one is LAST and in red

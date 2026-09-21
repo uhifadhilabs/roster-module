@@ -104,11 +104,16 @@ export default class extends Controller {
         cell.style.anchorName = this.constructor.ANCHOR;
 
         menu.classList.add('pmout');
+        menu.classList.remove('flip');
         this.layer().appendChild(menu);
 
-        if (!this.anchored) {
-            this.place();
+        if (this.anchored) {
+            this.flip();
+
+            return;
         }
+
+        this.place();
     }
 
     /** ONE VERB'S SECOND STEP, under the row it belongs to. */
@@ -145,6 +150,24 @@ export default class extends Controller {
         panel.hidden = false;
         row.setAttribute('aria-expanded', 'true');
         row.classList.add('open');
+    }
+
+    /* WHICH WAY IT OPENS, decided once from what the screen has left.
+     *
+     * `position-try-fallbacks` is declared in the sheet and is the right
+     * mechanism; it does not fire for this panel in the engine we measured,
+     * and a menu on the last visible row hung off the bottom of the screen.
+     * One measurement on open answers it, and the BROWSER still does the
+     * positioning — so the panel is still glued to its cell on scroll and
+     * nothing is written from a handler. */
+    flip() {
+        if (!this.menu || !this.cell) {
+            return;
+        }
+
+        const under = window.innerHeight - this.cell.getBoundingClientRect().bottom - this.constructor.GUTTER;
+
+        this.menu.classList.toggle('flip', this.menu.offsetHeight > under);
     }
 
     /* THE LAYER, made once and left there: a fixed, inert full-screen box
@@ -244,6 +267,7 @@ export default class extends Controller {
         this.home.appendChild(this.menu);
 
         this.menu.classList.remove('pmout');
+        this.menu.classList.remove('flip');
         this.menu.style.top = '';
         this.menu.style.left = '';
 

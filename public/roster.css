@@ -762,6 +762,19 @@ table.csheet th.today { color: var(--acc); }
  * "it's even hard to look at it with all the colors and borders and
  * everything on the shift pill".
  */
+/* A DAY THAT OPENS A MENU IS A BUTTON, so it needs the button reset: the
+   agent's own `font`, no chrome of the browser's, and the same box as the
+   span beside it. (Stimulus binds no default event to a span — see the
+   cell template — so the interactive cell cannot be one.) */
+button.cl {
+    border: 0; font: inherit; color: inherit; -webkit-appearance: none; appearance: none;
+    /* A BUTTON DOES NOT STRETCH, even set to `display:block`: it sizes to its
+       content, and at four weeks the cell's text is `font-size:0`, so the day
+       square measured 0x16 and could not be clicked at all. The span it
+       replaced filled its column, so the button has to say so. */
+    width: 100%; text-align: left;
+}
+
 .cl {
     display: block; min-height: 21px; line-height: 1.45; position: relative; padding: 3px 6px;
     font-size: 10.5px; color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -897,9 +910,15 @@ tr.strow[hidden] { display: none; }
 .pmenulayer { position: fixed; inset: 0; z-index: 80; pointer-events: none; }
 .pmenulayer > .pmenu { position: fixed; pointer-events: auto; display: block; }
 
-/* THE PANEL, on `.i-ddmenu`'s own shape. */
+/* THE PANEL, on `.i-ddmenu`'s own shape.
+ *
+ * NO `display` HERE, on purpose. `.pmenuwrap > .pmenu` and `.pmenu.dm` are
+ * the same specificity, so a `display:flex` on this rule would win by coming
+ * later and every one of 476 cells would draw its menu open inside itself —
+ * a 547px row, measured. The panel is shown by the LAYER rule below, which
+ * is the only place it is ever visible. */
 .pmenu.dm {
-    width: 232px; padding: 5px; display: flex; flex-direction: column; gap: 1px;
+    width: 232px; padding: 5px; flex-direction: column; gap: 1px;
     background: var(--p1); border: 1px solid var(--ln2); border-radius: 11px;
     box-shadow: 0 14px 34px rgba(0, 0, 0, .26); text-align: left; white-space: normal;
 }
@@ -917,11 +936,25 @@ tr.strow[hidden] { display: none; }
     left: auto; right: anchor(right);
 }
 .pmenulayer > .pmenu.dm {
+    display: flex;
     position-anchor: --roster-day-cell;
     top: anchor(bottom);
     left: anchor(left);
     margin-top: 5px;
-    position-try-fallbacks: --roster-day-above, --roster-day-right;
+    position-try-fallbacks: flip-block, --roster-day-above, flip-inline, --roster-day-right;
+}
+
+/* AND THE FLIP, WHEN THERE IS NO ROOM UNDER THE CELL.
+ *
+ * `position-try-fallbacks` is declared above and is the right mechanism, but
+ * it does not fire for this panel in the engine we measured (Chrome 153): a
+ * menu on the last visible row still hung 156px past the bottom of the
+ * screen and `elementFromPoint` at its centre returned nothing. So the
+ * controller measures ONCE, on open, and says which way it goes; the
+ * positioning is still the browser's, so the panel and its cell move
+ * together on scroll and nothing is written from a handler. */
+.pmenulayer > .pmenu.dm.flip {
+    top: auto; bottom: anchor(top); margin-top: 0; margin-bottom: 5px;
 }
 
 /* THE POINTER toward the cell it belongs to: a 7px square on its corner,
@@ -930,6 +963,11 @@ tr.strow[hidden] { display: none; }
     content: ''; position: absolute; top: -5px; left: 13px; width: 8px; height: 8px;
     background: var(--p1); border-left: 1px solid var(--ln2); border-top: 1px solid var(--ln2);
     transform: rotate(45deg); border-radius: 2px 0 0 0;
+}
+.pmenulayer > .pmenu.dm.flip::before {
+    top: auto; bottom: -5px; border: 0;
+    border-right: 1px solid var(--ln2); border-bottom: 1px solid var(--ln2);
+    border-radius: 0 0 2px 0;
 }
 
 /* AND THE CELL WEARS THE HOUSE'S ACCENT OUTLINE while its menu is open, which
@@ -968,6 +1006,10 @@ tr.strow[hidden] { display: none; }
 /* THE SECOND STEP, INLINE. A verb that takes a value grows its choice under
    its own row; a pop-up off a pop-up is two things to dismiss. */
 .dm .dmstep { display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 9px 7px; }
+/* A `display` of our own beats the browser's `[hidden] { display: none }`, so
+   the closed step has to be said out loud: without this every panel opens
+   868px tall with all three choices showing at once. */
+.dm .dmstep[hidden] { display: none; }
 .dm .dmstep > button {
     font: 600 9.5px ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase;
     color: var(--fog); background: none; cursor: pointer; border: 1px solid var(--ln2);
