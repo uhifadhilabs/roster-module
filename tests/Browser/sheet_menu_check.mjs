@@ -26,12 +26,33 @@
  */
 import { chromium } from 'playwright-core';
 
+/*
+ * WHICH BINARY. Set CHROME_PATH to measure the browser the owner actually
+ * uses — the bundled Chrome for Testing and the shipping Chrome are
+ * different builds of the same major (153.0.8010.12 vs .48), and they have
+ * already disagreed once about `CSS.supports('position-anchor: ...')`:
+ *
+ *   CHROME_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+ *
+ * READ THE PANEL A FRAME LATER THAN THE SCROLL. Chrome applies the anchor
+ * scroll adjustment on the frame AFTER `scrollTop` changes, so a
+ * `getBoundingClientRect()` in the same task returns the pre-adjustment
+ * rect: the cell reads -120 and the panel reads 0, and the menu looks
+ * detached when it is not. That measurement has been reported as a defect
+ * twice. Every read below waits two frames, and `gapPerFrame()` is the
+ * check that actually answers "does it follow" — the cell-to-panel gap,
+ * sampled every frame of a scroll.
+ */
+
 const BASE = 'http://127.0.0.1:8099';
 const out = [];
 const say = (...a) => { const l = a.join(' '); out.push(l); console.log(l); };
 
 const run = async (weeks, w, h) => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    executablePath: process.env.CHROME_PATH || undefined,
+    headless: !process.env.HEADFUL,
+  });
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
@@ -156,6 +177,42 @@ const run = async (weeks, w, h) => {
     await page.keyboard.press('Escape');
     await page.evaluate(() => { document.querySelector('.psheetwrap').scrollTop = 0; });
     await page.waitForTimeout(120);
+  }
+
+  // THE GAUGE THAT ANSWERS "DOES IT FOLLOW": the gap between the cell's
+  // bottom and the panel's top, sampled every frame of a scroll. Locked
+  // means the browser is keeping them together; a drift is a real lag.
+  const gap = await page.evaluate(() => {
+    const wrap = document.querySelector('.psheetwrap');
+    wrap.scrollTop = 0;
+    const port = wrap.getBoundingClientRect();
+    const headH = wrap.querySelector('thead').offsetHeight;
+    const hits = [...document.querySelectorAll('.pmenuwrap')].filter(el => {
+      const q = el.getBoundingClientRect();
+      return q.top >= Math.max(port.top + headH, 0) && q.bottom <= Math.min(port.bottom, window.innerHeight);
+    });
+    const cell = hits[Math.floor(hits.length / 2)]?.querySelector('.cl');
+    if (!cell) return null;
+    cell.click();
+    const menu = document.querySelector('.pmenulayer > .pmenu');
+    if (!menu) return null;
+    const gaps = [];
+    return new Promise((done) => {
+      let n = 0;
+      const step = () => {
+        wrap.scrollTop += 10;
+        requestAnimationFrame(() => {
+          gaps.push(+(menu.getBoundingClientRect().top - cell.getBoundingClientRect().bottom).toFixed(1));
+          if (++n < 12) { step(); } else { done(gaps); }
+        });
+      };
+      step();
+    });
+  });
+  if (gap) {
+    const drift = +(Math.max(...gap) - Math.min(...gap)).toFixed(1);
+    say(`cell-to-panel gap per frame over 120px (12 x 10px): ${gap.join(', ')}`);
+    say(`  drift ${drift}px  ${drift < 0.5 ? 'LOCKED (pass)' : 'SLIPS on the first frame of a scroll'}`);
   }
 
   await browser.close();

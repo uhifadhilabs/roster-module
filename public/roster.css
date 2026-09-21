@@ -61,7 +61,7 @@
 }
 
 .rband .rb-ttl {
-    font: 600 11px ui-monospace, monospace; color: var(--fog);
+    font: 600 11px var(--font-mono); color: var(--fog);
     flex: 1 1 auto; min-width: 0; letter-spacing: .02em;
 }
 
@@ -77,7 +77,7 @@
  * value — never as a paragraph. */
 .rfrag {
     display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
-    font: 500 11px ui-monospace, monospace; color: var(--dim);
+    font: 500 11px var(--font-mono); color: var(--dim);
     padding-top: 8px; margin-top: 8px; border-top: 1px dashed var(--ln);
 }
 
@@ -101,7 +101,7 @@
  * checkbox nothing can tab to. */
 .r-sh {
     display: inline-flex; align-items: center; gap: 5px;
-    font: 600 9px ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase;
+    font: 600 9px var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
     border: 1px solid var(--ln2); border-radius: 99px; padding: 3px 8px 2px;
     color: var(--fog); white-space: nowrap; cursor: pointer;
 }
@@ -162,7 +162,7 @@
 .rset > .why b { color: var(--fog); }
 
 .rset .unit {
-    font: 600 9px ui-monospace, monospace; letter-spacing: .06em;
+    font: 600 9px var(--font-mono); letter-spacing: .06em;
     text-transform: uppercase; color: var(--dim); white-space: nowrap;
 }
 
@@ -207,7 +207,7 @@
  * beside the chip for exactly that reason. */
 .r-ci {
     display: inline-flex; align-items: center; gap: 5px;
-    font: 600 9px ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase;
+    font: 600 9px var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
     border: 1px solid var(--ln2); border-radius: 99px; padding: 3px 8px 2px;
     color: var(--fog); white-space: nowrap;
 }
@@ -235,7 +235,7 @@
 
 .r-st-state {
     display: inline-flex; align-items: center; gap: 5px;
-    font: 700 9px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase;
+    font: 700 9px var(--font-mono); letter-spacing: .08em; text-transform: uppercase;
     border-radius: 4px; padding: 3px 8px 2px; color: var(--fog); background: var(--raised);
     white-space: nowrap;
 }
@@ -269,10 +269,10 @@
 .rstat:has(+ .staddrow) { border-bottom: 0; }
 .rstat.off { opacity: .55; }
 
-.rstat > .ord { font: 700 10px ui-monospace, monospace; color: var(--dim); }
+.rstat > .ord { font: 700 10px var(--font-mono); color: var(--dim); }
 .rstat > .nm b { font-size: 12px; color: var(--tx); }
-.rstat > .nm .key { display: block; font: 500 9.5px ui-monospace, monospace; color: var(--dim); }
-.rstat > .kind { font: 600 9px ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--fog); }
+.rstat > .nm .key { display: block; font: 500 9.5px var(--font-mono); color: var(--dim); }
+.rstat > .kind { font: 600 9px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--fog); }
 .rstat > .st { font-size: 11px; color: var(--dim); }
 
 @media (max-width: 860px) {
@@ -287,7 +287,7 @@
 .r-week { width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; }
 
 .r-week th {
-    font: 600 8.5px ui-monospace, monospace; color: var(--dim); text-transform: uppercase;
+    font: 600 8.5px var(--font-mono); color: var(--dim); text-transform: uppercase;
     letter-spacing: .09em; text-align: left; padding: 0 0 7px; border-bottom: 1px solid var(--ln);
 }
 
@@ -301,7 +301,7 @@
 }
 
 .r-week td:first-child em {
-    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    display: block; font: 500 8.5px var(--font-mono); color: var(--dim);
     font-style: normal; text-transform: uppercase; letter-spacing: .07em;
 }
 
@@ -310,7 +310,7 @@
 .r-cell { display: flex; flex-direction: column; gap: 3px; }
 
 .r-cell span {
-    font: 600 9px ui-monospace, monospace; border-radius: 5px; padding: 3px 5px;
+    font: 600 9px var(--font-mono); border-radius: 5px; padding: 3px 5px;
     color: var(--fog); background: var(--raised);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -349,14 +349,14 @@
 
 .r-pres > .nm { font-size: 12px; font-weight: 600; color: var(--tx); flex: 0 0 auto; }
 .r-pres > .nm em {
-    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    display: block; font: 500 8.5px var(--font-mono); color: var(--dim);
     font-style: normal; text-transform: uppercase; letter-spacing: .07em;
 }
 
 .r-pres > .who { font-size: 11px; color: var(--fog); flex: 1 1 auto; min-width: 0; }
 
 .r-pres > .cnt {
-    font: 700 10px ui-monospace, monospace; letter-spacing: .06em;
+    font: 700 10px var(--font-mono); letter-spacing: .06em;
     color: var(--fog); white-space: nowrap; flex: none;
 }
 
@@ -392,7 +392,7 @@
 
 .r-ag-line > .nm { font-size: 12px; font-weight: 600; color: var(--tx); flex: 0 0 auto; min-width: 150px; }
 .r-ag-line > .nm em {
-    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    display: block; font: 500 8.5px var(--font-mono); color: var(--dim);
     font-style: normal; text-transform: uppercase; letter-spacing: .07em;
 }
 
@@ -411,7 +411,7 @@
 .r-ag-line > .av {
     flex: none; width: 22px; height: 22px; border-radius: 99px;
     display: inline-flex; align-items: center; justify-content: center;
-    font: 700 9px ui-monospace, monospace; letter-spacing: .04em;
+    font: 700 9px var(--font-mono); letter-spacing: .04em;
     color: var(--fog); background: var(--p2); border: 1px solid var(--ln2);
 }
 
@@ -422,7 +422,7 @@
    not a coordinate: where somebody is belongs on the plate. */
 .r-ping {
     display: inline-flex; align-items: center; gap: 5px; flex: none;
-    font: 500 10px ui-monospace, monospace; color: var(--fog);
+    font: 500 10px var(--font-mono); color: var(--fog);
 }
 
 .r-ping i { width: 5px; height: 5px; border-radius: 99px; font-style: normal; flex: none; background: var(--fog); }
@@ -445,7 +445,7 @@
 .r-ruler > span:first-child { flex: 0 0 150px; }
 .r-ruler .hrs {
     flex: 1 1 auto; display: flex; justify-content: space-between;
-    font: 600 8px ui-monospace, monospace; color: var(--dim);
+    font: 600 8px var(--font-mono); color: var(--dim);
     letter-spacing: .09em;
 }
 
@@ -459,7 +459,7 @@
 }
 
 .r-dayrow .lbl em {
-    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    display: block; font: 500 8.5px var(--font-mono); color: var(--dim);
     font-style: normal; text-transform: uppercase; letter-spacing: .07em;
 }
 
@@ -472,7 +472,7 @@
     position: absolute; top: 3px; bottom: 3px;
     display: flex; align-items: center; gap: 5px; overflow: hidden;
     padding: 0 7px; border-radius: 5px;
-    font: 600 9.5px ui-monospace, monospace; white-space: nowrap; text-overflow: ellipsis;
+    font: 600 9.5px var(--font-mono); white-space: nowrap; text-overflow: ellipsis;
     color: var(--acc); background: color-mix(in srgb, var(--acc) 17%, transparent);
 }
 
@@ -519,7 +519,7 @@
 
 .r-rotrow > .fldlab {
     flex: 0 0 136px;
-    font: 600 8.5px ui-monospace, monospace; letter-spacing: .12em;
+    font: 600 8.5px var(--font-mono); letter-spacing: .12em;
     text-transform: uppercase; color: var(--dim);
 }
 
@@ -537,8 +537,8 @@
 }
 
 .r-cyc button:disabled { cursor: default; opacity: .75; }
-.r-cyc button b { font: 700 8px ui-monospace, monospace; letter-spacing: .06em; }
-.r-cyc button em { font: 500 7.5px ui-monospace, monospace; font-style: normal; color: var(--dim); }
+.r-cyc button b { font: 700 8px var(--font-mono); letter-spacing: .06em; }
+.r-cyc button em { font: 500 7.5px var(--font-mono); font-style: normal; color: var(--dim); }
 
 .r-cyc button.d {
     background: color-mix(in srgb, var(--acc) 20%, transparent);
@@ -567,10 +567,10 @@
 }
 
 .r-cnt button:hover { color: var(--acc); border-color: var(--acc); }
-.r-cnt b { min-width: 28px; text-align: center; font: 700 12px ui-monospace, monospace; color: var(--tx); }
+.r-cnt b { min-width: 28px; text-align: center; font: 700 12px var(--font-mono); color: var(--tx); }
 
 .r-pool { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
-.r-pool .more { font: 500 10px ui-monospace, monospace; color: var(--dim); }
+.r-pool .more { font: 500 10px var(--font-mono); color: var(--dim); }
 
 /* A PERSON IN THE RING. The order is the plan — each enters one day later
    than the last — so a pill carries its position and the two controls that
@@ -595,7 +595,7 @@
 .r-hz {
     display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
     margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--ln);
-    font: 500 10px ui-monospace, monospace; color: var(--dim);
+    font: 500 10px var(--font-mono); color: var(--dim);
 }
 
 .r-hz b { color: var(--fog); font-weight: 700; }
@@ -615,7 +615,7 @@
 .fg-rota col.dy { width: 68px; }
 
 .fg-rota th {
-    font: 600 8.5px ui-monospace, monospace; color: var(--dim); text-transform: uppercase;
+    font: 600 8.5px var(--font-mono); color: var(--dim); text-transform: uppercase;
     letter-spacing: .08em; text-align: left; padding: 0 3px 7px 0;
     border-bottom: 1px solid var(--ln); vertical-align: bottom;
 }
@@ -638,7 +638,7 @@
 .fg-rota td.who b { font-size: 12px; font-weight: 600; color: var(--tx); }
 
 .fg-rota td.who em {
-    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    display: block; font: 500 8.5px var(--font-mono); color: var(--dim);
     font-style: normal; text-transform: uppercase; letter-spacing: .06em;
 }
 
@@ -786,7 +786,7 @@ button.cl {
    the whole reason this tab exists. */
 .cl.unf {
     border: 1px dotted color-mix(in srgb, var(--fail) 75%, transparent); border-radius: 5px;
-    color: var(--fail); font: 700 8.5px ui-monospace, monospace; letter-spacing: .06em;
+    color: var(--fail); font: 700 8.5px var(--font-mono); letter-spacing: .06em;
     text-transform: uppercase; padding: 4px 5px; text-align: center;
 }
 
@@ -804,7 +804,7 @@ button.cl {
    on the Watches shift row and the cycle strip on a pattern. */
 .cl.bar {
     display: flex; align-items: center; gap: 5px; border-radius: 5px; padding: 4px 6px;
-    font: 700 8px ui-monospace, monospace; letter-spacing: .05em; text-transform: uppercase;
+    font: 700 8px var(--font-mono); letter-spacing: .05em; text-transform: uppercase;
     background: color-mix(in srgb, var(--cat, var(--fog)) 15%, transparent); color: var(--cat, var(--fog));
 }
 .cl.bar > .dot { width: 5px; height: 5px; border-radius: 50%; flex: none; background: var(--cat, var(--fog)); }
@@ -830,14 +830,14 @@ tr.stfold > td { border-bottom: 1px solid var(--ln); }
 tr.stfold.shut .stfoldb .pmf-car { transform: rotate(-90deg); }
 .stfoldb > b { font-size: 13px; font-weight: 700; color: var(--tx); }
 .stfoldb > .mono { font-size: 10px; color: var(--dim); letter-spacing: .06em; }
-.stfoldb > .stn { font: 500 10.5px ui-monospace, monospace; color: var(--fog); }
+.stfoldb > .stn { font: 500 10.5px var(--font-mono); color: var(--fog); }
 .stfoldb > .stun {
-    margin-left: auto; font: 700 9.5px ui-monospace, monospace; letter-spacing: .08em;
+    margin-left: auto; font: 700 9.5px var(--font-mono); letter-spacing: .08em;
     text-transform: uppercase; color: var(--fail);
     border: 1px dotted color-mix(in srgb, var(--fail) 65%, transparent); border-radius: 6px; padding: 2px 7px;
 }
 .stfoldb > .stok {
-    margin-left: auto; font: 500 9.5px ui-monospace, monospace; letter-spacing: .06em; color: var(--dim);
+    margin-left: auto; font: 500 9.5px var(--font-mono); letter-spacing: .06em; color: var(--dim);
 }
 tr.stfold.shut > td { border-bottom: 1px dashed var(--ln); }
 tr.strow[hidden] { display: none; }
@@ -854,7 +854,7 @@ tr.strow[hidden] { display: none; }
    with 900px of empty row beside it. */
 .prow .pact { display: flex; align-items: center; gap: 9px; margin-left: auto; flex: none; }
 .prow > .k {
-    font: 600 9.5px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase;
+    font: 600 9.5px var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
     color: var(--dim); flex: none;
 }
 .prow .fld {
@@ -874,7 +874,7 @@ tr.strow[hidden] { display: none; }
    door. */
 .prow2 .pfills {
     margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 7px;
-    font: 500 11.5px ui-monospace, monospace; color: var(--dim);
+    font: 500 11.5px var(--font-mono); color: var(--dim);
 }
 .prow2 .pfills b { color: var(--fog); font-weight: 700; }
 .prow2 .pfills a { color: var(--acc); text-decoration: none; font-weight: 700; }
@@ -1011,7 +1011,7 @@ tr.strow[hidden] { display: none; }
 .dm .dmhd {
     display: flex; align-items: center; gap: 7px; padding: 6px 9px 7px; margin-bottom: 2px;
     border-bottom: 1px solid var(--ln);
-    font: 600 9.5px ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase;
+    font: 600 9.5px var(--font-mono); letter-spacing: .1em; text-transform: uppercase;
     color: var(--dim); white-space: nowrap; overflow: hidden;
 }
 .dm .dmhd b { color: var(--tx); font-weight: 700; }
@@ -1025,7 +1025,7 @@ tr.strow[hidden] { display: none; }
    868px tall with all three choices showing at once. */
 .dm .dmstep[hidden] { display: none; }
 .dm .dmstep > button {
-    font: 600 9.5px ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase;
+    font: 600 9.5px var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
     color: var(--fog); background: none; cursor: pointer; border: 1px solid var(--ln2);
     border-radius: 99px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 5px;
 }
@@ -1060,7 +1060,7 @@ tr.strow[hidden] { display: none; }
 .pkey {
     flex: none; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 11px;
     padding-top: 10px; border-top: 1px dashed var(--ln);
-    font: 500 10px ui-monospace, monospace; color: var(--dim);
+    font: 500 10px var(--font-mono); color: var(--dim);
 }
 .pkey span { display: inline-flex; align-items: center; gap: 6px; }
 .pkey i.k { width: 12px; height: 12px; border-radius: 4px; flex: none; }
@@ -1117,7 +1117,7 @@ tr.strow[hidden] { display: none; }
 
 .r-pres > .nm { font-size: 12px; font-weight: 600; color: var(--tx); flex: 0 0 auto; min-width: 150px; }
 .r-pres > .nm em {
-    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    display: block; font: 500 8.5px var(--font-mono); color: var(--dim);
     font-style: normal; text-transform: uppercase; letter-spacing: .07em;
 }
 
@@ -1128,7 +1128,7 @@ tr.strow[hidden] { display: none; }
    partly, red is nobody, and a post that expects nobody is dimmed rather
    than scored — nought of nought is not a failure. */
 .r-pres > .cnt {
-    flex: none; font: 700 11px ui-monospace, monospace; color: var(--fog);
+    flex: none; font: 700 11px var(--font-mono); color: var(--fog);
 }
 
 .r-pres > .cnt.g { color: var(--ok); }
@@ -1164,12 +1164,12 @@ tr.strow[hidden] { display: none; }
 .fg-side > .fg-foot {
     flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 8px;
     padding: 8px 0 0; margin-top: 6px; border-top: 1px solid var(--ln);
-    font: 600 8.5px ui-monospace, monospace; letter-spacing: .08em; color: var(--dim);
+    font: 600 8.5px var(--font-mono); letter-spacing: .08em; color: var(--dim);
 }
 
 /* THE RAIL'S OWN HEAD: what it is carrying, and the way to change that. */
 .fg-side .fg-rlhd { display: flex; align-items: center; gap: 8px; padding: 0 0 7px; border-bottom: 1px solid var(--ln); background: var(--p1); }
-.fg-side .fg-rlhd .k { font: 700 8.5px ui-monospace, monospace; letter-spacing: .13em; text-transform: uppercase; color: var(--dim); padding: 4px 7px 5px; }
+.fg-side .fg-rlhd .k { font: 700 8.5px var(--font-mono); letter-spacing: .13em; text-transform: uppercase; color: var(--dim); padding: 4px 7px 5px; }
 .fg-side .fg-rlhd .sp { flex: 1 1 auto; }
 
 /* THE ARRANGEMENTS, as chips. Adopting one is a link, so a rail somebody
@@ -1182,8 +1182,8 @@ tr.strow[hidden] { display: none; }
 .fg-side .rl-cell { border: 1px dashed var(--ln2); border-radius: 10px; padding: 0 9px 7px; margin-top: 9px; }
 .fg-side .rl-cell .rl-cellhd { display: flex; align-items: center; gap: 7px; padding: 7px 0 6px; border-bottom: 1px solid var(--ln); }
 .fg-side .rl-cell .rl-cellhd .ord { flex: none; }
-.fg-side .rl-cell .rl-cellhd .k { font: 700 8.5px ui-monospace, monospace; letter-spacing: .13em; text-transform: uppercase; color: var(--tx); }
-.fg-side .rl-cell .rl-cellhd em { font: 700 8.5px ui-monospace, monospace; font-style: normal; color: var(--acc); }
+.fg-side .rl-cell .rl-cellhd .k { font: 700 8.5px var(--font-mono); letter-spacing: .13em; text-transform: uppercase; color: var(--tx); }
+.fg-side .rl-cell .rl-cellhd em { font: 700 8.5px var(--font-mono); font-style: normal; color: var(--acc); }
 .fg-side .rl-cell .rl-cellhd .sp { flex: 1 1 auto; }
 
 /* ---- WHAT A LIST DRAWS BELONGS TO THE LIST -------------------------------
@@ -1201,7 +1201,7 @@ tr.strow[hidden] { display: none; }
 /* A SUB-HEAD INSIDE A LIST. Sticky, so a reader thirty rows down still
    knows which half of the list they are in. */
 .fg-lst .grp {
-    font: 700 8.5px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase;
+    font: 700 8.5px var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
     color: var(--dim); padding: 9px 0 5px; border-bottom: 1px solid var(--ln);
     position: sticky; top: 0; background: var(--p1); z-index: 1;
 }
@@ -1217,7 +1217,7 @@ tr.strow[hidden] { display: none; }
 /* A PERSON ROW. */
 .fg-lst .pr { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--ln); }
 .fg-lst .pr .nm { flex: 1 1 auto; min-width: 0; font-size: 12px; font-weight: 600; color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fg-lst .pr .nm em { display: block; font: 500 8.5px ui-monospace, monospace; font-style: normal; color: var(--dim); }
+.fg-lst .pr .nm em { display: block; font: 500 8.5px var(--font-mono); font-style: normal; color: var(--dim); }
 
 /* A POST ROW, and a ZONE ROW. Name and detail, how many are live, and the
    one thing wrong with that count.
@@ -1236,12 +1236,12 @@ a.fg-stn:hover, a.fg-zn:hover { background: var(--raised); text-decoration: none
 .fg-stn.on, .fg-zn.on { box-shadow: inset 2px 0 0 var(--acc), 0 0 0 6px var(--raised); background: var(--raised); }
 
 .fg-stn .nm, .fg-zn .nm { flex: 1 1 auto; min-width: 0; font-size: 12px; font-weight: 600; color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fg-stn .nm em, .fg-zn .nm em { display: block; font: 500 8.5px ui-monospace, monospace; font-style: normal; color: var(--dim); }
+.fg-stn .nm em, .fg-zn .nm em { display: block; font: 500 8.5px var(--font-mono); font-style: normal; color: var(--dim); }
 .fg-stn.quiet .nm, .fg-stn.quiet .nm em, .fg-zn.quiet .nm, .fg-zn.quiet .nm em { color: var(--dim); }
 
 .fg-zn .zsw { width: 9px; height: 9px; border-radius: 3px; flex: none; font-style: normal; }
 
-.fg-stn .lv, .fg-zn .lv { display: inline-flex; align-items: center; gap: 5px; flex: none; font: 700 10px ui-monospace, monospace; color: var(--ok); }
+.fg-stn .lv, .fg-zn .lv { display: inline-flex; align-items: center; gap: 5px; flex: none; font: 700 10px var(--font-mono); color: var(--ok); }
 .fg-stn .lv em, .fg-zn .lv em { font-style: normal; font-weight: 600; color: var(--warn); }
 .fg-stn .lv.none, .fg-zn .lv.none { color: var(--dim); font-weight: 600; }
 
@@ -1266,7 +1266,7 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
 
 .r-slot > .lbl { font-size: 12px; font-weight: 600; color: var(--tx); flex: 0 0 auto; min-width: 190px; }
 .r-slot > .lbl em {
-    display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
+    display: block; font: 500 8.5px var(--font-mono); color: var(--dim);
     font-style: normal; text-transform: uppercase; letter-spacing: .07em;
 }
 
@@ -1296,13 +1296,13 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
 .r-pill > .av {
     flex: none; width: 20px; height: 20px; border-radius: 99px;
     display: inline-flex; align-items: center; justify-content: center;
-    font: 700 8.5px ui-monospace, monospace; letter-spacing: .04em;
+    font: 700 8.5px var(--font-mono); letter-spacing: .04em;
     color: var(--fog); background: var(--p2); border: 1px solid var(--ln2);
 }
 
 /* THE RULE THAT REFUSED IT, on the pill that it refused. */
-.r-pill em.why { font: 500 9px ui-monospace, monospace; font-style: normal; color: var(--fail); }
-.r-pill em.warn { font: 500 9px ui-monospace, monospace; font-style: normal; color: var(--warn); }
+.r-pill em.why { font: 500 9px var(--font-mono); font-style: normal; color: var(--fail); }
+.r-pill em.warn { font: 500 9px var(--font-mono); font-style: normal; color: var(--warn); }
 
 /* ---- COMPOSING THE RAIL, AND THE TAIL OF A LIST -------------------------
  * The order buttons, the way out of the rail, the doors that put a list
@@ -1310,7 +1310,7 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
  * itself: the Live tab depends on all four.
  */
 .ord { flex: none; display: flex; align-items: center; gap: 4px; }
-.ord b { font: 700 10px ui-monospace, monospace; color: var(--dim); min-width: 12px; text-align: right; }
+.ord b { font: 700 10px var(--font-mono); color: var(--dim); min-width: 12px; text-align: right; }
 .ord button { width: 20px; height: 20px; border: 1px solid var(--ln2); border-radius: 5px; background: none; color: var(--fog); cursor: pointer; font-family: inherit; font-size: 9px; line-height: 1; padding: 0; }
 .ord button:disabled { opacity: .35; cursor: default; }
 
@@ -1318,7 +1318,7 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
 .fg-side .rl-cell:hover .rl-cellhd .rm { color: var(--fail); }
 
 .fg-side > .fg-foot { flex-direction: column; align-items: stretch; }
-.fg-side .rl-add { display: block; width: 100%; margin: 0 0 7px; cursor: pointer; background: none; padding: 9px 0; text-align: center; border-radius: 10px; border: 1px dashed var(--acc); color: var(--acc); text-decoration: none; font: 700 9px ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.fg-side .rl-add { display: block; width: 100%; margin: 0 0 7px; cursor: pointer; background: none; padding: 9px 0; text-align: center; border-radius: 10px; border: 1px dashed var(--acc); color: var(--acc); text-decoration: none; font: 700 9px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
 .fg-side .rl-add:hover { background: color-mix(in srgb, var(--acc) 9%, transparent); text-decoration: none; }
 /* A list already in the rail needs no door back into it. */
 .fg-side .rl-add[aria-pressed="true"] { display: none; }
@@ -1368,9 +1368,9 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
 .wsw:disabled { cursor: default; }
 
 .wsh > .wnm { flex: 0 0 152px; height: 32px; padding-top: 0; padding-bottom: 0; line-height: 30px; font-size: 13px; font-weight: 600; }
-.wsh > .hrs { display: flex; align-items: center; gap: 6px; font: 600 12px ui-monospace, monospace; color: var(--fog); }
+.wsh > .hrs { display: flex; align-items: center; gap: 6px; font: 600 12px var(--font-mono); color: var(--fog); }
 .wsh > .hrs input { width: 5.2em; }
-.wsh > .n { font: 600 11px ui-monospace, monospace; color: var(--dim); }
+.wsh > .n { font: 600 11px var(--font-mono); color: var(--dim); }
 .wsh > .sp { flex: 1; }
 /* A REAL BUTTON: closing a shift is a write, and Stimulus binds no default
    event to a link that goes nowhere. It wears the drawn cross exactly. */
@@ -1385,7 +1385,7 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
  * somebody types and a unit they pick, so the two wear one shape and neither
  * is a menu of blessed answers.
  */
-.wval, select.wval, input.wval { appearance: none; -webkit-appearance: none; font: 600 13px ui-monospace, monospace; color: var(--acc); background: var(--raised); border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); border-radius: 8px; padding: 3px 9px; line-height: 1.5; cursor: pointer; vertical-align: baseline; font-variant-numeric: tabular-nums; }
+.wval, select.wval, input.wval { appearance: none; -webkit-appearance: none; font: 600 13px var(--font-mono); color: var(--acc); background: var(--raised); border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); border-radius: 8px; padding: 3px 9px; line-height: 1.5; cursor: pointer; vertical-align: baseline; font-variant-numeric: tabular-nums; }
 .wval:focus, select.wval:focus, input.wval:focus { outline: none; border-color: var(--acc); }
 
 /* ---- THE RULES CARD, AS ROWS --------------------------------------------
@@ -1398,7 +1398,7 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
 /* Same rule, same reason — see `.wsh` above. MOVES TO THE SHELL. */
 .rl:last-of-type,
 .rl:has(+ .staddrow) { border-bottom: 0; }
-.rl > .k { flex: 0 0 118px; font: 600 9.5px ui-monospace, monospace; letter-spacing: .11em; text-transform: uppercase; color: var(--dim); }
+.rl > .k { flex: 0 0 118px; font: 600 9.5px var(--font-mono); letter-spacing: .11em; text-transform: uppercase; color: var(--dim); }
 .rl > .v { flex: 0 0 172px; display: flex; align-items: center; gap: 7px; }
 .rl > .v .n { width: 4.4em; }
 .rl > .m { flex: 1 1 180px; min-width: 0; font-size: 12.5px; color: var(--fog); }
@@ -1411,7 +1411,7 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
    under Presence / Check-in / Cover was drawn and rejected the same day. */
 .rgrphd {
     display: block; margin: 13px 0 0; padding-top: 10px; border-top: 1px solid var(--ln);
-    font: 700 9px "JetBrains Mono", ui-monospace, monospace; letter-spacing: .13em;
+    font: 700 9px var(--font-mono), monospace; letter-spacing: .13em;
     text-transform: uppercase; color: var(--dim);
 }
 .rl + .rgrphd { margin-top: 4px; }
@@ -1423,7 +1423,7 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
 .wmxwrap::-webkit-scrollbar { display: none; }
 
 table.wmx { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px; }
-table.wmx th { font: 600 9px ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); text-align: center; padding: 0 6px 9px; white-space: nowrap; border-bottom: 1px solid var(--ln); }
+table.wmx th { font: 600 9px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); text-align: center; padding: 0 6px 9px; white-space: nowrap; border-bottom: 1px solid var(--ln); }
 table.wmx th.l { text-align: left; }
 table.wmx th em { display: block; font-style: normal; font-size: 8.5px; letter-spacing: .06em; color: var(--fog); text-transform: none; margin-top: 2px; }
 table.wmx td { padding: 6px; border-bottom: 1px dashed color-mix(in srgb, var(--fog) 18%, transparent); text-align: center; }
@@ -1432,8 +1432,8 @@ table.wmx td { padding: 6px; border-bottom: 1px dashed color-mix(in srgb, var(--
 table.wmx tr:last-child td { border-bottom: 0; }
 table.wmx td.l { text-align: left; }
 table.wmx td.l b { font-size: 12.5px; font-weight: 600; color: var(--tx); display: block; }
-table.wmx td.l em { font: 500 9px ui-monospace, monospace; font-style: normal; color: var(--dim); letter-spacing: .06em; }
-table.wmx td.n { font: 600 11.5px ui-monospace, monospace; color: var(--fog); font-variant-numeric: tabular-nums; }
+table.wmx td.l em { font: 500 9px var(--font-mono); font-style: normal; color: var(--dim); letter-spacing: .06em; }
+table.wmx td.n { font: 600 11.5px var(--font-mono); color: var(--fog); font-variant-numeric: tabular-nums; }
 /* A station running nothing is drawn quiet, not hidden: it is where one is
    put on the books. */
 table.wmx tr.none td { opacity: .55; }
@@ -1452,10 +1452,10 @@ table.wmx tr.none td { opacity: .55; }
  */
 .wexcin { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .wexcin > .ln { display: flex; align-items: baseline; gap: 7px; flex-wrap: nowrap; font-size: 11.5px; color: var(--tx); white-space: nowrap; }
-.wexcin > .ln > b { flex: none; font: 600 8.5px ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--fog); font-weight: 600; }
+.wexcin > .ln > b { flex: none; font: 600 8.5px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--fog); font-weight: 600; }
 .wexcin > .ln > .x { color: var(--fail); background: none; border: 0; font-family: inherit; text-decoration: none; font-size: 13px; line-height: 1; opacity: .7; cursor: pointer; padding: 0; }
 .wexcin > .ln > .x:hover { opacity: 1; }
-.wexcin > .add { font: 600 9px ui-monospace, monospace; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); background: none; border: 0; padding: 1px 0; cursor: pointer; }
+.wexcin > .add { font: 600 9px var(--font-mono); letter-spacing: .09em; text-transform: uppercase; color: var(--dim); background: none; border: 0; padding: 1px 0; cursor: pointer; }
 .wexcin > .add:hover { color: var(--acc); }
 
 /* ---- A PATTERN, DRAWN AS ITS DAYS ----------------------------------------
@@ -1467,7 +1467,7 @@ table.wmx tr.none td { opacity: .55; }
 .pd { width: 13px; height: 13px; border-radius: 4px; flex: none; display: block; }
 .pd[data-cat] { background: color-mix(in srgb, var(--cat) 45%, transparent); }
 .pd.o { border: 1px dashed var(--ln2); }
-.pmore { font: 700 9.5px ui-monospace, monospace; font-style: normal; color: var(--dim); margin-left: 2px; }
+.pmore { font: 700 9.5px var(--font-mono); font-style: normal; color: var(--dim); margin-left: 2px; }
 .pstrip.lg .pd { width: 19px; height: 19px; border-radius: 5px; }
 
 /* ---- THE PATTERN EDITOR --------------------------------------------------
@@ -1478,22 +1478,22 @@ table.wmx tr.none td { opacity: .55; }
 .ptool { display: flex; flex-direction: column; gap: 13px; }
 
 .pfld { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px dashed var(--ln); margin-bottom: 2px; }
-.pfld > label { font: 600 9.5px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); flex: none; }
+.pfld > label { font: 600 9.5px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); flex: none; }
 .pdname { flex: 1 1 240px; min-width: 0; font-size: 16px; font-weight: 700; color: var(--tx); letter-spacing: -.01em; }
 .pdname.empty { font-size: 13px; font-weight: 500; color: var(--dim); font-style: italic; }
-.pfld > .len { font: 600 11px ui-monospace, monospace; color: var(--fog); margin-left: auto; }
+.pfld > .len { font: 600 11px var(--font-mono); color: var(--fog); margin-left: auto; }
 .pfld > .len b { color: var(--tx); }
 
 /* The sentence. One part per line, so a six-part cycle reads as six lines and
    not as a paragraph that wraps differently at every width. */
 .psb { display: flex; flex-direction: column; gap: 7px; }
 .psbl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14.5px; line-height: 2.1; color: var(--tx); }
-.psbl > .lead { font: 600 9.5px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); flex: 0 0 52px; }
+.psbl > .lead { font: 600 9.5px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); flex: 0 0 52px; }
 .psbl > .x { color: var(--fail); background: none; border: 0; font-family: inherit; text-decoration: none; font-size: 15px; line-height: 1; padding: 0 4px; opacity: .7; margin-left: auto; cursor: pointer; }
 .psbl > .x:hover { opacity: 1; }
 .psbhint { font-size: 12px; color: var(--fog); margin-left: 6px; }
 
-.psbn, select.psbs { appearance: none; -webkit-appearance: none; font: 600 13px ui-monospace, monospace; color: var(--acc); background: var(--raised); border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); border-radius: 8px; padding: 3px 9px; line-height: 1.5; cursor: pointer; font-variant-numeric: tabular-nums; }
+.psbn, select.psbs { appearance: none; -webkit-appearance: none; font: 600 13px var(--font-mono); color: var(--acc); background: var(--raised); border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); border-radius: 8px; padding: 3px 9px; line-height: 1.5; cursor: pointer; font-variant-numeric: tabular-nums; }
 .psbn { width: 3.4em; text-align: center; cursor: text; }
 select.psbs { padding-right: 24px; }
 .psbn:focus, select.psbs:focus { outline: none; border-color: var(--acc); }
@@ -1501,7 +1501,7 @@ select.psbs { padding-right: 24px; }
 /* The cycle, drawn from the same parts the sentence names — never written out
    beside them, so the two cannot disagree and neither needs a round trip. */
 .ppreview { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 11px 13px; border-radius: 10px; border: 1px dashed color-mix(in srgb, var(--acc) 42%, transparent); }
-.ppreview > .k { font: 600 9px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.ppreview > .k { font: 600 9px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
 .ppreview > .t { font-size: 12.5px; color: var(--fog); }
 .ppreview > .t b { color: var(--tx); }
 
@@ -1513,7 +1513,7 @@ select.psbs { padding-right: 24px; }
    heading of its own beyond the kind. */
 .pregc { display: flex; flex-direction: column; gap: 9px; }
 .pregc > .nm { font-size: 15px; font-weight: 700; color: var(--tx); letter-spacing: -.01em; }
-.pregc > .mt { font: 500 10px ui-monospace, monospace; color: var(--dim); letter-spacing: .05em; }
+.pregc > .mt { font: 500 10px var(--font-mono); color: var(--dim); letter-spacing: .05em; }
 .pregc > .at { font-size: 12px; color: var(--fog); line-height: 1.6; }
 .pregc > .at b { color: var(--tx); }
 .pregc > .acts { display: flex; align-items: center; gap: 8px; margin-top: 2px; padding-top: 10px; border-top: 1px dashed var(--ln); }

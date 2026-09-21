@@ -136,4 +136,33 @@ final class RosterVocabularyConformanceTest extends VocabularyConformanceTestCas
 
         return $sheet;
     }
+
+    /**
+     * THE MONO FACE IS THE SHELL'S, NAMED ONCE.
+     *
+     * Owner, 21 sep: the sheet's labels did not look like the design's, and
+     * the cause was not the font loading — this sheet carried its own stack
+     * starting at `ui-monospace`, while the shell defines `--font-mono:
+     * "JetBrains Mono", ui-monospace, Menlo, monospace`. A module-local
+     * stack renders the shell's own face on every OTHER surface and the
+     * system face here, which is the same defect as restating a shared
+     * class: two copies, one of them wrong, and nobody looking at the CSS
+     * can tell which. Shipping the face is the shell's chore; naming it is
+     * everybody's.
+     */
+    public function testNoModuleLocalFontStack(): void
+    {
+        foreach (static::ownStylesheets() as $sheet) {
+            $css = file_get_contents(\dirname(__DIR__, 3).'/public/'.$sheet);
+            self::assertIsString($css);
+
+            foreach (['ui-monospace', 'JetBrains Mono', 'system-ui', '-apple-system'] as $face) {
+                self::assertStringNotContainsString(
+                    $face,
+                    $css,
+                    \sprintf('%s names a font stack of its own; use the shell\'s var(--font-mono) / var(--font-sans).', basename($sheet)),
+                );
+            }
+        }
+    }
 }
