@@ -67,6 +67,16 @@ final class TheRingBecomesAPatternTest extends MigrationsTestCase
         $renamed = $this->connection->fetchAllAssociative("SELECT kind FROM roster_shift_rule WHERE area_id = 901 AND kind LIKE 'raise%'");
         self::assertCount(1, $renamed);
         self::assertSame(RuleKind::RaiseShortCover->value, self::asText($renamed[0]['kind']));
+
+        // AND THE SEEDED SHIFTS END ON THE SLOTS THE DESIGN GIVES THEM:
+        // position handed night the yellow at slot 2, and a night watch
+        // that reads as a day watch's neighbour is the one confusion the
+        // colour exists to prevent.
+        $slots = [];
+        foreach ($this->connection->fetchAllAssociative('SELECT shift_key, colour FROM roster_shift WHERE area_id = 901') as $row) {
+            $slots[self::asText($row['shift_key'])] = (int) self::asText($row['colour']);
+        }
+        self::assertSame(['day' => 1, 'night' => 5], $slots);
     }
 
     /**
