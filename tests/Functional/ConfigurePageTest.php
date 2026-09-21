@@ -141,24 +141,76 @@ final class ConfigurePageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         // The identity band, on the tab it is byte-identical on.
         self::assertSame(1, $crawler->filter('.factband')->count());
-        self::assertStringContainsString('Posts with a watch', $crawler->filter('.factband')->text());
+
+        $band = $crawler->filter('.factband')->text();
+        foreach (['Stations', 'Rangers stationed', 'Shifts', 'Exceptions'] as $cell) {
+            self::assertStringContainsString($cell, $band, 'The band is the ruled four.');
+        }
+
+        // AND THE WORD IS STATION. "Rangers 34 posted at 12 posts" was the
+        // last of "post" on this surface, ruled 21 sep.
+        self::assertStringNotContainsString('post', mb_strtolower($band));
     }
 
     /**
-     * The band says how the park is SET UP, so a post that has not been given
-     * a watch is counted in the denominator and not in the numerator — which
-     * is the whole of "six of the area's twelve".
+     * THE BAND SAYS HOW THE PARK IS SET UP, so a station the area registers
+     * and nobody has told what it stands is in the denominator and not in
+     * the numerator — which is the whole of "12 · 11 run at least one
+     * shift".
      */
-    public function testTheBandCountsPostsOnTheBooksAgainstTheAreasOwnRegister(): void
+    public function testTheBandCountsStationsRunningAShiftAgainstTheAreasOwnRegister(): void
     {
-        $this->watches()->addToRoster($this->gate);
+        $watch = $this->watches()->addToRoster($this->gate);
+        $watch->expect(['day']);
+        $this->em->flush();
+
         $this->signIn(FixedManageVoter::READER_EMAIL);
 
         $crawler = $this->client->request('GET', '/areas/'.$this->area->getUuidString().'/modules/roster');
         $band = $crawler->filter('.factband')->text();
 
-        self::assertStringContainsString('1', $band);
-        self::assertStringContainsString('of the area’s 2', $band);
+        self::assertStringContainsString('2', $band, 'The area registers two.');
+        self::assertStringContainsString('1 runs at least one shift', $band, 'And one of them stands a shift.');
+    }
+
+    /**
+     * AND A STATION THAT HAS JOINED THE BOOKS AND BEEN TOLD NOTHING IS NOT
+     * COUNTED AS RUNNING ONE. Joining is not declaring a watch, and a band
+     * that conflated the two would report a park as staffed the moment
+     * somebody added a row.
+     */
+    public function testAStationOnTheBooksThatStandsNothingIsNotCountedAsRunningAShift(): void
+    {
+        $this->watches()->addToRoster($this->gate);
+        $this->em->flush();
+
+        $this->signIn(FixedManageVoter::READER_EMAIL);
+
+        $crawler = $this->client->request('GET', '/areas/'.$this->area->getUuidString().'/modules/roster');
+
+        self::assertStringContainsString('none stands a shift yet', $crawler->filter('.factband')->text());
+    }
+
+    /**
+     * AND THE EXCEPTIONS CELL COUNTS PLACES, NOT ROWS: one station with
+     * three of its own is one station to go and look at.
+     */
+    public function testTheBandCountsStationsWithTheirOwnRulesAndNotTheRows(): void
+    {
+        $this->watches()->addToRoster($this->gate);
+        $this->em->flush();
+        $this->rules()->setException($this->gate, RuleKind::LateAfter, new RuleValue(1.0, RuleUnit::Hours));
+        $this->rules()->setException($this->gate, RuleKind::PingEvery, new RuleValue(15.0, RuleUnit::Minutes));
+
+        $this->signIn(FixedManageVoter::READER_EMAIL);
+
+        $crawler = $this->client->request('GET', '/areas/'.$this->area->getUuidString().'/modules/roster');
+
+        self::assertStringContainsString(
+            'station with its own settings',
+            $crawler->filter('.factband')->text(),
+            'Two rules at one place is one place to go and look at.',
+        );
     }
 
     /**

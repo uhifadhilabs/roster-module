@@ -51,13 +51,19 @@
 {# THE PAGE HEADER'S ONE ACCENT ACTION, beside the frame's Configure marker.
    Creating a pattern is a PAGE-LEVEL act (ruled 20 sep), so it is here and
    not a footer button and not a card header's door. #}
+{# THE DESIGN'S OWN SUBLINE, as a fragment. #}
+{% block shell_page_subtitle %}The cycles this area fills a station from &middot; a name is derived, never typed{% endblock %}
+
 {% block shell_page_actions %}
     {% if mayManage %}<a class="cta" href="{{ blank }}">{{ ux_icon('shell:plus') }} New pattern</a>{% endif %}
 {% endblock %}
 
 {% block roster_section %}
 <h2 class="zone" id="patterns">Patterns</h2>
-<p class="pgsub">The cycles this area fills a station from. A pattern is a cycle said as a sentence, built out of the shifts this area named, and <b>its name is derived from that cycle</b> &mdash; nothing here is typed. You apply one to a station from the <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid}) }}">Week sheet</a>&rsquo;s fill row, and editing one changes future fills only.</p>
+{# FRAGMENTS, NOT SENTENCES — and the one door the drawn intro carried is
+   kept, because the sheet's fill row is where a pattern is applied and this
+   page offers no station picker at all. #}
+<p class="pgsub">Said as a sentence out of this area&rsquo;s own shifts &middot; the name is derived from the cycle &middot; applied from the <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid}) }}">Week sheet</a>&rsquo;s fill row &middot; editing reaches future fills only</p>
 
 <div class="grid g2">
 

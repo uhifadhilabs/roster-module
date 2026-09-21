@@ -21,6 +21,9 @@
    ========================================================================== #}
 {% extends '@UhifadhiRoster/configure/_frame.html.twig' %}
 
+{# THE DESIGN'S OWN SUBLINE, as a fragment. #}
+{% block shell_page_subtitle %}What this module cannot guess about this organization &middot; each answer a field, with a default and the consequence of choosing wrong{% endblock %}
+
 {% block roster_section %}
 <form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SAVE_SETTINGS_ROUTE'), {uuid: area.uuid}) }}">
     <input type="hidden" name="_token" value="{{ csrfToken }}">

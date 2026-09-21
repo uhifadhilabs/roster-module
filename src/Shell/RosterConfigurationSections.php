@@ -93,7 +93,7 @@ final readonly class RosterConfigurationSections implements ConfigurationSection
 
     public function summary(): string
     {
-        return 'The cycles this area fills a station from, the shifts and rules its stations run on, and the module’s own settings. Configuration only — the figures live on the tabs.';
+        return 'The cycles this area fills from · the shifts and rules its stations run on · configuration only, the figures live on the tabs';
     }
 
     public function sections(): array

@@ -1,37 +1,38 @@
 {# THE IDENTITY BAND — structural facts only, byte-identical on every tab and
    on every configure section.
 
-   HOW THE PARK IS SET UP, never what is happening in it. How many rangers are
-   on the books, how many posts run a watch, how many rotations, how big the
-   shift vocabulary is, how often a handset pings, how far the generator has
-   run. A live figure here would read differently on each of six tabs showing
-   the same minute; live figures are the KPI row's job.
+   HOW THE PARK IS SET UP, never what is happening in it. How many stations
+   the area registers and how many of them stand a shift, how many rangers
+   are stationed at them, how many shifts this area has named, and how many
+   stations run on something other than the area's own rules. A live figure
+   here would read differently on each of six tabs showing the same minute;
+   live figures are the KPI row's job.
+
+   FOUR CELLS, RULED 21 sep against configure-watches.html. The six it
+   carried before were the retired model's: rotations per post, the ping
+   interval and "generated to" all describe a ring that is no longer how an
+   area fills a station, and two of them are now a RULE with its own row on
+   the Watches card — a band that repeated them would be a second reading of
+   a fact that has one home.
+
+   AND THE VOCABULARY IS STATION, NOT POST. "Rangers 34 posted at 12 posts"
+   was the last of that word on this surface.
 
    `.factband` is the SHELL's component and is not restated in this module's
    sheet — one band, one set of rules, wherever a module draws one.
 
-   NULL AND ZERO ARE DIFFERENT FACTS. "No rotation has generated yet" is not
-   "generated to today", so the last field says so in words rather than
-   printing a date nobody set.
-
    EVERY SUB-LINE IS A WHOLE FRAGMENT, and that is not a style note. The
-   rangers line read "posted at the 1" — a sentence with the noun missing,
-   which is what happens when a count is dropped into copy written for the
-   plural. Each of these now reads as a phrase at every count it can hold,
-   nought and one included. #}
+   rangers line once read "posted at the 1" — a sentence with the noun
+   missing, which is what happens when a count is dropped into copy written
+   for the plural. Each of these reads as a phrase at every count it can
+   hold, nought and one included. #}
 <div class="factband">
-    <span class="f"><span class="k">Rangers</span><span class="v">{{ band.rangers }}<em>{% if band.postsWithAWatch %}posted at {{ band.postsWithAWatch }} post{{ band.postsWithAWatch == 1 ? '' : 's' }}{% else %}no post runs a watch{% endif %}</em></span></span>
-    <span class="f"><span class="k">Posts with a watch</span><span class="v">{{ band.postsWithAWatch }}<em>of the area&rsquo;s {{ band.stationsInArea }}</em></span></span>
-    <span class="f"><span class="k">Rotations</span><span class="v">{{ band.rotations }}<em>{{ band.rotationsPerPost }} per post &middot; {{ band.rotationsPerTeam }} per team</em></span></span>
-    <span class="f"><span class="k">Named shifts</span><span class="v">{{ band.namedShifts }}<em>{{ band.shiftLabels }}</em></span></span>
-    <span class="f"><span class="k">Ping interval</span><span class="v">{{ band.pingIntervalMinutes }}<em>min</em></span></span>
-    <span class="f"><span class="k">Generated to</span>
-        {%- if band.generatedThrough %}
-            <span class="v"><time datetime="{{ band.generatedThrough.format('Y-m-d') }}" data-localtime-format="day">{{ band.generatedThrough.format('j') }}</time><em>{{ band.generatedThrough.format('M')|lower }}</em></span>
-        {%- else %}
-            <span class="v">&mdash;<em>nothing generated yet</em></span>
-        {%- endif %}
-    </span>
+    <span class="f"><span class="k">Stations</span><span class="v">{{ band.stationsInArea }}<em>{% if band.stationsRunningAShift %}{{ band.stationsRunningAShift }} run{{ band.stationsRunningAShift == 1 ? 's' : '' }} at least one shift{% else %}none stands a shift yet{% endif %}</em></span></span>
+    {# NO SUB-LINE, on purpose: the label already says what the count is of,
+       and the only phrase left to add would repeat the cell beside it. #}
+    <span class="f"><span class="k">Rangers stationed</span><span class="v">{{ band.rangers }}</span></span>
+    <span class="f"><span class="k">Shifts</span><span class="v">{{ band.namedShifts }}<em>{% if band.namedShifts %}named by this area{% else %}this area has named none{% endif %}</em></span></span>
+    <span class="f"><span class="k">Exceptions</span><span class="v">{{ band.stationsWithTheirOwnRules }}<em>{% if band.stationsWithTheirOwnRules == 1 %}station with its own settings{% elseif band.stationsWithTheirOwnRules %}stations with their own settings{% else %}every station follows the area{% endif %}</em></span></span>
     <span class="sp"></span>
     <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SETTINGS_ROUTE'), {uuid: area.uuid}) }}">Roster settings &rarr;</a>
 </div>

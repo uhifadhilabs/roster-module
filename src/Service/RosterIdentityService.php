@@ -22,6 +22,7 @@ use Uhifadhi\Roster\Entity\StationWatch;
 use Uhifadhi\Roster\Enum\RotationScope;
 use Uhifadhi\Roster\Model\IdentityBand;
 use Uhifadhi\Roster\Repository\RotationRepository;
+use Uhifadhi\Roster\Repository\StationRuleExceptionRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
 
 /**
@@ -45,6 +46,9 @@ final readonly class RosterIdentityService
         private StationRepository $stations,
         private PostingRepository $postings,
         private RotationRepository $rotations,
+        // KEYED BY STATION, so the count is of PLACES that differ and not of
+        // rows: one station with three of its own is one station to look at.
+        private StationRuleExceptionRepository $exceptions,
         private ShiftVocabularyService $shifts,
         private RosterSettingsService $settings,
     ) {
@@ -59,6 +63,8 @@ final readonly class RosterIdentityService
         return new IdentityBand(
             rangers: $this->rangersAtWatchedPosts($area, $watches),
             postsWithAWatch: \count($watches),
+            stationsRunningAShift: \count(array_filter($watches, static fn (StationWatch $watch): bool => !$watch->expectsNothing())),
+            stationsWithTheirOwnRules: \count($this->exceptions->findByArea($area)),
             stationsInArea: $this->stations->countByArea($area),
             rotations: \count($rotations),
             rotationsPerPost: $this->countScope($rotations, RotationScope::Post),

@@ -146,7 +146,10 @@
     padding: 10px 0; border-bottom: 1px dashed var(--ln);
 }
 
-.rset:last-of-type { border-bottom: 0; }
+/* And the two families that predate the redesign, swept with them: both sit
+   above a `.staddrow` on the Settings section. MOVES TO THE SHELL. */
+.rset:last-of-type,
+.rset:has(+ .staddrow) { border-bottom: 0; }
 
 .rset > .lb { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rset > .lb b { font-size: 12px; color: var(--tx); font-weight: 700; }
@@ -262,7 +265,8 @@
     padding: 8px 0; border-bottom: 1px dashed var(--ln);
 }
 
-.rstat:last-of-type { border-bottom: 0; }
+.rstat:last-of-type,
+.rstat:has(+ .staddrow) { border-bottom: 0; }
 .rstat.off { opacity: .55; }
 
 .rstat > .ord { font: 700 10px ui-monospace, monospace; color: var(--dim); }
@@ -944,7 +948,14 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
  * every surface, never derived from a position in this list.
  */
 .wsh { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 0; border-bottom: 1px dashed var(--ln); }
-.wsh:last-of-type { border-bottom: 0; }
+/* THE LAST ROW BEFORE THE CARD'S FOOT DRAWS NO RULE, and `:last-of-type` is
+ * not enough to say so: the foot is a `div` too, so the last `.wsh` is never
+ * the last div of its parent and the rule kept being drawn against the
+ * `.staddrow`'s own hairline. A list that ends on two rules reads as one
+ * that was cut off. MOVES TO THE SHELL with the core port — this belongs to
+ * every banded card in the product, not to this module. */
+.wsh:last-of-type,
+.wsh:has(+ .staddrow) { border-bottom: 0; }
 
 .wsw { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 1px solid var(--ln2); background: color-mix(in srgb, var(--cat, var(--fog)) 55%, transparent); cursor: pointer; padding: 0; position: relative; }
 .wsw::after { content: ""; position: absolute; inset: 4px; border-radius: 4px; background: var(--cat, var(--fog)); }
@@ -979,7 +990,9 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
  * meaning as a short fragment — and the two read as one card cut in half.
  */
 .rl { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px dashed var(--ln); }
-.rl:last-of-type { border-bottom: 0; }
+/* Same rule, same reason — see `.wsh` above. MOVES TO THE SHELL. */
+.rl:last-of-type,
+.rl:has(+ .staddrow) { border-bottom: 0; }
 .rl > .k { flex: 0 0 118px; font: 600 9.5px ui-monospace, monospace; letter-spacing: .11em; text-transform: uppercase; color: var(--dim); }
 .rl > .v { flex: 0 0 172px; display: flex; align-items: center; gap: 7px; }
 .rl > .v .n { width: 4.4em; }

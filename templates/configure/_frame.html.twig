@@ -18,7 +18,11 @@
 
 {% block shell_page_title %}{{ area.name }} — Roster · configure{% endblock %}
 
-{% block shell_page_subtitle %}The cycles this area fills a station from, the shifts and rules its stations run on, and the module&rsquo;s own settings. Configuration only &mdash; the figures live on the tabs.{% endblock %}
+{# THE SUBLINE IS THE PAGE'S, NOT THE FRAME'S. Each section says what IT is,
+   in the design's own fragment, because a frame-wide sentence repeated on
+   four pages is four pages that do not say where you are. The default below
+   is for a section that has not overridden it. #}
+{% block shell_page_subtitle %}The cycles this area fills from &middot; the shifts and rules its stations run on &middot; configuration only, the figures live on the tabs{% endblock %}
 
 {% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / configure{% endblock %}
 

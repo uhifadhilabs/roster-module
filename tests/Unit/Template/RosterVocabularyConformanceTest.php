@@ -66,37 +66,60 @@ final class RosterVocabularyConformanceTest extends VocabularyConformanceTestCas
     }
 
     /**
-     * EVERY REPEATED ROW FAMILY CANCELS ITS RULE ON THE LAST ONE.
+     * EVERY REPEATED ROW FAMILY CANCELS ITS RULE ON THE LAST ROW — AND ON
+     * THE LAST ROW BEFORE THE CARD'S FOOT, WHICH IS NOT THE SAME THING.
      *
      * THE SHELL DOES NOT SHIP THIS CHECK and it is worth the module keeping
-     * it: a list whose final row is underlined reads as a list that was CUT
-     * OFF rather than one that ended, and it is the single easiest thing to
-     * lose when a row family is copied to make the next one. Each family
-     * below draws a hairline between its rows, so each has to say where the
-     * hairlines stop.
+     * it. A list whose final row is underlined reads as a list that was CUT
+     * OFF rather than one that ended, and `:last-of-type` alone does not
+     * prevent it: the `.staddrow` at the end of a card body is a `div` too,
+     * so the last row is never the last div of its parent and the hairline
+     * kept being drawn straight into the foot's own. Measured on the
+     * rendered Watches section, 21 sep.
      *
-     * @return iterable<string, array{string, string}>
+     * BOTH HALVES ARE ASSERTED, because either alone is a family that draws
+     * one rule too many in one of the two shapes a card comes in.
+     *
+     * @return iterable<string, array{string}>
      */
     public static function rowFamilies(): iterable
     {
-        yield 'a shift row' => ['.wsh', '.wsh:last-of-type'];
-        yield 'a rule row' => ['.rl', '.rl:last-of-type'];
-        yield 'an area setting' => ['.rset', '.rset:last-of-type'];
-        yield 'a check-in status' => ['.rstat', '.rstat:last-of-type'];
-        yield 'a station in the table' => ['table.wmx td', 'table.wmx tr:last-child td'];
+        yield 'a shift row' => ['.wsh'];
+        yield 'a rule row' => ['.rl'];
+        yield 'an area setting' => ['.rset'];
+        yield 'a check-in status' => ['.rstat'];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('rowFamilies')]
-    public function testEveryRepeatedRowFamilyCancelsItsRuleOnTheLastRow(string $family, string $cancel): void
+    public function testEveryRepeatedRowFamilyCancelsItsRuleOnTheLastRow(string $family): void
+    {
+        $sheet = self::theOwnSheet();
+
+        self::assertStringContainsString($family.' {', $sheet, $family.' draws a rule between its rows.');
+        self::assertMatchesRegularExpression(
+            '/'.preg_quote($family, '/').':last-of-type,\s*\n\s*'.preg_quote($family, '/').':has\(\+ \.staddrow\)\s*\{[^}]*border-bottom:\s*0/',
+            $sheet,
+            $family.' has to cancel it on the last row AND on the last row before a card foot.',
+        );
+    }
+
+    /**
+     * AND THE TABLE'S LAST ROW, which needs no `:has()` — a table's foot is
+     * outside the table, so its last `<tr>` really is the last child.
+     */
+    public function testTheStationTableDrawsNoRuleUnderItsLastRow(): void
+    {
+        self::assertMatchesRegularExpression(
+            '/table\.wmx tr:last-child td\s*\{[^}]*border-bottom:\s*0/',
+            self::theOwnSheet(),
+        );
+    }
+
+    private static function theOwnSheet(): string
     {
         $sheet = file_get_contents(self::bundlePath().'/public/roster.css');
         self::assertIsString($sheet);
 
-        self::assertStringContainsString($family.' {', $sheet, $family.' draws a rule between its rows.');
-        self::assertMatchesRegularExpression(
-            '/'.preg_quote($cancel, '/').'\s*\{[^}]*border-bottom:\s*0/',
-            $sheet,
-            $cancel.' has to cancel it, or the list reads as cut off.',
-        );
+        return $sheet;
     }
 }

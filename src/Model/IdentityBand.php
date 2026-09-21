@@ -17,10 +17,10 @@ namespace Uhifadhi\Roster\Model;
  * THE MODULE'S IDENTITY BAND — the slim strip of STRUCTURAL FACTS that stands
  * under the tab strip and is byte-identical on every tab and on Configure.
  *
- * STRUCTURAL, AND THAT IS THE WHOLE RULE. How many rangers are on the books,
- * how many posts run a watch, how many rotations, how big the shift
- * vocabulary is, how often a handset pings, how far the generator has run.
- * Nothing on it is LIVE — how many are on duty right now is a KPI and belongs
+ * STRUCTURAL, AND THAT IS THE WHOLE RULE. How many stations the area
+ * registers and how many stand a shift, how many rangers are stationed at
+ * them, how many shifts this area has named, how many stations run on
+ * their own rules. Nothing on it is LIVE — how many are on duty right now is a KPI and belongs
  * in the figures row, and putting a live number on a band that repeats on six
  * tabs would mean six different readings of the same minute.
  *
@@ -33,6 +33,19 @@ final readonly class IdentityBand
         public int $rangers,
         /** How many of the area's stations run a watch. */
         public int $postsWithAWatch,
+        /**
+         * HOW MANY STAND AT LEAST ONE SHIFT — the band's own figure, and not
+         * the same as the one above it: a station is put on these books
+         * deliberately and is then told what it stands, so one that has
+         * joined and been told nothing is on the books and stands nothing.
+         */
+        public int $stationsRunningAShift,
+        /**
+         * HOW MANY STATIONS RUN ON SOMETHING OTHER THAN THE AREA'S RULES —
+         * stations, not exception rows: one station with three of its own is
+         * one station to go and look at.
+         */
+        public int $stationsWithTheirOwnRules,
         /** How many stations the area registers, watch or no watch. */
         public int $stationsInArea,
         public int $rotations,

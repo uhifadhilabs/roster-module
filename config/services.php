@@ -310,6 +310,7 @@ return static function (ContainerConfigurator $container): void {
             service('Uhifadhi\Bundle\AreaBundle\Repository\StationRepository'),
             service('Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository'),
             service(RotationRepository::class),
+            service(StationRuleExceptionRepository::class),
             service('roster.shift_vocabulary'),
             service('roster.settings'),
         ]);
