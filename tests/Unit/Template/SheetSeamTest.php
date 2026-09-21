@@ -207,41 +207,67 @@ final class SheetSeamTest extends TestCase
     }
 
     /**
-     * THE BY-HAND MENU IS PORTALLED OUT OF THE SHEET, and this is the
+     * THE BY-HAND MENU IS LIFTED OUT OF THE SHEET, and this is the
      * assertion that keeps it there.
      *
-     * The sheet is a scroller with a sticky column head, a sticky ranger
-     * column at four weeks, and an isolated `<tbody>` so a positioned day
-     * cell cannot paint over the row saying which day it is. Every one of
-     * those is a STACKING CONTEXT, and a menu opened inside them is
-     * trapped underneath — which is how this menu came to open BEHIND the
-     * day cells. No z-index wins an argument with an ancestor stacking
-     * context, so the only fix is to leave.
+     * `.psheetwrap` is `overflow:auto`, so a menu drawn inside it is
+     * CLIPPED — and no z-index wins an argument with a clip. Inside the
+     * isolated `<tbody>` it also lost the hit test to the day squares.
+     * Both are answered by the same move: onto a layer on the body.
      */
     public function testTheMenuLeavesTheSheetToOpen(): void
     {
         $js = self::read(self::MENU);
+        $css = self::read(self::SHEET_CSS);
 
-        self::assertStringContainsString('document.body.appendChild(menu)', $js, 'The menu has to leave the sheet, not out-rank it.');
-        self::assertStringContainsString('getBoundingClientRect()', $js, 'And be placed from the cell it belongs to.');
+        self::assertStringContainsString('this.layer().appendChild(menu)', $js, 'The menu has to leave the sheet, not out-rank it.');
+        self::assertStringContainsString("layer.className = 'pmenulayer'", $js, 'And the layer it lands on is the one the sheet ships.');
         self::assertStringContainsString("classList.add('pmout')", $js);
         self::assertStringContainsString("classList.remove('pmout')", $js);
-        self::assertStringContainsString('.pmenu.pmout', self::read(self::SHEET_CSS), 'The portalled state has to be shipped.');
-        self::assertStringContainsString('position: fixed', self::read(self::SHEET_CSS));
+        self::assertStringContainsString('.pmenulayer', $css, 'The layer has to be shipped.');
+        self::assertStringContainsString('position: fixed', $css);
+    }
+
+    /**
+     * IT STAYS ATTACHED TO ITS CELL, and the browser does it.
+     *
+     * The open cell is given an `anchor-name` and the panel hangs off it
+     * with `position-anchor`, so the two move on the same frame the
+     * scroll is painted. A menu repositioned from a scroll HANDLER lands
+     * a frame behind the cell, which is the jitter this replaced — so the
+     * JS path is a fallback, it is asked for by feature test, and when it
+     * runs it writes inside a frame.
+     */
+    public function testTheMenuIsAnchoredToItsCellRatherThanChasingIt(): void
+    {
+        $js = self::read(self::MENU);
+        $css = self::read(self::SHEET_CSS);
+
+        preg_match("/static ANCHOR = '(--[a-z-]+)'/", $js, $named);
+        $anchor = $named[1] ?? '';
+        self::assertNotSame('', $anchor, 'The controller has to name the anchor it sets.');
+
+        self::assertStringContainsString('cell.style.anchorName = this.constructor.ANCHOR', $js, 'The open CELL is the anchor.');
+        self::assertStringContainsString('position-anchor: '.$anchor, $css, 'And the panel has to name the same one.');
+        self::assertStringContainsString('top: anchor(bottom)', $css);
+        self::assertStringContainsString('position-try-fallbacks', $css, 'Flipping and clamping are the browser\'s, not a handler\'s.');
+
+        self::assertStringContainsString('CSS.supports?.(`position-anchor: ${this.constructor.ANCHOR}`)', $js, 'The JS path is a fallback, asked for by feature test.');
+        self::assertStringContainsString('requestAnimationFrame', $js, 'And it writes in a frame, never from the scroll event.');
     }
 
     /**
      * AND IT IS PUT BACK, never cloned. The template is the one place the
      * menu exists; a controller that copied it would answer a form the
      * second copy had already answered, and one that forgot to return it
-     * would strand a node on the body after a navigation.
+     * would strand a node on the layer after a navigation.
      */
     public function testTheMenuIsReturnedToItsCellAndNeverCloned(): void
     {
         $js = self::read(self::MENU);
 
-        self::assertStringContainsString('this.home.appendChild(this.open_)', $js, 'Closing puts it back.');
-        self::assertStringContainsString('this.close();', $js);
+        self::assertStringContainsString('this.home.appendChild(this.menu)', $js, 'Closing puts it back.');
+        self::assertStringContainsString("this.cell.style.anchorName = ''", $js, 'And takes the anchor off the cell.');
         self::assertMatchesRegularExpression('/disconnect\(\)\s*\{\s*(?:\/\/[^
 ]*
 \s*)*this\.close\(\);/', $js, 'And so does going away.');
@@ -249,24 +275,29 @@ final class SheetSeamTest extends TestCase
     }
 
     /**
-     * BEING FIXED, IT CANNOT FOLLOW THE CELL — so anything that moves the
-     * cell closes it. A menu left hanging over a scrolled sheet points at
-     * a day that is no longer under it.
+     * A SCROLL DOES NOT CLOSE IT — it follows. What closes it is the cell
+     * leaving the scroller's visible band (under the pinned day head, or
+     * past the bottom), an outside click, or Escape: a menu pointing at a
+     * row nobody can see is the only case worth dismissing.
      */
-    public function testAnythingThatMovesTheCellClosesTheMenu(): void
+    public function testTheMenuClosesWhenItsCellLeavesTheBand(): void
     {
         $js = self::read(self::MENU);
 
-        self::assertStringContainsString("addEventListener('scroll', this.away, true)", $js, 'Capture, so the sheet\'s own scroller counts.');
-        self::assertStringContainsString("addEventListener('resize', this.away)", $js);
+        self::assertStringContainsString("addEventListener('scroll', this.follow, true)", $js, 'Capture, so the sheet\'s own scroller counts.');
+        self::assertStringContainsString("addEventListener('resize', this.follow)", $js);
         self::assertStringContainsString("'Escape'", $js);
         self::assertStringContainsString("addEventListener('click', this.dismiss)", $js);
+
+        self::assertStringContainsString('.psheetwrap', $js, 'The band is the scroller\'s.');
+        self::assertStringContainsString('cell.bottom <= top || cell.top >= port.bottom', $js, 'And leaving it is what closes the menu.');
+        self::assertMatchesRegularExpression('/if \(this\.gone\(\)\) \{\s*this\.close\(\);/', $js);
     }
 
     /**
-     * THE PORTALLED MENU OUT-RANKS EVERY LAYER THE SHEET PINS — read out
-     * of the sheet rather than typed here, so a new sticky layer raised
-     * above it fails this test instead of hiding the menu again.
+     * THE LAYER OUT-RANKS EVERY LAYER THE SHEET PINS — read out of the
+     * sheet rather than typed here, so a new sticky layer raised above it
+     * fails this test instead of hiding the menu again.
      *
      * AND IT STAYS UNDER THE SHELL'S CONFIRM MODAL (120), which is the one
      * thing that must always win: a question about destroying something
@@ -276,9 +307,9 @@ final class SheetSeamTest extends TestCase
     {
         $css = self::read(self::SHEET_CSS);
 
-        preg_match('/\.pmenu\.pmout\s*\{[^}]*z-index:\s*(\d+)/', $css, $portal);
+        preg_match('/\.pmenulayer\s*\{[^}]*z-index:\s*(\d+)/', $css, $portal);
         $declared = $portal[1] ?? '';
-        self::assertNotSame('', $declared, 'The portalled menu has to declare the layer it opens on.');
+        self::assertNotSame('', $declared, 'The layer has to declare where it opens.');
         $top = (int) $declared;
 
         // Every z-index the sheet's own sticky and isolated layers spend.
@@ -290,10 +321,60 @@ final class SheetSeamTest extends TestCase
         }
 
         self::assertLessThan(120, $top, 'The shell\'s confirm modal has to stay on top of everything.');
+    }
 
-        // The controller sets the same number inline, because a portalled
-        // element has left the cascade this rule lives in.
-        self::assertStringContainsString('PORTAL_Z = '.$top, self::read(self::MENU), 'The inline z-index and the sheet\'s must be one number.');
+    /**
+     * SIX VERBS, IN THE RULED ORDER, WITH THE RULED MARKS — option B.
+     *
+     * The order is the ruling: the destructive one is LAST and in red
+     * ink, and the two that take a value open their choice INLINE. A row
+     * that lost its mark, or a seventh that crept in, changes what the
+     * owner ruled on.
+     */
+    public function testTheMenuIsTheSixRuledVerbsInOrder(): void
+    {
+        $cell = self::read(self::CELL);
+
+        preg_match_all('/<span class="l">([^<]+)<\/span>/', $cell, $verbs);
+        self::assertSame([
+            'Change the shift',
+            'Move to someone else',
+            'Swap with another',
+            'Give the day off',
+            'Clear the hand mark',
+            'Mark unfilled',
+            'Clear the hand mark',
+        ], $verbs[1], 'Six verbs on a watch, in order; the mark-clearing one again where there is no watch left.');
+
+        foreach ([
+            'roster:replace',
+            'roster:user-round-plus',
+            'roster:arrow-right-left',
+            'roster:circle-slash',
+            'roster:eraser',
+            'roster:circle-dashed',
+        ] as $mark) {
+            self::assertStringContainsString("ux_icon('".$mark."')", $cell, 'The ruled mark, verbatim.');
+        }
+
+        self::assertStringContainsString('class="dmr dg"', $cell, 'The destructive verb is the one in red.');
+        self::assertStringContainsString('name="op" value="unfill"', substr($cell, strpos($cell, 'class="dmr dg"') ?: 0), 'And it is last.');
+    }
+
+    /** AND A VERB THAT TAKES A VALUE GROWS ITS CHOICE UNDER ITS OWN ROW. */
+    public function testEveryValueTakingVerbOpensItsStepInline(): void
+    {
+        $cell = self::read(self::CELL);
+        $js = self::read(self::MENU);
+        $css = self::read(self::SHEET_CSS);
+
+        foreach (['shift', 'move', 'swap'] as $verb) {
+            self::assertStringContainsString('data-roster--day-menu-step-param="'.$verb.'"', $cell);
+            self::assertStringContainsString('data-step="'.$verb.'"', $cell);
+        }
+
+        self::assertStringContainsString('.dmstep[data-step="${wanted}"]', $js, 'The row opens the step it names.');
+        self::assertStringContainsString('.dm .dmstep', $css, 'And the step is shipped.');
     }
 
     /**

@@ -51,9 +51,17 @@
    | tr.strow ranger row, name + call sign   | data    | the postings, in seat order     | none                              | done   |
    | .cl.bar day cell + dot + mono label     | data    | the duty, coloured by the shift | opens the by-hand menu            | done   |
    | .cl.off                                 | state   | the ring stands the seat down   | opens the by-hand menu            | done   |
-   | .cl.unf                                 | state   | the ring asks and nobody is on  | none — nothing to act on yet      | done   |
+   | .cl.unf                                 | state   | the ring asks and nobody is on  | menu where a hand mark is on it   | done   |
    | .cl > .hm corner mark                   | state   | a hand mark on that ranger's day| none                              | done   |
-   | .pmenu by-hand menu, six items          | control | the cell's duty                 | five writes, and clearing a mark  | done   |
+   | .pmenu.dm header, one line of facts     | data    | the cell: who, day, shift, hue  | none                              | done   |
+   | .dmr Change the shift                   | control | the area's shifts, as chips     | inline step, then the write       | done   |
+   | .dmr Move to someone else               | control | the station's other rangers     | inline step, then the write       | done   |
+   | .dmr Swap with another                  | control | the station's other rangers     | inline step, then the offer       | done   |
+   | .dmr Give the day off                   | control | the cell's duty                 | one write                         | done   |
+   | .dmr Clear the hand mark                | control | the hand mark on that day       | one write                         | done   |
+   | .dmr.dg Mark unfilled, red and last     | control | the cell's duty                 | one write                         | done   |
+   | .cl.cl-on accent outline while open     | state   | the open cell                   | none                              | done   |
+   | .pmenulayer, anchored to the cell       | chrome  | the open cell's anchor-name     | follows it, closes off the band   | done   |
    | .pkey under the sheet                   | data    | the area's shifts               | none                              | done   |
    | empty sheet                             | state   | an area with no station         | none                              | done   |
    | h2.zone "The swap in progress"          | chrome  | static                          | none                              | done   |

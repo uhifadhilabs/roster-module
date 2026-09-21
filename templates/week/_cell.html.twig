@@ -1,4 +1,4 @@
-{# ONE DAY OF ONE RANGER — the calendar tab's own cell.
+{# ONE DAY OF ONE RANGER — the calendar tab's own cell, and the by-hand menu on it.
 
    THE CELL IS THE CALENDAR'S BAR. Owner, 21 sep: "it's even hard to look at
    it with all the colors and borders and everything on the shift pill", and
@@ -14,12 +14,27 @@
    `[data-cat]`, which the shell resolves — never a hue this module picked,
    and never a position in a list.
 
-   THE MENU OPENS ON A DAY THERE IS SOMETHING TO DO WITH: a watch to move,
-   or a mark to clear. An unfilled day nobody has touched has neither, and a
-   menu of five disabled items would be five ways of saying no. #}
+   THE MENU IS OPTION B, AND IT IS AN ACTION MENU. Owner: "the pop-up card
+   for swaps could be designed better, otherwise it looks like a card with
+   paragraphs, not actions." So it is the house dropdown's own panel with one
+   verb per 30px row, a lucide mark, and no sentence anywhere: a fact about
+   the day belongs on the cell, not in the menu. One line of facts on top,
+   six verbs under it, the destructive one last in red ink and never on a red
+   ground.
+
+   A VERB THAT TAKES A VALUE GROWS ITS CHOICE UNDER ITSELF. The area's shifts
+   as chips, the station's rangers as a list — inline, in the same panel,
+   because a second pop-up off a pop-up is two things to dismiss and nothing
+   to read.
+
+   THE MENU OPENS ON A DAY THERE IS SOMETHING TO DO WITH: a watch to move, or
+   a mark to clear. An unfilled day nobody has touched has neither, and a
+   menu of disabled items would be six ways of saying no. #}
 {% set hasWatch = cell.dutyUuid is not null %}
 {% set menu = mayPlan and (hasWatch or cell.editedByHand) %}
 {% set act = ' data-action="roster--day-menu#open"' %}
+{% set dayRoute = path(constant('Uhifadhi\\Roster\\Controller\\RosterController::SHEET_DAY_ROUTE'), {uuid: area.uuid}) %}
+{% set others = band.rows|filter(o => o.personUuid != row.personUuid) %}
 
 {% if menu %}<span class="pmenuwrap">{% endif %}
 
@@ -32,68 +47,102 @@
 {% endif %}
 
 {% if menu %}
-    {# EVERY ITEM IS A WRITE, and every write leaves the mark that stops a
-       fill deciding the day again — which is why the foot says so rather
-       than leaving somebody to find out. #}
-    <div class="pmenu">
-        <span class="hd">{{ cell.day.format('D j M')|lower }} &middot; {{ row.personName }} &middot; {{ band.stationName }}</span>
+    <div class="pmenu dm" role="menu" aria-label="What to do with this day">
+        {# THE CELL'S FACTS AS ONE LINE — who, which day, which shift, with
+           the shift's own swatch. Not a heading over a card: the line the
+           reader needs to be sure they opened the right cell. #}
+        <span class="dmhd">
+            <i class="sw" data-cat="{{ cell.colour }}"></i><b>{{ row.personName }}</b>
+            &middot; {{ cell.day.format('D j')|lower }}
+            {%- if cell.shiftLabel %} &middot; {{ cell.shiftLabel|lower }}{% endif %}
+        </span>
 
         {% if hasWatch %}
-            <form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::SHEET_DAY_ROUTE'), {uuid: area.uuid}) }}">
+            {# CHANGE THE SHIFT — the area's own shifts, as chips. #}
+            <button type="button" class="dmr" role="menuitem" aria-expanded="false" data-action="roster--day-menu#step" data-roster--day-menu-step-param="shift">
+                {{ ux_icon('roster:replace') }}<span class="l">Change the shift</span>
+            </button>
+            <form class="dmstep" method="post" action="{{ dayRoute }}" data-step="shift" hidden>
+                <input type="hidden" name="_token" value="{{ csrfToken }}">
+                <input type="hidden" name="op" value="shift">
+                <input type="hidden" name="duty" value="{{ cell.dutyUuid }}">
+                <input type="hidden" name="weeks" value="{{ window.weeks }}">
+                <input type="hidden" name="from" value="{{ window.from.format('Y-m-d') }}">
+                {% for shift in shifts %}
+                    <button type="submit" name="shift" value="{{ shift.key }}" class="{{ shift.key == cell.shiftKey ? 'on' : '' }}"><i data-cat="{{ shift.colour }}"></i>{{ shift.label|lower }}</button>
+                {% endfor %}
+            </form>
+
+            {# MOVE TO SOMEONE ELSE — stationed here, as a list. #}
+            <button type="button" class="dmr" role="menuitem" aria-expanded="false" data-action="roster--day-menu#step" data-roster--day-menu-step-param="move">
+                {{ ux_icon('roster:user-round-plus') }}<span class="l">Move to someone else</span>
+            </button>
+            <form class="dmstep who" method="post" action="{{ dayRoute }}" data-step="move" hidden>
+                <input type="hidden" name="_token" value="{{ csrfToken }}">
+                <input type="hidden" name="op" value="move">
+                <input type="hidden" name="duty" value="{{ cell.dutyUuid }}">
+                <input type="hidden" name="weeks" value="{{ window.weeks }}">
+                <input type="hidden" name="from" value="{{ window.from.format('Y-m-d') }}">
+                {% for other in others %}
+                    <button type="submit" name="person" value="{{ other.personUuid }}">{{ other.personName }}</button>
+                {% else %}
+                    <span class="dmnone">nobody else is stationed here</span>
+                {% endfor %}
+            </form>
+
+            {# SWAP WITH ANOTHER — offered, not applied: the other person
+               accepts it on the handset, and the sheet shows both cells
+               exchanged after that. #}
+            <button type="button" class="dmr" role="menuitem" aria-expanded="false" data-action="roster--day-menu#step" data-roster--day-menu-step-param="swap">
+                {{ ux_icon('roster:arrow-right-left') }}<span class="l">Swap with another</span>
+            </button>
+            <form class="dmstep who" method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OFFER_SWAP_ROUTE'), {uuid: area.uuid}) }}" data-step="swap" hidden>
+                <input type="hidden" name="_token" value="{{ csrfToken }}">
+                <input type="hidden" name="duty" value="{{ cell.dutyUuid }}">
+                {% for other in others %}
+                    <button type="submit" name="taking" value="{{ other.personUuid }}">{{ other.personName }}</button>
+                {% else %}
+                    <span class="dmnone">nobody else is stationed here</span>
+                {% endfor %}
+            </form>
+
+            {# AND THE THREE THAT TAKE NO VALUE. #}
+            <form method="post" action="{{ dayRoute }}" class="dmacts">
                 <input type="hidden" name="_token" value="{{ csrfToken }}">
                 <input type="hidden" name="duty" value="{{ cell.dutyUuid }}">
                 <input type="hidden" name="weeks" value="{{ window.weeks }}">
                 <input type="hidden" name="from" value="{{ window.from.format('Y-m-d') }}">
 
-                <span class="pmrow">
-                    <select class="wval u" name="shift" aria-label="Which shift">
-                        {% for shift in shifts %}
-                            <option value="{{ shift.key }}" {{ shift.key == cell.shiftKey ? 'selected' : '' }}>{{ shift.label|lower }}</option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="pmb" name="op" value="shift">Change the shift</button>
-                </span>
-
-                <span class="pmrow">
-                    <select class="wval u" name="person" aria-label="Which ranger">
-                        {% for other in band.rows|filter(o => o.personUuid != row.personUuid) %}
-                            <option value="{{ other.personUuid }}">{{ other.personName }}</option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="pmb" name="op" value="move">Move this day to someone else</button>
-                </span>
-
-                <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid, weeks: window.weeks, from: window.from.format('Y-m-d'), give: cell.dutyUuid}) }}">Swap with another ranger</a>
-
-                <button type="submit" class="pmb" name="op" value="off">Give this ranger the day off</button>
-                <span class="sep"></span>
-                <button type="submit" class="pmb dg" name="op" value="unfill">Mark the day unfilled</button>
+                <button type="submit" class="dmr" role="menuitem" name="op" value="off">
+                    {{ ux_icon('roster:circle-slash') }}<span class="l">Give the day off</span>
+                </button>
+                {% if cell.editedByHand %}
+                    <button type="submit" class="dmr" role="menuitem" name="op" value="clear">
+                        {{ ux_icon('roster:eraser') }}<span class="l">Clear the hand mark</span>
+                    </button>
+                {% endif %}
+                <span class="dmsep"></span>
+                <button type="submit" class="dmr dg" role="menuitem" name="op" value="unfill">
+                    {{ ux_icon('roster:circle-dashed') }}<span class="l">Mark unfilled</span>
+                </button>
             </form>
-        {% endif %}
-
-        {% if cell.editedByHand %}
+        {% elseif cell.editedByHand %}
             {# CLEARING THE MARK IS AN ACT OF ITS OWN, and the common case
                has no duty left to hang it on: the commonest edit is taking
                somebody OFF a watch, and the mark has to survive the thing
                it protects. So it posts the day itself. #}
-            <form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::SHEET_CLEAR_MARK_ROUTE'), {uuid: area.uuid}) }}">
+            <form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::SHEET_CLEAR_MARK_ROUTE'), {uuid: area.uuid}) }}" class="dmacts">
                 <input type="hidden" name="_token" value="{{ csrfToken }}">
                 <input type="hidden" name="station" value="{{ band.stationUuid }}">
                 <input type="hidden" name="person" value="{{ row.personUuid }}">
                 <input type="hidden" name="day" value="{{ cell.day.format('Y-m-d') }}">
                 <input type="hidden" name="weeks" value="{{ window.weeks }}">
                 <input type="hidden" name="from" value="{{ window.from.format('Y-m-d') }}">
-                <button type="submit" class="pmb">Clear the hand mark</button>
+                <button type="submit" class="dmr" role="menuitem">
+                    {{ ux_icon('roster:eraser') }}<span class="l">Clear the hand mark</span>
+                </button>
             </form>
         {% endif %}
-
-        <div class="ft">
-            {%- if cell.editedByHand -%}
-                Edited by hand. A pattern run will not change it again unless you clear the mark.
-            {%- else -%}
-                Changing this day marks it by hand, and a pattern run will not change it again.
-            {%- endif -%}
-        </div>
     </div>
 {% endif %}
 
