@@ -16,29 +16,31 @@ namespace Uhifadhi\Roster\Tests\Functional;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
+use Uhifadhi\Bundle\AreaBundle\Entity\Posting;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
+use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Roster\Entity\Duty;
-use Uhifadhi\Roster\Entity\Rotation;
-use Uhifadhi\Roster\Entity\RotationPoolMember;
-use Uhifadhi\Roster\Enum\RotationScope;
+use Uhifadhi\Roster\Entity\EditedDay;
+use Uhifadhi\Roster\Entity\SheetPreference;
 use Uhifadhi\Roster\Model\Cycle;
+use Uhifadhi\Roster\Service\PatternService;
 use Uhifadhi\Roster\Service\StationWatchService;
 use Uhifadhi\Roster\Tests\FreshDatabase;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
 
 /**
- * THE PLANNER'S TAB, OVER REAL HTTP.
+ * THE PLANNING SHEET, OVER REAL HTTP.
  *
- * THE GEOMETRY CHANGED and these tests changed with it: the grid was posts
- * down over a week and is now PEOPLE DOWN, GROUPED BY POST, ACROSS A
- * FORTNIGHT. A test still asserting the old shape would be a test defending
- * a design nobody ships.
+ * THE GEOMETRY CHANGED AGAIN and these tests changed with it: the grid was
+ * posts down over a week, then people down grouped by post, and is now THE
+ * SHEET — people down, days across, one band per station, one, two or four
+ * weeks at a time. A test still asserting an older shape would be a test
+ * defending a design nobody ships.
  *
- * What did NOT change is what the tab is for: a hole has to be visible
- * before the day arrives, and the figures above the grid have to measure the
- * same fortnight the grid draws.
+ * What has never changed is what the tab is for: A GAP HAS TO SHOW AT ONCE.
  */
 final class WeekTabTest extends WebTestCase
 {
@@ -49,6 +51,10 @@ final class WeekTabTest extends WebTestCase
     private EntityManagerInterface $em;
     private AreaOfInterest $area;
     private Station $gate;
+    private Station $rim;
+    private User $ada;
+    private User $bea;
+    private \DateTimeImmutable $monday;
 
     protected function setUp(): void
     {
@@ -64,17 +70,39 @@ final class WeekTabTest extends WebTestCase
         );
         $this->em->persist($this->area);
 
-        $this->gate = new Station()
-            ->setArea($this->area)
-            ->setName('north gate post')
-            ->setCode('ST-01')
-            ->setPoint('{"type":"Point","coordinates":[12.3,-5.7]}');
-        $this->em->persist($this->gate);
+        $this->gate = $this->aStation('north gate post', 'ST-01');
+        $this->rim = $this->aStation('rim outpost', 'ST-02');
 
         $this->em->persist(new User()->setPassword('x')->setEmail(FixedManageVoter::MANAGER_EMAIL)->setFirstName('Mara')->setLastName('Manager'));
+        $this->ada = new User()->setPassword('x')->setEmail('ada@example.test')->setFirstName('Ada')->setLastName('Example');
+        $this->bea = new User()->setPassword('x')->setEmail('bea@example.test')->setFirstName('Bea')->setLastName('Example');
+        $this->em->persist($this->ada);
+        $this->em->persist($this->bea);
+        $this->em->flush();
+
+        foreach ([$this->ada, $this->bea] as $person) {
+            $this->em->persist(
+                new Posting()->setStation($this->gate)->setPerson($person)
+                    ->setSince(new \DateTimeImmutable('-1 year'))->setSource(PostingSource::WrittenHere),
+            );
+        }
         $this->em->flush();
 
         $this->everyAreaRunsTheRoster($this->em);
+
+        $this->monday = new \DateTimeImmutable('today')->modify('monday this week');
+    }
+
+    private function aStation(string $name, string $code): Station
+    {
+        $station = new Station()
+            ->setArea($this->area)
+            ->setName($name)
+            ->setCode($code)
+            ->setPoint('{"type":"Point","coordinates":[12.3,-5.7]}');
+        $this->em->persist($station);
+
+        return $station;
     }
 
     private function signIn(): void
@@ -84,228 +112,278 @@ final class WeekTabTest extends WebTestCase
         $this->client->loginUser($user);
     }
 
-    private function url(string $from = '2026-09-14'): string
+    private function open(string $query = ''): Crawler
     {
-        return '/areas/'.$this->area->getUuidString().'/modules/roster/week?from='.$from;
+        $this->signIn();
+        $crawler = $this->client->request('GET', $this->url().($query ? '?'.$query : ''));
+        self::assertResponseIsSuccessful();
+
+        return $crawler;
     }
 
-    /**
-     * A gate asking for two on the day watch, every day of the week, with
-     * `$onEachDay` people actually on it.
-     *
-     * THE WHOLE WEEK IS FILLED, not just the monday: the grid draws seven
-     * days, so a fixture that wrote one day would make six holes and the
-     * test would be asserting against its own gap rather than the code's.
-     */
-    private function aGateAskingForTwo(int $onEachDay): Rotation
+    private function url(): string
+    {
+        return '/areas/'.$this->area->getUuidString().'/modules/roster/week';
+    }
+
+    /** The gate filled from a ring of nothing but day watches. */
+    private function aFilledGate(): void
     {
         $watches = static::getContainer()->get('test_public.'.StationWatchService::class);
         self::assertInstanceOf(StationWatchService::class, $watches);
-        $watches->addToRoster($this->gate)->expect(['day']);
+        $patterns = static::getContainer()->get('test_public.'.PatternService::class);
+        self::assertInstanceOf(PatternService::class, $patterns);
 
-        $rotation = new Rotation(
-            $this->area,
-            RotationScope::Post,
-            Cycle::of(['day']),
-            new \DateTimeImmutable('2026-09-14'),
-            ['day' => 2],
-            42,
-        )->standAt($this->gate);
-        $this->em->persist($rotation);
+        $watch = $watches->addToRoster($this->gate);
+        $watch->expect(['day']);
+        $patterns->applyTo($watch, $patterns->create($this->area, Cycle::of(['day'])));
+        $watch->filledFrom($this->monday, $this->monday->modify('+41 days'));
+        $this->em->flush();
+    }
 
-        for ($i = 0; $i < $onEachDay; ++$i) {
-            $person = new User()->setPassword('x')->setEmail('ranger'.$i.'@example.test')->setFirstName('R'.$i)->setLastName('Example');
-            $this->em->persist($person);
-            $this->em->persist(new RotationPoolMember($rotation, $person, $i));
+    /**
+     * THE TOKEN OFF THE RENDERED PAGE, and off the SHEET CARD: the card
+     * always carries one because the fold preference posts, while the fill
+     * row is only drawn where there is something to fill.
+     */
+    private function token(Crawler $crawler): string
+    {
+        $token = $crawler->filter('.sheetcard')->attr('data-roster--sheet-folds-token-value');
+        self::assertIsString($token);
 
-            for ($day = new \DateTimeImmutable('2026-09-14'); $day <= new \DateTimeImmutable('2026-09-20'); $day = $day->modify('+1 day')) {
-                $this->em->persist(new Duty($this->area, $this->gate, $person, 'day', $day));
-            }
-        }
+        return $token;
+    }
 
+    /** ONE BAND PER STATION ON THE AREA'S BOOKS, and a row per ranger. */
+    public function testTheSheetIsOneBandPerStationAndOneRowPerRanger(): void
+    {
+        $crawler = $this->open();
+
+        self::assertCount(1, $crawler->filter('table.fg-rota.csheet'));
+        self::assertCount(2, $crawler->filter('tr.stfold'), 'A band per station, whether anybody is stationed there or not.');
+        self::assertCount(2, $crawler->filter('tr.strow'));
+        self::assertStringContainsString('north gate post', $crawler->filter('tr.stfold')->eq(0)->text());
+        self::assertStringContainsString('nobody stationed here', $crawler->filter('tr.stfold')->eq(1)->text());
+    }
+
+    /** TWO WEEKS IS THE DEFAULT, and the chip moves it to one or four. */
+    public function testTheWindowIsTwoWeeksAndTheChipResizesIt(): void
+    {
+        self::assertCount(14, $this->open()->filter('thead th:not(.who)'));
+        self::assertCount(7, $this->open('weeks=1')->filter('thead th:not(.who)'));
+        self::assertCount(28, $this->open('weeks=4')->filter('thead th:not(.who)'));
+        // AND THERE IS NO THREE: anything between is a stretched fortnight,
+        // so an asked-for three falls back rather than drawing one.
+        self::assertCount(14, $this->open('weeks=3')->filter('thead th:not(.who)'));
+    }
+
+    /** AND THE WEEKS ARE REMEMBERED, per person. */
+    public function testTheWeeksInViewAreRememberedPerPerson(): void
+    {
+        $this->open('weeks=4');
+        $this->em->clear();
+
+        self::assertCount(28, $this->open()->filter('thead th:not(.who)'), 'Coming back gets the month back.');
+
+        $remembered = $this->em->getRepository(SheetPreference::class)->findAll();
+        self::assertCount(1, $remembered);
+        self::assertSame(4, $remembered[0]->getWeeks());
+    }
+
+    /** IT OPENS ON THE CURRENT WEEK, always starting on a monday. */
+    public function testItOpensOnTheCurrentWeekAndStartsOnAMonday(): void
+    {
+        $crawler = $this->open();
+
+        $first = $crawler->filter('thead th:not(.who) time')->eq(0)->attr('datetime');
+        self::assertSame($this->monday->format('Y-m-d'), $first);
+        self::assertCount(1, $crawler->filter('thead th.today'), 'Today has its column.');
+    }
+
+    /**
+     * A GAP SHOWS AT ONCE — the one thing this tab exists for, and the
+     * only outlined thing on the sheet.
+     */
+    public function testAGapShowsAtOnce(): void
+    {
+        $this->aFilledGate();
+
+        $crawler = $this->open();
+
+        self::assertCount(28, $crawler->filter('.cl.unf'), 'Two rangers, fourteen days, nobody on any of them.');
+        self::assertStringContainsString('28 unfilled', $crawler->filter('tr.stfold')->eq(0)->text());
+    }
+
+    /** A DAY WITH A DUTY IS THE CALENDAR'S BAR, in the shift's own colour. */
+    public function testADutyDrawsTheCalendarsBar(): void
+    {
+        $this->em->persist(new Duty($this->area, $this->gate, $this->ada, 'day', $this->monday));
         $this->em->flush();
 
-        return $rotation;
+        $bar = $this->open()->filter('.cl.bar')->eq(0);
+
+        self::assertCount(1, $bar->filter('i.dot'));
+        self::assertIsString($bar->attr('data-cat'));
+        self::assertStringContainsString('day', $bar->text());
     }
 
-    public function testTheRotaRendersAsAHouseCard(): void
+    /** A FOLDED STATION STILL STATES ITS UNFILLED DAYS, and its rows are hidden. */
+    public function testAFoldedStationHidesItsRowsAndKeepsItsGapCount(): void
     {
-        $this->aGateAskingForTwo(2);
+        $this->aFilledGate();
         $this->signIn();
+
+        $manager = $this->em->getRepository(User::class)->findOneBy(['email' => FixedManageVoter::MANAGER_EMAIL]);
+        self::assertInstanceOf(User::class, $manager);
+        $this->em->persist(new SheetPreference($manager, $this->area)->fold(['ST-01']));
+        $this->em->flush();
 
         $crawler = $this->client->request('GET', $this->url());
 
-        self::assertResponseIsSuccessful();
-        // The house card, not the banded one: banding is for register and
-        // configure cards, ruled 2026-09-20.
-        self::assertSame(0, $crawler->filter('.rband')->count(), 'A tab must not wear the banded card.');
-        self::assertGreaterThan(0, $crawler->filter('.c > .tab')->count());
-        self::assertSame(1, $crawler->filter('.factband')->count());
+        $band = $crawler->filter('tr.stfold')->eq(0);
+        self::assertStringContainsString('shut', (string) $band->attr('class'));
+        self::assertStringContainsString('28 unfilled', $band->text(), 'Folding is for length and may never hide a gap.');
+        self::assertIsString($crawler->filter('tr.strow')->eq(0)->attr('hidden'));
     }
 
-    /** One quiet door per card, and it is a link. */
-    public function testTheGridCarriesOneQuietDoorAndNoButtonCluster(): void
+    /** AND THE FOLDS ARE REMEMBERED, per person. */
+    public function testFoldsAreRemembered(): void
     {
-        $this->aGateAskingForTwo(2);
-        $this->signIn();
+        $crawler = $this->open();
 
-        $crawler = $this->client->request('GET', $this->url());
+        $this->client->request('POST', '/areas/'.$this->area->getUuidString().'/modules/roster/sheet/prefs', [
+            '_token' => $this->token($crawler),
+            'folded' => ['ST-02'],
+        ]);
 
-        self::assertSame(1, $crawler->filter('.c > a.more')->count());
+        self::assertResponseStatusCodeSame(204);
+
+        $this->em->clear();
+        self::assertStringContainsString('shut', (string) $this->open()->filter('tr.stfold')->eq(1)->attr('class'));
+    }
+
+    /** THE STATION FILTER NARROWS THE SHEET, and still lists every station. */
+    public function testTheStationFilterNarrowsTheSheet(): void
+    {
+        $crawler = $this->open('station='.$this->gate->getUuidString());
+
+        self::assertCount(1, $crawler->filter('tr.stfold'));
+        self::assertStringContainsString('north gate post', $crawler->filter('tr.stfold')->text());
+        self::assertCount(3, $crawler->filter('.i-ddmenu[aria-label="station"] .i-ddopt'), 'All stations, plus the two.');
+    }
+
+    /** FILLING FROM A PATTERN WRITES THE DAYS, and says how many. */
+    public function testAManagerFillsAStationFromAPattern(): void
+    {
+        $patterns = static::getContainer()->get('test_public.'.PatternService::class);
+        self::assertInstanceOf(PatternService::class, $patterns);
+        $watches = static::getContainer()->get('test_public.'.StationWatchService::class);
+        self::assertInstanceOf(StationWatchService::class, $watches);
+        $watches->addToRoster($this->gate)->expect(['day']);
+        $pattern = $patterns->create($this->area, Cycle::of(['day', Cycle::OFF]));
+        $this->em->flush();
+
+        $crawler = $this->open();
+
+        $this->client->request('POST', '/areas/'.$this->area->getUuidString().'/modules/roster/sheet/fill', [
+            '_token' => $this->token($crawler),
+            'station' => (string) $this->gate->getUuidString(),
+            'pattern' => (string) $pattern->getUuid(),
+            'from' => $this->monday->format('Y-m-d'),
+        ]);
+
+        self::assertResponseRedirects();
+        self::assertGreaterThan(0, $this->em->getRepository(Duty::class)->count(['station' => $this->gate]));
+    }
+
+    /** AND A PREVIEW WRITES NOTHING. */
+    public function testAPreviewWritesNothing(): void
+    {
+        $patterns = static::getContainer()->get('test_public.'.PatternService::class);
+        self::assertInstanceOf(PatternService::class, $patterns);
+        $watches = static::getContainer()->get('test_public.'.StationWatchService::class);
+        self::assertInstanceOf(StationWatchService::class, $watches);
+        $watches->addToRoster($this->gate)->expect(['day']);
+        $pattern = $patterns->create($this->area, Cycle::of(['day']));
+        $this->em->flush();
+
+        $crawler = $this->open();
+
+        $this->client->request('POST', '/areas/'.$this->area->getUuidString().'/modules/roster/sheet/fill', [
+            '_token' => $this->token($crawler),
+            'station' => (string) $this->gate->getUuidString(),
+            'pattern' => (string) $pattern->getUuid(),
+            'from' => $this->monday->format('Y-m-d'),
+            'preview' => '1',
+        ]);
+
+        self::assertResponseRedirects();
+        self::assertSame(0, $this->em->getRepository(Duty::class)->count(['station' => $this->gate]));
     }
 
     /**
-     * PEOPLE DOWN, GROUPED BY POST — the geometry the rebuild is about. A
-     * grid of posts cannot answer "who is working too many nights"; a grid
-     * of people can, because the answer is one row long.
+     * THE BY-HAND MENU MARKS THE DAY UNFILLED — and the mark is what stops
+     * a later fill deciding the day again.
      */
-    public function testTheGridIsPeopleDownGroupedByPost(): void
+    public function testMarkingADayUnfilledLeavesTheMarkBehind(): void
     {
-        $this->aGateAskingForTwo(2);
-        $this->signIn();
+        $duty = new Duty($this->area, $this->gate, $this->ada, 'day', $this->monday);
+        $this->em->persist($duty);
+        $this->em->flush();
 
-        $crawler = $this->client->request('GET', $this->url());
+        $crawler = $this->open();
+        self::assertCount(1, $crawler->filter('.pmenuwrap .pmenu'), 'A day with a watch on it opens a menu.');
 
-        // A heading row for the post, then a row per person its ring draws.
-        self::assertSame(1, $crawler->filter('.fg-rota td.sep')->count());
-        self::assertStringContainsString('north gate post', $crawler->filter('.fg-rota td.sep')->text());
-        self::assertSame(2, $crawler->filter('.fg-rota td.who')->count(), 'One row per person in the ring.');
+        $this->client->request('POST', '/areas/'.$this->area->getUuidString().'/modules/roster/sheet/day', [
+            '_token' => $this->token($crawler),
+            'duty' => (string) $duty->getUuid(),
+            'op' => 'unfill',
+        ]);
+
+        self::assertResponseRedirects();
+        $this->em->clear();
+
+        self::assertSame(0, $this->em->getRepository(Duty::class)->count(['station' => $this->gate]));
+        self::assertCount(1, $this->em->getRepository(EditedDay::class)->findAll());
+        self::assertStringContainsString('edited by hand', $this->open()->filter('.pkey')->text());
     }
 
-    /** A FORTNIGHT: fourteen day columns beside the ranger column. */
-    public function testTheGridDrawsAFortnight(): void
+    /** AND CLEARING THE MARK HANDS THE DAY BACK TO THE PATTERN. */
+    public function testClearingTheMarkHandsTheDayBack(): void
     {
-        $this->aGateAskingForTwo(1);
-        $this->signIn();
+        $this->em->persist(new EditedDay($this->gate, $this->monday, null, new \DateTimeImmutable(), $this->ada, true));
+        $this->em->flush();
 
-        $crawler = $this->client->request('GET', $this->url());
+        $crawler = $this->open();
 
-        self::assertSame(15, $crawler->filter('.fg-rota th')->count(), 'The ranger column and fourteen days.');
+        $this->client->request('POST', '/areas/'.$this->area->getUuidString().'/modules/roster/sheet/mark/clear', [
+            '_token' => $this->token($crawler),
+            'station' => (string) $this->gate->getUuidString(),
+            'person' => (string) $this->ada->getUuidString(),
+            'day' => $this->monday->format('Y-m-d'),
+        ]);
+
+        self::assertResponseRedirects();
+        $this->em->clear();
+
+        self::assertSame([], $this->em->getRepository(EditedDay::class)->findAll());
     }
 
-    /**
-     * THE ASSERTION THE WHOLE TAB EXISTS FOR — a hole is visible before the
-     * day arrives. The gate asks for two and one person stands it, so the
-     * figures say so and the unfilled list names them.
-     */
-    public function testAShortWatchIsVisibleBeforeTheDayArrives(): void
+    /** AN AREA WITH NO STATION SAYS SO, rather than drawing an empty grid. */
+    public function testAnAreaWithNoStationSaysSo(): void
     {
-        $this->aGateAskingForTwo(1);
-        $this->signIn();
-
-        $crawler = $this->client->request('GET', $this->url());
-        $text = $crawler->filter('body')->text();
-
-        self::assertStringContainsString('Holes', $text);
-        self::assertStringContainsString('1 short', $text);
-    }
-
-    /** Every cell of the fortnight is drawn, and a day with no watch is off. */
-    public function testADayWithNoWatchIsDrawnAsOffAndNeverLeftBlank(): void
-    {
-        $this->aGateAskingForTwo(1);
-        $this->signIn();
-
-        $crawler = $this->client->request('GET', $this->url());
-
-        self::assertGreaterThan(0, $crawler->filter('.fg-cell.o')->count(), 'A stood-down day is stated, never blank.');
-        self::assertGreaterThan(0, $crawler->filter('.fg-cell.d')->count());
-    }
-
-    /**
-     * THE FIVE FIGURES measure the same fortnight the grid draws — a strip
-     * counting a different window is a strip nobody can check against the
-     * picture under it.
-     */
-    public function testTheFiguresSitAboveTheGrid(): void
-    {
-        $this->aGateAskingForTwo(2);
-        $this->signIn();
-
-        $crawler = $this->client->request('GET', $this->url());
-        $text = $crawler->filter('body')->text();
-
-        foreach (['Person-watches', 'Holes', 'Nights, the heaviest', 'Swaps pending'] as $figure) {
-            self::assertStringContainsString($figure, $text);
+        foreach ($this->em->getRepository(Posting::class)->findAll() as $posting) {
+            $this->em->remove($posting);
         }
+        $this->em->flush();
 
-        // AND "FLAGGED TODAY" IS NOT ONE OF THEM. A row is four cards
-        // (ruled), and this is the PLANNER's tab: a flag is today's
-        // problem, which the agenda and the day board both lead with. A
-        // fortnight's strip carrying a figure that changes every morning
-        // would be the one thing on this page not about the fortnight.
-        self::assertStringNotContainsString('Flagged today', $text);
-    }
+        $this->em->remove($this->gate);
+        $this->em->remove($this->rim);
+        $this->em->flush();
 
-    /** The holes list names the post, the day and how short it is. */
-    public function testTheHolesAreListedSoonestFirst(): void
-    {
-        $this->aGateAskingForTwo(1);
-        $this->signIn();
-
-        $crawler = $this->client->request('GET', $this->url());
-        $text = $crawler->filter('body')->text();
-
-        self::assertStringContainsString('Unfilled watches', $text);
-        self::assertStringContainsString('north gate post', $text);
-        self::assertStringContainsString('1 short', $text);
-        // A card never grows with its data: eight shown, the count stated.
-        self::assertStringContainsString('this fortnight', $text);
-    }
-
-    /**
-     * THE GRID STARTS ON A MONDAY whatever day is asked for. A week that
-     * began on the day you happened to look is not a week anybody plans in.
-     */
-    public function testTheFortnightStartsOnAMondayWhateverDayIsAskedFor(): void
-    {
-        $this->aGateAskingForTwo(2);
-        $this->signIn();
-
-        // Thursday 17 September 2026.
-        $crawler = $this->client->request('GET', $this->url('2026-09-17'));
-
-        $headings = $crawler->filter('.fg-rota th')->each(static fn ($th): string => trim($th->text()));
-        self::assertSame('ranger', $headings[0]);
-        self::assertStringContainsString('mon', $headings[1]);
-        self::assertStringContainsString('14', $headings[1]);
-        // A fortnight, so the last column is the sunday thirteen days on.
-        self::assertStringContainsString('27', $headings[14]);
-    }
-
-    /** A mistyped date in a url is not worth a 500. */
-    public function testAnUnreadableWeekFallsBackRatherThanFailing(): void
-    {
-        $this->aGateAskingForTwo(2);
-        $this->signIn();
-
-        $this->client->request('GET', '/areas/'.$this->area->getUuidString().'/modules/roster/week?from=neverday');
-
-        self::assertResponseIsSuccessful();
-    }
-
-    /** With no post on the books the grid says so rather than drawing an empty table. */
-    public function testAnAreaWithNoPostOnTheBooksSaysSo(): void
-    {
-        $this->signIn();
-
-        $crawler = $this->client->request('GET', $this->url());
-
-        self::assertResponseIsSuccessful();
-        self::assertStringContainsString('No post is on the roster’s books', $crawler->filter('body')->text());
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-
-        while (true) {
-            $previous = set_exception_handler(static fn () => null);
-            restore_exception_handler();
-            if (null === $previous) {
-                break;
-            }
-            restore_exception_handler();
-        }
+        self::assertStringContainsString(
+            'No station is on the area’s books',
+            $this->open()->filter('body')->text(),
+        );
     }
 }

@@ -23,6 +23,7 @@ use Uhifadhi\Roster\Repository\EditedDayRepository;
 use Uhifadhi\Roster\Repository\PatternRepository;
 use Uhifadhi\Roster\Repository\RotationPoolMemberRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
+use Uhifadhi\Roster\Repository\SheetPreferenceRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Repository\ShiftRuleRepository;
 use Uhifadhi\Roster\Repository\StationRuleExceptionRepository;
@@ -36,11 +37,12 @@ use Uhifadhi\Roster\Service\RosterCalendar;
 use Uhifadhi\Roster\Service\RosteredPeople;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\RosterSettingsService;
-use Uhifadhi\Roster\Service\RotaService;
 use Uhifadhi\Roster\Service\RotationEditor;
 use Uhifadhi\Roster\Service\RotationGenerator;
 use Uhifadhi\Roster\Service\RotationPreview;
+use Uhifadhi\Roster\Service\SheetDayService;
 use Uhifadhi\Roster\Service\SheetFillService;
+use Uhifadhi\Roster\Service\SheetPreferences;
 use Uhifadhi\Roster\Service\SheetService;
 use Uhifadhi\Roster\Service\ShiftRuleService;
 use Uhifadhi\Roster\Service\ShiftVocabularyService;
@@ -85,6 +87,7 @@ return static function (ContainerConfigurator $container): void {
         RotationPoolMemberRepository::class,
         DutyRepository::class,
         EditedDayRepository::class,
+        SheetPreferenceRepository::class,
         AbsenceRepository::class,
         StationWatchRepository::class,
         AreaRosterSettingsRepository::class,
@@ -267,6 +270,25 @@ return static function (ContainerConfigurator $container): void {
         ]);
 
     /*
+     * HOW ONE PERSON LIKES THE SHEET. Nobody signed in answers the
+     * standard rather than refusing: a preference is a convenience, and
+     * a page that would not render without one would be a page held
+     * hostage by a nicety.
+     */
+    $services->set('roster.sheet_preferences', SheetPreferences::class)
+        ->args([service('doctrine.orm.entity_manager'), service(SheetPreferenceRepository::class)]);
+
+    /*
+     * AND ONE DAY CHANGED BY HAND. Every item on the by-hand menu is a
+     * verb here and not in a controller, because every one of them
+     * leaves the mark that stops the fill deciding the day again — and a
+     * mark left off by one of five call sites is a day quietly
+     * overwritten the next night.
+     */
+    $services->set('roster.sheet_day', SheetDayService::class)
+        ->args([service('doctrine.orm.entity_manager'), service(EditedDayRepository::class), service('clock')]);
+
+    /*
      * THE DAY AS A WALL. It reads two days, not one: a night watch that
      * began yesterday is still standing at 05:00 this morning, and a board
      * that only read today would draw an empty gate for the hours somebody
@@ -312,21 +334,11 @@ return static function (ContainerConfigurator $container): void {
         ->args([service(RotationRepository::class), service(ShiftRepository::class), service('roster.cycle_planner')]);
 
     /*
-     * THE ROTA — people down, grouped by post, a fortnight across. Four
-     * queries for the whole window: fourteen days across eighteen people is
-     * two hundred and fifty cells, and a planner's tab that queried per cell
-     * would be slower than the month it plans.
+     * THE FORTNIGHT ITSELF IS NOT A SERVICE. What was registered here was
+     * the week tab's old grid; the tab draws the sheet now, and what is
+     * left of RotaService is the monday-anchored window as two static
+     * members, which nothing has to be handed.
      */
-    $services->set('roster.rota', RotaService::class)
-        ->args([
-            service(StationWatchRepository::class),
-            service(RotationRepository::class),
-            service(RotationPoolMemberRepository::class),
-            service(DutyRepository::class),
-            service(ShiftRepository::class),
-            service(SwapRepository::class),
-            service('roster.presence'),
-        ]);
 
     // `roster_url()` — the URL of a screen, or null where the installation did
     // not mount it. Twig's own path() THROWS on an unregistered route, so a

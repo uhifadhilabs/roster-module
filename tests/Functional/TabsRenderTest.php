@@ -148,6 +148,14 @@ final class TabsRenderTest extends WebTestCase
     /**
      * NO TAB WEARS THE BANDED CARD. Ruled 2026-09-20: banding is for
      * register and configure cards; a dashboard card is the house card.
+     *
+     * THE SHEET IS THE ONE EXCEPTION, ruled 21 sep with the sheet itself,
+     * and the reason is exactly why banding exists. The sheet's head has
+     * to carry eight controls on one baseline — the window navigation,
+     * Today, the station filter, the weeks chip and the fold pair — and
+     * carrying a row of controls is the banded head's whole job. It is
+     * named here rather than excused by a looser assertion, so a SECOND
+     * banded card appearing on a tab still fails.
      */
     public function testNoTabWearsTheBandedCard(): void
     {
@@ -158,7 +166,11 @@ final class TabsRenderTest extends WebTestCase
         foreach ($this->declaredTabs() as $tab) {
             $crawler = $this->client->request('GET', $router->generate($tab->routeName, ['uuid' => $this->area->getUuidString()]));
 
-            self::assertSame(0, $crawler->filter('.rband')->count(), \sprintf('The "%s" tab wears the banded card.', $tab->label));
+            self::assertSame(
+                $crawler->filter('.rband.sheetcard')->count(),
+                $crawler->filter('.rband')->count(),
+                \sprintf('The "%s" tab wears a banded card that is not the sheet.', $tab->label),
+            );
         }
     }
 

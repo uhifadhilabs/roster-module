@@ -235,7 +235,7 @@ final class SheetServiceTest extends IntegrationTestCase
         $this->aStation($this->area, 'lerai ranger post', 'ST-02');
         $this->em->flush();
 
-        $sheet = $this->sheet()->read($this->area, $this->window(), $this->gate);
+        $sheet = $this->sheet()->read($this->area, $this->window())->only((string) $this->gate->getUuidString());
 
         self::assertCount(1, $sheet->bands);
         self::assertSame('ST-01', $sheet->bands[0]->stationCode);

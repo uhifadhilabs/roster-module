@@ -1,16 +1,64 @@
 {# ============================================================================
-   THE WEEK — the design's modules/roster/week.html, ported.
+   THE WEEK — THE PLANNING SHEET. The design's modules/roster/week.html,
+   ported; the same markup renders on variants-pattern/c.html.
 
-   THE HOUSE CARD, ruled 2026-09-20: `.c`, a `.tab` header carrying the title
-   and its `.src` caption, a body, and at most ONE quiet `.more` door. No
-   banded card on a tab — banding is for register and configure cards — and
-   no footer strip: page actions live in the page header and row actions on
-   the row.
+   RULED 20–21 sep, graduated from three rounds of options:
 
-   EVERY HOLE IS DRAWN AS A HOLE. That is the whole reason this tab exists:
-   it is the only surface in the module where a missing watch is visible
-   before the day arrives. A cell says what the post asked for beside what it
-   got, so "N 1 of 2" is a hole and "N 2" is not.
+     layout C   the fill row inline above the sheet       variants-pattern/
+     window C   the calendar tab's nav, 1 / 2 / 4 weeks   variants-pattern/
+     cells  A   the calendar tab's own bar                variants-cells/
+     folds      a station band folds, the grants idiom    ruled 21 sep
+
+   Owner: "look at how clean the calendar is, as inspiration", and "each
+   station section in the sheet as an accordion ... so a user doesn't have to
+   scroll for ages", and "contents of The sheet should scroll inside the
+   sheet, so the headers stay fixed while the inner content scrolls", and
+   "this entire thing needs to be in the sheet header — I didn't even see it
+   exists".
+
+   SIX MARKS CAME OFF EVERY CELL BEFORE ANYTHING WAS ADDED: the border, the
+   centred text, the radius, the weekend stripes, the dashed box on every off
+   day, and the outline on every cell in today's column. What is left is the
+   calendar's own bar, and THE ONLY OUTLINED THING ON THE SHEET IS A GAP.
+
+   THE BANDED CARD IS DELIBERATE HERE and is the one on any tab. A tab wears
+   the house card; the sheet's head has to carry eight controls on one
+   baseline, which is the banded head's whole job.
+
+   COVERAGE MANIFEST — every element of the drawn page.
+
+   | element                                 | type    | source                          | interaction                       | status |
+   |-----------------------------------------|---------|---------------------------------|-----------------------------------|--------|
+   | .factband four figures + door           | data    | the sheet's own cells           | door to Roster settings           | done   |
+   | .prow kicker "Fill from a pattern"      | chrome  | static                          | none                              | done   |
+   | .prow station select                    | control | stations on the books           | which station a fill points at    | done   |
+   | .prow .pstrip.lg cycle strip            | data    | the chosen pattern's cycle      | none — redrawn with the select    | done   |
+   | .prow pattern select                    | control | the area's patterns             | which cycle fills it              | done   |
+   | .prow "from" + start-date select        | control | six mondays around the window   | where the ring starts             | done   |
+   | .prow Preview                           | control | —                               | says what a fill would do         | done   |
+   | .prow "Fill these days"                 | control | —                               | fills them                        | done   |
+   | .prow2 what it would do, in words       | data    | the last preview, or the rules  | none                              | done   |
+   | .prow2 .pfills read-only caption        | data    | the four filling rules          | one door: Watches →               | done   |
+   | .sheetcard .tab "The sheet"             | chrome  | static                          | none                              | done   |
+   | .shead .rb-ttl "N rangers across N"     | data    | the sheet                       | none                              | done   |
+   | .shead ‹ range › Today                  | control | the window                      | moves the window                  | done   |
+   | .shead station filter (.i-dd)           | control | the area's stations + counts    | narrows the sheet                 | done   |
+   | .shead weeks chip (1 · 2 · 4)           | control | the window                      | resizes it, and remembers         | done   |
+   | .shead Fold all · Open all              | control | —                               | folds every band, or none         | done   |
+   | .psheetwrap bounded scroller            | chrome  | measured (--sheetmax)           | scrolls, head and days pinned     | done   |
+   | thead day columns, today tinted         | data    | the window                      | none                              | done   |
+   | tr.stfold band head + unfilled count    | control | a station's rows                | folds that band, per person       | done   |
+   | tr.strow ranger row, name + call sign   | data    | the postings, in seat order     | none                              | done   |
+   | .cl.bar day cell + dot + mono label     | data    | the duty, coloured by the shift | opens the by-hand menu            | done   |
+   | .cl.off                                 | state   | the ring stands the seat down   | opens the by-hand menu            | done   |
+   | .cl.unf                                 | state   | the ring asks and nobody is on  | none — nothing to act on yet      | done   |
+   | .cl > .hm corner mark                   | state   | a hand mark on that ranger's day| none                              | done   |
+   | .pmenu by-hand menu, six items          | control | the cell's duty                 | five writes, and clearing a mark  | done   |
+   | .pkey under the sheet                   | data    | the area's shifts               | none                              | done   |
+   | empty sheet                             | state   | an area with no station         | none                              | done   |
+   | h2.zone "The swap in progress"          | chrome  | static                          | none                              | done   |
+   | Swap a watch card                       | control | the trade being put together    | sends the offer                   | done   |
+   | Swaps register, latest five             | data    | the window's offers             | none                              | done   |
    ========================================================================== #}
 {% extends '@UhifadhiRoster/base.html.twig' %}
 
@@ -18,143 +66,236 @@
 
 {% block shell_page_title %}Roster{% endblock %}
 
-{% block shell_page_subtitle %}People down, days across, a fortnight. The planner&rsquo;s tab &mdash; a cell is the watch, today&rsquo;s column carries the live state, and a swap is two cells with a cost.{% endblock %}
+{% block shell_page_subtitle %}People down, days across &middot; fill from a pattern or by hand{% endblock %}
 
 {% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / week{% endblock %}
 
 {% block roster_page %}
-    {{ include('@UhifadhiRoster/_identity_band.html.twig') }}
+    {% set here = constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE') %}
+    {% set base = {uuid: area.uuid, weeks: window.weeks} %}
+    {% if chosenStation %}{% set base = base|merge({station: chosenStation.uuidString}) %}{% endif %}
 
-    {{ include('@UhifadhiRoster/today/_filters.html.twig', {
-        area: area, day: from, isToday: false, filter: filter, posts: postsForFilter,
-        chosenPost: chosenPost, stateLabels: stateLabels, stateCounts: stateCounts,
-        shiftLabels: shiftLabels, shiftCounts: shiftCounts,
-        here: constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'),
-    }, with_context: false) }}
-
-    {# THE FOUR FIGURES, every one measuring the same fortnight the grid
-       draws — a strip that counted a different window would be a strip
-       nobody could check against the picture under it.
-
-       FLAGGED TODAY IS NOT ONE OF THEM, and its absence is the point: this
-       is the PLANNER's tab and a flag is today's problem, which the agenda
-       and the day board both lead with. A fortnight's card that changed
-       every morning would be the one thing on this page that is not about
-       the fortnight. #}
-    <div class="grid kstrip" style="margin-bottom:12px">
-        <div class="c kpi hot" data-kpi="person-watches">
-            <span class="tab">Person-watches</span>
-            <b class="disp">{{ figures.personWatches }}<em>this fortnight</em></b>
-            <span class="sub">from the {{ band.rangers }} posted at the {{ band.postsWithAWatch }}</span>
-        </div>
-        <div class="c kpi{{ figures.holes > 0 ? ' bad' : '' }}" data-kpi="holes">
-            <span class="tab">Holes</span>
-            <b class="disp">{{ figures.holes }}</b>
-            <span class="sub">
-                {%- if soonestGap %}<span class="r">soonest <time datetime="{{ soonestGap.day.format('Y-m-d') }}" data-localtime-format="day">{{ soonestGap.day.format('D j M')|lower }}</time> at {{ soonestGap.station }}</span>
-                {%- else %}every watch the rings asked for is filled{% endif -%}
-            </span>
-        </div>
-        <div class="c kpi" data-kpi="heaviest-nights">
-            <span class="tab">Nights, the heaviest</span>
-            <b class="disp">{{ figures.heaviestNights }}<em>of {{ days|length }}</em></b>
-            <span class="sub">{{ figures.heaviestName ? figures.heaviestName ~ ' · the ring gives them the most' : 'nobody stands a night' }}</span>
-        </div>
-        <div class="c kpi" data-kpi="swaps-pending">
-            <span class="tab">Swaps pending</span>
-            <b class="disp">{{ figures.swapsPending }}</b>
-            <span class="sub">{{ figures.swapsPending ? 'waiting on a handset' : 'nothing out' }}</span>
-        </div>
+    {# THE FOUR FIGURES, every one measuring the window the sheet under them
+       draws — a band that counted a different fortnight would be a band
+       nobody could check against the picture. #}
+    <div class="factband">
+        <span class="f"><span class="k">Rangers</span><span class="v">{{ sheet.rangers }}<em>across {{ sheet.stations }} station{{ sheet.stations == 1 ? '' : 's' }}</em></span></span>
+        <span class="f"><span class="k">Days planned</span><span class="v">{{ sheet.daysPlanned }}<em>{{ window.weeks == 1 ? 'this week' : (window.weeks == 2 ? 'this fortnight' : 'these four weeks') }}</em></span></span>
+        <span class="f"><span class="k">Unfilled</span><span class="v">{{ sheet.unfilled }}<em>{{ sheet.unfilled ? 'nobody on them yet' : 'every day the cycles ask for is filled' }}</em></span></span>
+        <span class="f"><span class="k">Edited by hand</span><span class="v">{{ sheet.editedByHand }}<em>a pattern will not touch them</em></span></span>
+        <span class="sp"></span>
+        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SETTINGS_ROUTE'), {uuid: area.uuid}) }}">Roster settings &rarr;</a>
     </div>
 
-    <h2 class="zone">People down, days across &mdash; the fortnight</h2>
-    <div class="c">
-        <span class="tab">The rota<span class="src">&middot; <time datetime="{{ from.format('Y-m-d') }}" data-localtime-format="day">{{ from.format('D j')|lower }}</time> &ndash; <time datetime="{{ through.format('Y-m-d') }}" data-localtime-format="day">{{ through.format('D j M')|lower }}</time> &middot; {{ band.rangers }} ranger{{ band.rangers == 1 ? '' : 's' }} &middot; {{ days|length }} days</span></span>
-        <a class="more" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ROTATION_ROUTE'), {uuid: area.uuid}) }}">The rotation &rarr;</a>
+    {# ====================================================================
+       THE FILL ROW — the only thing above the sheet card (layout C). A
+       pattern, a station, a start date, and the two buttons; and under it,
+       in words, what the fill would do and what it obeys.
+       ==================================================================== #}
+    {% if mayPlan and stations is not empty and fillPatterns is not empty %}
+        <form class="prow" method="post" data-controller="roster--fill"
+              action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::SHEET_FILL_ROUTE'), {uuid: area.uuid}) }}">
+            <input type="hidden" name="_token" value="{{ csrfToken }}">
+            <input type="hidden" name="weeks" value="{{ window.weeks }}">
+            <input type="hidden" name="from" value="{{ window.from.format('Y-m-d') }}" data-roster--fill-target="window">
 
-        {% if groups is empty %}
-            <div class="rfrag"><b>No post is on the roster&rsquo;s books</b><em>a watch is given to a post deliberately, so none is assumed</em></div>
-        {% else %}
-            {# A FORTNIGHT DOES NOT FIT A PHONE. It scrolls sideways inside
-               its card rather than widening the page — the house's own
-               answer for a table. #}
-            <div style="overflow-x:auto">
-                <table class="fg-rota">
-                    <colgroup><col class="who"><col class="dy" span="{{ days|length }}"></colgroup>
-                    <tr>
-                        <th class="who">ranger</th>
-                        {% for day in days %}
-                            <th class="{{ day.format('Y-m-d') == today.format('Y-m-d') ? 'today ' : '' }}{{ day.format('N') == '6' ? 'sat' : '' }}">
-                                <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D')|lower }}<em>{{ day.format('d') }}</em></time>
-                            </th>
-                        {% endfor %}
-                    </tr>
+            <span class="k">Fill from a pattern</span>
 
-                    {% for group in groups %}
-                        <tr><td class="sep" colspan="{{ days|length + 1 }}">
-                            <b>{{ group.stationName }}
-                                {%- if group.stationCode %} <span class="mono">{{ group.stationCode }}</span>{% endif %}
-                                <span class="mono">&middot; {{ group.asks }}</span></b>
-                        </td></tr>
+            <select class="fld" name="station" aria-label="Which station">
+                {% for station in stations %}
+                    <option value="{{ station.uuidString }}" {{ chosenStation and chosenStation.id == station.id ? 'selected' : '' }}>{{ station.name }}{% if station.code %} &middot; {{ station.code }}{% endif %}</option>
+                {% endfor %}
+            </select>
 
-                        {% for row in group.rows %}
+            {# THE CHOSEN CYCLE, DRAWN. The strip is redrawn from the select's
+               own data rather than fetched: the cycles are already on the
+               page, and a round trip to colour five squares would be one. #}
+            <span class="pstrip lg" data-roster--fill-target="strip"
+                  data-colours="{{ patternColours|json_encode }}"></span>
+
+            <select class="fld" name="pattern" aria-label="Which pattern" data-roster--fill-target="pattern"
+                    data-action="roster--fill#redraw">
+                {% for pattern in fillPatterns %}
+                    <option value="{{ pattern.uuid }}" data-cycle="{{ pattern.cycle|json_encode }}">{{ pattern.name }}</option>
+                {% endfor %}
+            </select>
+
+            <span class="k">from</span>
+            <select class="fld" name="from" aria-label="Starting when">
+                {% for start in startDates %}
+                    <option value="{{ start.format('Y-m-d') }}" {{ start == window.from ? 'selected' : '' }}>{{ start.format('D j M')|lower }}</option>
+                {% endfor %}
+            </select>
+
+            {# PREVIEW AND FILL ARE ONE THING AND WRAP AS ONE: a flex line
+               wraps before it shrinks, and a loose "Fill these days" was
+               dropping alone onto a second row. #}
+            <span class="pact">
+                <button type="submit" class="btn sm" name="preview" value="1">Preview</button>
+                <button type="submit" class="cta">Fill these days</button>
+            </span>
+        </form>
+
+        {# WHAT A FILL OBEYS, STATED AND NOT EDITED. RULED 21 sep: the rules
+           moved to the Watches card, so this is a caption and nothing in it
+           is clickable but the door. #}
+        <div class="prow2">
+            Fills forward only &middot; leaves <b>{{ sheet.editedByHand }} edited day{{ sheet.editedByHand == 1 ? '' : 's' }}</b> as {{ sheet.editedByHand == 1 ? 'it is' : 'they are' }} &middot; a later start date changes only the days after it
+            <span class="pfills">fills <b>{{ fillRules.ahead }}</b> ahead &middot; <b>{{ fillRules.rest }}</b> rest &middot; {{ fillRules.nightThenDay }} &middot; <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::WATCHES_ROUTE'), {uuid: area.uuid}) }}">Watches &rarr;</a></span>
+        </div>
+    {% endif %}
+
+    {# ====================================================================
+       THE SHEET. A bounded card whose HEAD carries every control it has and
+       whose BODY is the only thing that scrolls.
+       ==================================================================== #}
+    <div class="c rband sheetcard" data-controller="roster--sheet roster--sheet-folds roster--day-menu"
+         data-roster--sheet-folds-url-value="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::SHEET_PREFS_ROUTE'), {uuid: area.uuid}) }}"
+         data-roster--sheet-folds-token-value="{{ csrfToken }}">
+        <div class="rb-hd shead">
+            <span class="tab">The sheet</span>
+            <span class="rb-ttl">{{ sheet.rangers }} ranger{{ sheet.rangers == 1 ? '' : 's' }} across {{ sheet.stations }} station{{ sheet.stations == 1 ? '' : 's' }}</span>
+
+            {# THE CALENDAR TAB'S OWN NAV, and it is the calendar's markup:
+               the window is the one `on` chip and everything that acts is a
+               ghost chip. #}
+            <span class="shnav">
+                <a class="mchip ghost" href="{{ path(here, base|merge({from: window.previous.format('Y-m-d')})) }}" aria-label="The weeks before">&lsaquo;</a>
+                <span class="mchip on">{{ window.label }}</span>
+                <a class="mchip ghost" href="{{ path(here, base|merge({from: window.next.format('Y-m-d')})) }}" aria-label="The weeks after">&rsaquo;</a>
+                <a class="mchip ghost" href="{{ path(here, base) }}">Today</a>
+            </span>
+
+            <span class="shsp"></span>
+
+            {# THE HOUSE'S GROUPED DROPDOWN, which is a `<details>`: it opens,
+               chooses and clears with no script of ours, and a filtered
+               sheet is a url somebody can send. #}
+            <details class="i-dd">
+                <summary class="mchip i-ddt">
+                    <span class="i-ddval">{{ chosenStation ? (chosenStation.name|lower ~ (chosenStation.code ? ' · ' ~ chosenStation.code|lower : '')) : 'all stations · ' ~ sheet.stations }}</span><span class="i-ddcaret">&#9662;</span>
+                </summary>
+                <div class="i-ddmenu" aria-label="station">
+                    <span class="i-ddhead">station</span>
+                    <a class="i-ddopt{{ chosenStation ? '' : ' on' }}" href="{{ path(here, {uuid: area.uuid, weeks: window.weeks, from: window.from.format('Y-m-d')}) }}"><span class="i-dot"></span><span class="i-ddopt-l">All stations with somebody stationed</span><span class="i-ddopt-n">{{ sheet.stations }}</span></a>
+                    <span class="i-ddsep"></span>
+                    {% for option in stationOptions %}
+                        <a class="i-ddopt{{ chosenStation and chosenStation.uuidString == option.uuid ? ' on' : '' }}"
+                           href="{{ path(here, {uuid: area.uuid, weeks: window.weeks, from: window.from.format('Y-m-d'), station: option.uuid}) }}"><span class="i-dot"></span><span class="i-ddopt-l">{{ option.name }}{% if option.code %} &middot; {{ option.code }}{% endif %}</span><span class="i-ddopt-n">{{ option.rangers }}</span></a>
+                    {% endfor %}
+                </div>
+            </details>
+
+            {# ONE, TWO OR FOUR, and never anything between: anything between
+               a week and a month is a stretched fortnight. Four is the MONTH
+               view and compacts the cell the way the calendar does. #}
+            <details class="i-dd">
+                <summary class="mchip i-ddt">
+                    <span class="i-ddval">{{ {1: 'one week', 2: 'two weeks', 4: 'four weeks'}[window.weeks] }}</span><span class="i-ddcaret">&#9662;</span>
+                </summary>
+                <div class="i-ddmenu" aria-label="weeks in view">
+                    <span class="i-ddhead">weeks in view</span>
+                    {% for weeks, label in {1: 'One week', 2: 'Two weeks', 4: 'Four weeks'} %}
+                        <a class="i-ddopt{{ window.weeks == weeks ? ' on' : '' }}"
+                           href="{{ path(here, base|merge({weeks: weeks, from: window.from.format('Y-m-d')})) }}"><span class="i-dot"></span><span class="i-ddopt-l">{{ label }}</span>
+                            {%- if weeks == 2 %}<span class="i-ddopt-n">the default</span>{% elseif weeks == 4 %}<span class="i-ddopt-n">a month, cells compacted</span>{% endif -%}
+                        </a>
+                    {% endfor %}
+                </div>
+            </details>
+
+            <button type="button" class="mchip ghost" data-action="roster--sheet-folds#foldAll">Fold all</button>
+            <button type="button" class="mchip ghost" data-action="roster--sheet-folds#openAll">Open all</button>
+        </div>
+
+        <div class="rb-body">
+            {% if sheet.isEmpty %}
+                <div class="rfrag"><b>No station is on the area&rsquo;s books</b><em>a sheet is people down at a place, so the first station comes first</em></div>
+            {% else %}
+                <div class="psheetwrap {{ window.widthClass }}" data-roster--sheet-target="scroller">
+                    <table class="fg-rota csheet">
+                        <colgroup><col class="who">{% for day in days %}<col class="dy">{% endfor %}</colgroup>
+                        <thead>
                             <tr>
-                                <td class="who"><b>{{ row.personName }}</b><em>{{ row.nights }} night{{ row.nights == 1 ? '' : 's' }} &middot; {{ row.watches }} watch{{ row.watches == 1 ? '' : 'es' }}</em></td>
+                                <th class="who">Ranger</th>
                                 {% for day in days %}
-                                    {% set cell = row.cells[day.format('Y-m-d')] %}
-                                    <td class="{{ day.format('N') == '6' ? 'sat' : '' }}">
-                                        <span class="fg-cell {{ cell.kind.value }}{{ cell.isToday ? ' now' : '' }}">
-                                            {{- cell.label }}<em>{{ cell.note ?: cell.window }}</em>
-                                            {%- if cell.isToday and cell.state %}<span class="live {{ cell.state.value }}">{{ cell.state.label }}</span>{% endif -%}
-                                        </span>
-                                    </td>
+                                    <th class="{{ day == window.today ? 'today' : '' }}"{{ day == window.today ? ' data-roster--sheet-target="today"' : '' }}>
+                                        <time datetime="{{ day.format('Y-m-d') }}" data-localtime-format="day">{{ day.format('D')|lower }}<em>{{ day.format('j') }}</em></time>
+                                    </th>
                                 {% endfor %}
                             </tr>
-                        {% else %}
-                            <tr><td class="who fog">nobody in the ring</td><td class="fog" colspan="{{ days|length }}">this post is on the books and its rotation draws from nobody</td></tr>
-                        {% endfor %}
+                        </thead>
+                        <tbody>
+                            {% for band in sheet.bands %}
+                                {% set shut = band.foldKey in folded %}
+                                {# A FOLD HEAD IS A ROW and not a `<details>`: a
+                                   `<details>` cannot wrap `<tr>`s, and the day
+                                   columns have to stay in one grid across every
+                                   station. Same chevron, same head line. #}
+                                <tr class="stfold {{ shut ? 'shut' : 'open' }}" data-fold="{{ band.foldKey }}">
+                                    <td class="sep" colspan="{{ days|length + 1 }}">
+                                        <button type="button" class="stfoldb" aria-expanded="{{ shut ? 'false' : 'true' }}"
+                                                data-action="roster--sheet-folds#toggle">
+                                            {{ ux_icon('roster:chevron-down', {class: 'pmf-car', width: 12, height: 12}) }}
+                                            <b>{{ band.stationName }}</b>
+                                            {%- if band.stationCode %}<span class="mono">{{ band.stationCode }}</span>{% endif %}
+                                            <span class="stn">{{ band.rangers ? band.rangers ~ ' ranger' ~ (band.rangers == 1 ? '' : 's') : 'nobody stationed here' }}</span>
+                                            {# A FOLDED STATION STILL STATES ITS
+                                               UNFILLED DAYS, in the alarm ink:
+                                               folding is for length and may never
+                                               hide a gap. #}
+                                            {% if band.unfilled %}
+                                                <span class="stun">{{ band.unfilled }} unfilled</span>
+                                            {% else %}
+                                                <span class="stok">nothing unfilled</span>
+                                            {% endif %}
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                {% for row in band.rows %}
+                                    <tr class="strow" data-of="{{ band.foldKey }}" {{ shut ? 'hidden' : '' }}>
+                                        <td class="who"><b>{{ row.personName }}</b>{% if row.stationCode %}<em>{{ row.stationCode }}</em>{% endif %}</td>
+                                        {% for cell in row.cells %}
+                                            <td class="{{ cell.isToday ? 'today' : '' }}">
+                                                {{ include('@UhifadhiRoster/week/_cell.html.twig', {
+                                                    area: area, cell: cell, row: row, band: band, window: window,
+                                                    mayPlan: mayPlan, csrfToken: csrfToken, shifts: shifts,
+                                                }, with_context: false) }}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {# THE KEY. The area's own shifts in the area's own colours, so
+                   nobody is ever asked what a tint means. #}
+                <div class="pkey">
+                    {% for shift in shifts %}
+                        <span><i class="k" data-cat="{{ shift.colour }}"></i>{{ shift.label|lower }}</span>
                     {% endfor %}
-                </table>
-            </div>
-        {% endif %}
+                    <span><i class="k o"></i>off &mdash; nothing drawn</span>
+                    <span><i class="k u"></i>unfilled</span>
+                    <span><i class="k h"></i>edited by hand</span>
+                    <span class="sp"></span>
+                    <span>{{ sheet.unfilled }} unfilled day{{ sheet.unfilled == 1 ? '' : 's' }} &middot; {{ sheet.editedByHand }} edited by hand &middot; {{ sheet.rangers }} ranger{{ sheet.rangers == 1 ? '' : 's' }} &middot; {{ window.label }}</span>
+                </div>
+            {% endif %}
+        </div>
     </div>
 
     <div style="height:12px"></div>
 
-    {# THE HOLES, SOONEST FIRST — a BOUNDED list, so this card is the one that
-       may carry a foot: latest N and a way to the rest. Ordered by when the
-       watch STARTS and not by when the hole was noticed, because a hole three
-       hours away outranks one next week however long it has been open. #}
-    <div class="c">
-        <span class="tab">Unfilled watches<span class="src">&middot; this fortnight &middot; {{ gaps|length }}</span></span>
-        {% for gap in gaps|slice(0, 8) %}
-            <div class="r-pres">
-                <span class="nm">{{ gap.station }}<em><time datetime="{{ gap.day.format('Y-m-d') }}" data-localtime-format="day">{{ gap.day.format('D j M')|lower }}</time> &middot; {{ gap.label|lower }}</em></span>
-                <span class="who">
-                    {%- if gap.filled == 0 %}
-                        the pattern asks for {{ gap.expected }}, nobody assigned
-                    {%- else %}
-                        the watch asks for {{ gap.expected }}, {{ gap.filled }} filled
-                    {%- endif %}
-                </span>
-                <span class="cnt w">{{ gap.expected - gap.filled }} short</span>
-            </div>
-        {% else %}
-            <div class="rfrag"><b>Nothing is short this fortnight</b><em>every watch the pattern asked for has somebody on it</em></div>
-        {% endfor %}
-        {% if gaps|length > 8 %}
-            <div class="rfrag"><b>{{ gaps|length }} in total</b><em>the eight soonest are shown &mdash; a card never grows with its data</em></div>
-        {% endif %}
-    </div>
-
-    <div style="height:12px"></div>
-
-    {# ============================================================
-       THE SWAP FLOW — two house cards, ruled 2026-09-20. The bordered
-       bar the archive drew is not the product: a trade is a card that
-       states the two cells and what they cost, and a register that
-       shows every state an offer can end in.
-       ============================================================ #}
+    {# ====================================================================
+       THE SWAP IN PROGRESS. Two house cards: a trade states the two cells
+       and what they cost, and a register shows every state an offer can end
+       in. A swap is offered to the handset and accepted there, so the web
+       app never puts a person on a watch they have not seen.
+       ==================================================================== #}
+    <h2 class="zone">The swap in progress</h2>
     <div class="grid g2">
 
         <div class="c">
@@ -174,20 +315,20 @@
                         <input type="hidden" name="duty" value="{{ offering.duty.uuid }}">
                         <input type="hidden" name="taking" value="{{ offering.taking.uuidString }}">
                         <div class="staddrow"><span class="sp"></span>
-                            <a class="btn sm" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid, from: from.format('Y-m-d')}) }}">Cancel</a>
+                            <a class="btn sm" href="{{ path(here, base) }}">Cancel</a>
                             <button type="submit" class="cta">Send the offer</button>
                         </div>
                     </form>
                 {% endif %}
             {% else %}
-                <div class="rln"><span class="fog">Give up</span><span class="fog">pick a watch from the grid above</span></div>
+                <div class="rln"><span class="fog">Give up</span><span class="fog">pick a day from the sheet above</span></div>
                 <div class="rln"><span class="fog">Take it</span><span class="fog">then the person to ask</span></div>
-                <div class="rfrag"><b>An offer moves nobody</b><em>until the handset accepts, both watches stand exactly as the rotation generated them</em></div>
+                <div class="rfrag"><b>An offer moves nobody</b><em>until the handset accepts, both watches stand exactly as they were filled</em></div>
             {% endif %}
         </div>
 
         <div class="c">
-            <span class="tab">Swaps<span class="src">&middot; this fortnight &middot; latest {{ recent|length }}</span></span>
+            <span class="tab">Swaps<span class="src">&middot; this window &middot; latest {{ recent|length }}</span></span>
 
             {% for swap in recent %}
                 <div class="rln">
@@ -202,7 +343,7 @@
                     </span>
                 </div>
             {% else %}
-                <div class="rfrag"><b>No swap this fortnight</b><em>every watch is standing as the ring generated it</em></div>
+                <div class="rfrag"><b>No swap in this window</b><em>every watch is standing exactly as it was filled</em></div>
             {% endfor %}
         </div>
 

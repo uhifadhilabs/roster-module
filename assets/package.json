@@ -27,6 +27,30 @@
                 "name": "roster--station-table",
                 "fetch": "eager",
                 "enabled": true
+            },
+            "sheet": {
+                "main": "controllers/sheet_controller.js",
+                "name": "roster--sheet",
+                "fetch": "eager",
+                "enabled": true
+            },
+            "sheet-folds": {
+                "main": "controllers/sheet_folds_controller.js",
+                "name": "roster--sheet-folds",
+                "fetch": "eager",
+                "enabled": true
+            },
+            "day-menu": {
+                "main": "controllers/day_menu_controller.js",
+                "name": "roster--day-menu",
+                "fetch": "eager",
+                "enabled": true
+            },
+            "fill": {
+                "main": "controllers/fill_controller.js",
+                "name": "roster--fill",
+                "fetch": "eager",
+                "enabled": true
             }
         },
         "importmap": {

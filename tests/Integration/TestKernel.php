@@ -250,7 +250,6 @@ final class TestKernel extends Kernel
             \Uhifadhi\Roster\Service\RotationEditor::class => 'roster.rotation_editor',
             \Uhifadhi\Roster\Service\RotationPreview::class => 'roster.rotation_preview',
             \Uhifadhi\Roster\Service\WeekGridService::class => 'roster.week_grid',
-            \Uhifadhi\Roster\Service\RotaService::class => 'roster.rota',
             \Uhifadhi\Roster\Service\DayBoardService::class => 'roster.day_board',
             \Uhifadhi\Roster\Service\RosterCalendar::class => 'roster.calendar',
             \Uhifadhi\Roster\Service\RosteredPeople::class => 'roster.rostered_people',
@@ -282,6 +281,8 @@ final class TestKernel extends Kernel
             // exercised without going through a controller.
             \Uhifadhi\Roster\Service\SheetService::class => 'roster.sheet',
             \Uhifadhi\Roster\Service\SheetFillService::class => 'roster.sheet_fill',
+            \Uhifadhi\Roster\Service\SheetDayService::class => 'roster.sheet_day',
+            \Uhifadhi\Roster\Service\SheetPreferences::class => 'roster.sheet_preferences',
             \Uhifadhi\Roster\Devkit\RosterContentProvider::class => 'roster.devkit.content',
             \Uhifadhi\Roster\Devkit\PresenceContentProvider::class => 'roster.devkit.presence_content',
             // The registry's own two, so a functional fixture can do what an

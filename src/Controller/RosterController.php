@@ -29,25 +29,36 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Symfony\Component\Uid\Uuid;
 use Twig\Environment;
 use Uhifadhi\Bundle\AreaBundle\Controller\StationsController;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
+use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetService;
 use Uhifadhi\Contracts\Area\DayState;
 use Uhifadhi\Contracts\Area\LivePositionsInterface;
 use Uhifadhi\Contracts\Atlas\YearMonth;
 use Uhifadhi\Contracts\Entity\UserInterface;
+use Uhifadhi\Roster\Entity\Duty;
+use Uhifadhi\Roster\Entity\Pattern;
+use Uhifadhi\Roster\Enum\NightThenDay;
+use Uhifadhi\Roster\Enum\RuleKind;
 use Uhifadhi\Roster\Model\AgendaFilter;
 use Uhifadhi\Roster\Model\PostPresence;
 use Uhifadhi\Roster\Model\PostState;
+use Uhifadhi\Roster\Model\Sheet;
+use Uhifadhi\Roster\Model\SheetWindow;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
+use Uhifadhi\Roster\Repository\PatternRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
+use Uhifadhi\Roster\Repository\StationWatchRepository;
 use Uhifadhi\Roster\Service\AgendaService;
 use Uhifadhi\Roster\Service\DayBoardService;
 use Uhifadhi\Roster\Service\DayPlanService;
+use Uhifadhi\Roster\Service\PatternService;
 use Uhifadhi\Roster\Service\PresenceReader;
 use Uhifadhi\Roster\Service\RosterCalendar;
 use Uhifadhi\Roster\Service\RosterDashboardService;
@@ -55,9 +66,13 @@ use Uhifadhi\Roster\Service\RosteredPeople;
 use Uhifadhi\Roster\Service\RosterIdentityService;
 use Uhifadhi\Roster\Service\RosterLiveService;
 use Uhifadhi\Roster\Service\RotaService;
+use Uhifadhi\Roster\Service\SheetDayService;
+use Uhifadhi\Roster\Service\SheetFillService;
+use Uhifadhi\Roster\Service\SheetPreferences;
+use Uhifadhi\Roster\Service\SheetService;
+use Uhifadhi\Roster\Service\ShiftRuleService;
 use Uhifadhi\Roster\Service\SwapCostService;
 use Uhifadhi\Roster\Service\SwapService;
-use Uhifadhi\Roster\Service\WeekGridService;
 use Uhifadhi\Roster\Widget\RosterRailWidgets;
 use Uhifadhi\Roster\Widget\RosterWidgets;
 
@@ -93,8 +108,20 @@ final class RosterController
      */
     public const string OVERVIEW_ROUTE = 'roster_overview';
 
-    /** The planner's tab: posts down, days across, every hole drawn as a hole. */
+    /** The planner's tab: the sheet — people down, days across, per station. */
     public const string WEEK_ROUTE = 'roster_week';
+
+    /** How this person reads the sheet: the weeks in view, and the folds. */
+    public const string SHEET_PREFS_ROUTE = 'roster_sheet_prefs';
+
+    /** Filling a station's days from a pattern, or saying what filling would do. */
+    public const string SHEET_FILL_ROUTE = 'roster_sheet_fill';
+
+    /** One day, changed by hand — every item on the sheet's own menu. */
+    public const string SHEET_DAY_ROUTE = 'roster_sheet_day';
+
+    /** Handing a day back to the pattern. */
+    public const string SHEET_CLEAR_MARK_ROUTE = 'roster_sheet_clear_mark';
 
     /** Offering a watch to somebody, answered on the handset. */
     public const string OFFER_SWAP_ROUTE = 'roster_swap_offer';
@@ -160,8 +187,15 @@ final class RosterController
     public function __construct(
         private readonly Environment $twig,
         private readonly RosterIdentityService $identity,
-        private readonly WeekGridService $week,
-        private readonly RotaService $rota,
+        private readonly SheetService $sheet,
+        private readonly SheetFillService $fills,
+        private readonly SheetDayService $days,
+        private readonly SheetPreferences $preferences,
+        private readonly PatternService $patterns,
+        private readonly PatternRepository $patternRows,
+        private readonly StationRepository $stations,
+        private readonly StationWatchRepository $watches,
+        private readonly ShiftRuleService $rules,
         private readonly PresenceReader $presence,
         private readonly DayBoardService $board,
         private readonly RosteredPeople $people,
@@ -264,74 +298,411 @@ final class RosterController
     }
 
     /**
-     * THE WEEK — posts down, days across, and every hole drawn as a hole.
+     * THE WEEK — THE PLANNING SHEET. People down, days across, per
+     * station.
      *
-     * IT STARTS ON A MONDAY whatever day somebody opens it. A week that began
-     * on the day you happened to look is not a week anybody plans in, and two
-     * people comparing notes would be comparing different weeks.
+     * IT OPENS ON THE CURRENT WEEK, always starting on a monday: a week
+     * that began on the day somebody happened to look is not a week
+     * anybody plans in, and two people comparing notes would be
+     * comparing different weeks. `?from=` moves it and an unreadable one
+     * falls back rather than failing — a mistyped date in a url is not
+     * worth a 500, and the head says which weeks it is drawing.
      *
-     * `?from=` moves it, and an unreadable one falls back to this week rather
-     * than failing: a mistyped date in a url is not worth a 500, and the page
-     * says which week it is drawing.
+     * THE WINDOW AND THE FOLDS ARE THIS PERSON'S. `?weeks=` is both the
+     * link the chip carries and the act of choosing: a filtered sheet is
+     * a url somebody can send, and pressing it also remembers.
+     *
+     * THE SWAP FLOW STAYS. A swap is two cells and a cost, and this is
+     * the only tab where the donor and the gap are in the same screenful.
      */
     #[Route('/areas/{uuid}/modules/roster/week', name: self::WEEK_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['GET'])]
     public function week(
         #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
         Request $request,
     ): Response {
-        $from = RotaService::start($this->askedFor($request) ?? new \DateTimeImmutable('today'));
-        $through = $from->modify(\sprintf('+%d days', RotaService::DAYS - 1));
+        $viewer = $this->viewer();
 
-        $gaps = $this->week->gaps($area, $from, $through);
-        $filter = AgendaFilter::fromQuery(
-            $request->query->get('post'),
-            $request->query->get('state'),
-            $request->query->get('shift'),
-            $request->query->get('q'),
-        );
-        $whole = $this->presence->postsOn($area, new \DateTimeImmutable('today'));
+        $asked = $request->query->get('weeks');
+        $weeks = is_numeric($asked) ? (int) $asked : $this->preferences->weeksFor($viewer, $area);
+        if (is_numeric($asked)) {
+            $this->preferences->rememberWeeks($viewer, $area, $weeks);
+        }
+
+        $window = SheetWindow::of($this->askedFor($request) ?? new \DateTimeImmutable('today'), $weeks);
+        $chosenStation = $this->stationIn($area, $request->query->get('station'));
+        // ONE READ, and the filter is applied to it. The station chip has
+        // to list every station whatever the sheet under it is narrowed
+        // to — a chip that only offered what is already showing could
+        // never be used to change it — so reading the whole area once and
+        // narrowing in memory is both the cheaper answer and the honest
+        // one.
+        $whole = $this->sheet->read($area, $window);
+        $sheet = null === $chosenStation ? $whole : $whole->only((string) $chosenStation->getUuidString());
+
+        $from = $window->from;
+        $through = $window->through;
 
         return new Response($this->twig->render('@UhifadhiRoster/week/show.html.twig', [
             'area' => $area,
-            'band' => $this->identity->bandFor($area),
-            'from' => $from,
-            'through' => $through,
-            'today' => new \DateTimeImmutable('today'),
-            'days' => $this->rota->days($from),
-            'groups' => $this->rota->groups($area, $from, $through),
-            'figures' => $this->rota->figures($area, $from, $through),
-            'gaps' => $gaps,
-            // THE SOONEST HOLE, which is the one the figure is about: a
-            // hole tonight and a hole in nine days are not the same
-            // problem, and a count alone says neither.
-            'soonestGap' => $gaps[0] ?? null,
-            // THE FILTER ROW IS THE SAME ONE THE AGENDA AND THE BOARD
-            // WEAR. The grid is drawn from the rota service's own rows, so
-            // the row's choices are carried in the url and narrow the
-            // register beneath it rather than the grid above — stated here
-            // rather than left for a reader to discover.
-            'filter' => $filter,
-            'postsForFilter' => $whole,
-            'chosenPost' => $this->chosenPost($whole, $filter),
-            'stateLabels' => self::stateLabels(),
-            'stateCounts' => self::stateCounts($whole),
-            'shiftLabels' => $this->shiftLabels($area),
-            'shiftCounts' => self::shiftCounts($whole),
-            'previous' => $from->modify(\sprintf('-%d days', RotaService::DAYS)),
-            'next' => $from->modify(\sprintf('+%d days', RotaService::DAYS)),
+            'sheet' => $sheet,
+            'window' => $window,
+            'days' => $window->days(),
+            'folded' => $this->preferences->foldedFor($viewer, $area),
+            // THE FILL ROW'S OWN FIELDS: which stations may be filled,
+            // from which pattern, and the mondays it offers as a start.
+            'stations' => $this->stationsOnTheBooks($area),
+            'chosenStation' => $chosenStation,
+            'fillPatterns' => $this->fillPatterns($area),
+            'patternColours' => $this->patterns->coloursFor($area),
+            // THE STATION FILTER LISTS EVERY STATION, whatever the sheet
+            // under it is narrowed to: a chip that only offered what is
+            // already showing could never be used to change it.
+            'stationOptions' => self::stationOptions($whole),
+            'startDates' => self::startDates($window),
+            // WHAT A FILL OBEYS, READ-ONLY. RULED 21 sep: the rules live
+            // on the Watches card, so the row states them and the door
+            // goes there rather than offering a second place to set them.
+            'fillRules' => $this->fillRules($area),
+            // THE KEY UNDER THE SHEET — the area's own shifts, in its own
+            // colours, so the reader is never asked what a tint means.
+            'shifts' => $this->shifts->findByArea($area),
             // THE SWAP FLOW: the register of offers over this window, and
             // the trade being put together, if one is.
-            'swaps' => $this->swaps->openBetween($area, $from, $through),
             'recent' => $this->swaps->recentBetween($area, $from, $through, 5),
             'offering' => $offering = $this->swaps->offering($area, $request->query->get('give'), $request->query->get('take')),
             'cost' => null === $offering ? null : $this->cost->of($offering['duty'], $offering['taking']),
-            'candidates' => $this->people->rosteredIn($area),
             // NULL WHERE THE INSTALLATION RUNS NO SECURITY: no checker, so
-            // nobody may plan, and the card reads as a plan rather than a
+            // nobody may plan, and the page reads as a plan rather than a
             // form that cannot post.
             'mayPlan' => null !== $this->authorization && $this->authorization->isGranted(self::PLAN_PERMISSION, $area),
             'csrfToken' => $this->csrfTokenManager?->getToken(self::CSRF_TOKEN_ID)->getValue() ?? '',
         ]));
+    }
+
+    /**
+     * REMEMBER HOW THIS PERSON READS THE SHEET — the weeks in view and
+     * the stations they keep folded.
+     *
+     * IT ANSWERS 204 AND NOT A REDIRECT. The fold has already happened in
+     * the browser; sending the page back would scroll a planner who had
+     * just folded one station of twelve to the top of the sheet.
+     */
+    #[Route('/areas/{uuid}/modules/roster/sheet/prefs', name: self::SHEET_PREFS_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function sheetPreferences(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardPlan($area, $request);
+
+        $viewer = $this->viewer();
+
+        $weeks = $request->request->get('weeks');
+        if (is_numeric($weeks)) {
+            $this->preferences->rememberWeeks($viewer, $area, (int) $weeks);
+        }
+
+        if ($request->request->has('folded')) {
+            $folded = [];
+            foreach ($request->request->all('folded') as $station) {
+                if (\is_string($station) && '' !== $station) {
+                    $folded[] = $station;
+                }
+            }
+
+            $this->preferences->rememberFolds($viewer, $area, $folded);
+        }
+
+        return new Response(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * FILL A STATION'S DAYS FROM A PATTERN — or say what filling would
+     * do, which is the same walk with nothing written.
+     */
+    #[Route('/areas/{uuid}/modules/roster/sheet/fill', name: self::SHEET_FILL_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function sheetFill(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardPlan($area, $request);
+
+        $station = $this->stationIn($area, $request->request->get('station'));
+        $pattern = $this->patternIn($area, $request->request->get('pattern'));
+        $from = self::readDate((string) $request->request->get('from', '')) ?? new \DateTimeImmutable('today');
+
+        if (null === $station || null === $pattern) {
+            $this->flash($request, 'error', 'Pick a station and a pattern before filling.');
+
+            return $this->backToTheSheet($area, $request);
+        }
+
+        $preview = '' !== (string) $request->request->get('preview', '');
+        $plan = $preview
+            ? $this->fills->preview($station, $pattern, $from)
+            : $this->fills->fill($station, $pattern, $from);
+
+        $this->flash($request, $preview ? 'info' : 'success', \sprintf(
+            '%s %d day%s at %s to %s · %d edited day%s left as %s.',
+            $preview ? 'Would fill' : 'Filled',
+            $plan->days,
+            1 === $plan->days ? '' : 's',
+            $station->getName() ?? 'that station',
+            strtolower($plan->through->format('D j M')),
+            $plan->leftAlone,
+            1 === $plan->leftAlone ? '' : 's',
+            1 === $plan->leftAlone ? 'it is' : 'they are',
+        ));
+
+        return $this->backToTheSheet($area, $request);
+    }
+
+    /**
+     * ONE DAY, CHANGED BY HAND — every item on the sheet's own menu, and
+     * each of them leaves the mark that stops a fill deciding the day
+     * again.
+     */
+    #[Route('/areas/{uuid}/modules/roster/sheet/day', name: self::SHEET_DAY_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function sheetDay(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardPlan($area, $request);
+
+        $duty = $this->dutyIn($area, $request->request->get('duty'));
+
+        if (null === $duty) {
+            $this->flash($request, 'error', 'That day is no longer on the sheet.');
+
+            return $this->backToTheSheet($area, $request);
+        }
+
+        $viewer = $this->viewer();
+
+        try {
+            match ((string) $request->request->get('op')) {
+                'shift' => $this->days->changeShift($duty, (string) $request->request->get('shift'), $viewer),
+                'move' => $this->days->moveTo($duty, $this->person($area, (string) $request->request->get('person')), $viewer),
+                'off' => $this->days->giveTheDayOff($duty, $viewer),
+                'unfill' => $this->days->markUnfilled($duty, $viewer),
+                'clear' => $this->days->clearTheMark($duty->getStation(), $duty->getOnDay(), $duty->getPerson()),
+                default => $this->flash($request, 'error', 'That is not something a day can be asked to do.'),
+            };
+        } catch (\InvalidArgumentException $refused) {
+            $this->flash($request, 'error', $refused->getMessage());
+        }
+
+        return $this->backToTheSheet($area, $request);
+    }
+
+    /**
+     * AND CLEARING A MARK ON A DAY THAT HAS NO DUTY LEFT — the common
+     * case, because the commonest edit is taking somebody off a watch.
+     */
+    #[Route('/areas/{uuid}/modules/roster/sheet/mark/clear', name: self::SHEET_CLEAR_MARK_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function clearTheMark(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardPlan($area, $request);
+
+        $station = $this->stationIn($area, $request->request->get('station'));
+        $day = self::readDate((string) $request->request->get('day', ''));
+
+        if (null === $station || null === $day) {
+            $this->flash($request, 'error', 'That day is no longer on the sheet.');
+
+            return $this->backToTheSheet($area, $request);
+        }
+
+        try {
+            $this->days->clearTheMark($station, $day, $this->person($area, (string) $request->request->get('person')));
+        } catch (\InvalidArgumentException $refused) {
+            $this->flash($request, 'error', $refused->getMessage());
+        }
+
+        return $this->backToTheSheet($area, $request);
+    }
+
+    /**
+     * BACK TO THE SHEET SOMEBODY WAS LOOKING AT — its weeks, its window
+     * and its station filter, so an edit never moves the page under the
+     * person who made it.
+     */
+    private function backToTheSheet(AreaOfInterest $area, Request $request): RedirectResponse
+    {
+        $parameters = ['uuid' => (string) $area->getUuidString()];
+        foreach (['from', 'weeks', 'station'] as $carried) {
+            $value = $request->request->get($carried);
+            if (\is_string($value) && '' !== $value) {
+                $parameters[$carried] = $value;
+            }
+        }
+
+        return new RedirectResponse($this->router->generate(self::WEEK_ROUTE, $parameters));
+    }
+
+    /**
+     * SOMEBODY ROSTERED IN THIS AREA, by uuid.
+     *
+     * @throws \InvalidArgumentException when nobody in this area answers to it
+     */
+    private function person(AreaOfInterest $area, string $uuid): UserInterface
+    {
+        return $this->people->byUuid($area)[$uuid]
+            ?? throw new \InvalidArgumentException('Nobody rostered in this area answers to that.');
+    }
+
+    /**
+     * A STATION ON THIS AREA'S BOOKS, by uuid — and never another area's.
+     * The uuid is somebody's to type, so "this row exists" is not the
+     * question; "this row is in the park you are looking at" is.
+     */
+    private function stationIn(AreaOfInterest $area, mixed $uuid): ?Station
+    {
+        if (!\is_string($uuid) || !Uuid::isValid($uuid)) {
+            return null;
+        }
+
+        $station = $this->stations->findOneBy(['uuid' => Uuid::fromString($uuid)]);
+
+        return $station instanceof Station && $station->getArea()?->getId() === $area->getId() ? $station : null;
+    }
+
+    /** One of this area's patterns, by uuid. */
+    private function patternIn(AreaOfInterest $area, mixed $uuid): ?Pattern
+    {
+        if (!\is_string($uuid) || !Uuid::isValid($uuid)) {
+            return null;
+        }
+
+        return $this->patternRows->findOneByUuid($area, Uuid::fromString($uuid));
+    }
+
+    /** One of this area's duties, by uuid. */
+    private function dutyIn(AreaOfInterest $area, mixed $uuid): ?Duty
+    {
+        if (!\is_string($uuid) || !Uuid::isValid($uuid)) {
+            return null;
+        }
+
+        $duty = $this->duties->findOneBy(['area' => $area, 'uuid' => Uuid::fromString($uuid)]);
+
+        return $duty instanceof Duty ? $duty : null;
+    }
+
+    /**
+     * THE AREA'S PATTERNS AS THE FILL ROW NEEDS THEM — the name it
+     * derives, and the cycle the strip draws from.
+     *
+     * A LIST AND NOT THE ENTITIES, because the strip is redrawn in the
+     * browser when the select changes and a template cannot hand a
+     * `<script>` an object.
+     *
+     * @return list<array{uuid: string, name: string, cycle: list<string>}>
+     */
+    private function fillPatterns(AreaOfInterest $area): array
+    {
+        $patterns = [];
+        foreach ($this->patterns->forArea($area) as $pattern) {
+            $patterns[] = [
+                'uuid' => (string) $pattern->getUuid(),
+                'name' => $this->patterns->nameOf($pattern),
+                'cycle' => $pattern->getCycle()->toStored(),
+            ];
+        }
+
+        return $patterns;
+    }
+
+    /**
+     * EVERY STATION THE FILTER OFFERS, with how many rangers stand at it.
+     *
+     * @return list<array{uuid: string, name: string, code: string|null, rangers: int}>
+     */
+    private static function stationOptions(Sheet $sheet): array
+    {
+        $options = [];
+        foreach ($sheet->bands as $band) {
+            $options[] = [
+                'uuid' => $band->stationUuid,
+                'name' => $band->stationName,
+                'code' => $band->stationCode,
+                'rangers' => $band->rangers(),
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * THE STATIONS THE FILL ROW MAY BE POINTED AT — the ones on the
+     * roster's books, because a station nobody has given a watch to has
+     * nothing to fill.
+     *
+     * @return list<Station>
+     */
+    private function stationsOnTheBooks(AreaOfInterest $area): array
+    {
+        $stations = [];
+        foreach ($this->watches->findByArea($area) as $watch) {
+            $stations[] = $watch->getStation();
+        }
+
+        return $stations;
+    }
+
+    /**
+     * THE MONDAYS THE FILL ROW OFFERS AS A START — this one, the one
+     * before, and the four after.
+     *
+     * A LIST AND NOT A DATE FIELD, because a fill that started on a
+     * wednesday would put every seat of the ring half a week out of step
+     * with the sheet's own columns.
+     *
+     * @return list<\DateTimeImmutable>
+     */
+    private static function startDates(SheetWindow $window): array
+    {
+        $dates = [];
+        for ($offset = -1; $offset <= 4; ++$offset) {
+            $dates[] = $window->from->modify(\sprintf('%+d days', 7 * $offset));
+        }
+
+        return $dates;
+    }
+
+    /**
+     * WHAT A FILL OBEYS, IN THE ROW'S OWN WORDS — read-only, with the
+     * door to the card that sets them.
+     *
+     * @return array{ahead: string, rest: string, nightThenDay: string}
+     */
+    private function fillRules(AreaOfInterest $area): array
+    {
+        $values = $this->rules->forArea($area);
+        $choices = $this->rules->choicesForArea($area);
+
+        return [
+            'ahead' => $values[RuleKind::FillAhead->value]->label(),
+            'rest' => $values[RuleKind::RestBetween->value]->label(),
+            'nightThenDay' => NightThenDay::Never === $choices[RuleKind::NightThenDay->value]
+                ? 'no night then day'
+                : strtolower($choices[RuleKind::NightThenDay->value]->label()).' night then day',
+        ];
+    }
+
+    /** A date in a request, or null where it cannot be read. */
+    private static function readDate(string $raw): ?\DateTimeImmutable
+    {
+        if ('' === $raw) {
+            return null;
+        }
+
+        try {
+            return new \DateTimeImmutable($raw)->setTime(0, 0);
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     /**

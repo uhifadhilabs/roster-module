@@ -183,6 +183,18 @@ class Duty
      * move, most of all — would be pointing at nothing. The duty is the
      * watch; who stands it is a field on it.
      */
+    /**
+     * THE SAME DAY, ON A DIFFERENT WATCH — the sheet's "change the
+     * shift". The person, the station and the day all stand; only which
+     * window they are on moves.
+     */
+    public function changeShift(string $shiftKey): static
+    {
+        $this->shiftKey = $shiftKey;
+
+        return $this;
+    }
+
     public function reassignTo(UserInterface $person): static
     {
         $this->person = $person;

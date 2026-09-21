@@ -87,6 +87,26 @@ final readonly class Sheet
         return $planned;
     }
 
+    /**
+     * THE SAME SHEET, NARROWED TO ONE STATION — the head's filter, applied
+     * to the read rather than asked of the database again.
+     *
+     * THE STATION COUNT DOES NOT MOVE. It is the area's, so the chip can
+     * go on saying what it is filtering out of; a filter that renamed the
+     * whole to the part would be a filter nobody could undo.
+     */
+    public function only(string $stationUuid): self
+    {
+        $bands = [];
+        foreach ($this->bands as $band) {
+            if ($band->stationUuid === $stationUuid) {
+                $bands[] = $band;
+            }
+        }
+
+        return new self($this->window, $bands, $this->stations);
+    }
+
     public function isEmpty(): bool
     {
         return [] === $this->bands;

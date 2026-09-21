@@ -611,8 +611,8 @@
  * would redraw itself every time somebody was added. */
 .fg-rota { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 6px; }
 
-.fg-rota col.who { width: 168px; }
-.fg-rota col.dy { width: auto; }
+.fg-rota col.who { width: 172px; }
+.fg-rota col.dy { width: 68px; }
 
 .fg-rota th {
     font: 600 8.5px ui-monospace, monospace; color: var(--dim); text-transform: uppercase;
@@ -635,6 +635,8 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
+.fg-rota td.who b { font-size: 12px; font-weight: 600; color: var(--tx); }
+
 .fg-rota td.who em {
     display: block; font: 500 8.5px ui-monospace, monospace; color: var(--dim);
     font-style: normal; text-transform: uppercase; letter-spacing: .06em;
@@ -648,50 +650,295 @@
 
 .fg-rota td.sep .mono { color: var(--dim); font-weight: 500; font-size: 10px; }
 
-/* ONE CELL: what the ring says, and — on today's column only — how the day
-   actually reads. Every other column is the plan, and painting a state on
-   one would be stating a plan as a fact. */
-.fg-cell {
-    display: block; border-radius: 6px; padding: 4px 6px; min-height: 34px;
-    font: 600 9.5px ui-monospace, monospace; color: var(--fog);
-    background: var(--raised); overflow: hidden;
+/* ---- THE SHEET IS A BOUNDED CARD THAT SCROLLS INSIDE ITSELF -------------
+ * RULED 21 sep. Owner: "contents of The sheet should scroll inside the sheet,
+ * so the headers stay fixed while the inner content scrolls", and "this
+ * entire thing needs to be in the sheet header — I didn't even see it
+ * exists".
+ *
+ * So the card is bounded to the viewport (never shorter than 480px), its HEAD
+ * carries every control the sheet has — the window navigation, Today, the
+ * station filter, the weeks chip and the fold pair — and its BODY is the only
+ * thing that scrolls. The column head is sticky inside that scroller, so the
+ * days stay on screen while thirty-four rangers pass under them. Station fold
+ * heads scroll WITH their rows on purpose: a fold head is a row of the sheet,
+ * and pinning twelve of them would leave nothing to read.
+ *
+ * THE BOUND SITS ON THE SCROLLER, never on the card: a max-height on the card
+ * would clip a head that has wrapped to three lines at 400px. `--sheetmax` is
+ * measured by the card's own controller (the viewport, less everything above
+ * the sheet, less the head) and floored so the card never falls under 480px;
+ * the declaration here is the no-script fallback.
+ */
+.c.rband.sheetcard { display: flex; flex-direction: column; overflow: hidden; }
+.c.rband.sheetcard > .rb-body {
+    flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: 11px;
 }
 
-.fg-cell em {
-    display: block; font-style: normal; font-weight: 500; font-size: 8.5px;
-    color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.shead { gap: 8px; }
+.shead > .rb-ttl { flex: 0 1 auto; }
+.shead .shnav { display: inline-flex; align-items: center; gap: 7px; }
+.shead .shsp { flex: 1 1 auto; }
+
+/* EVERY CONTROL IN THIS HEAD IS A CHIP, the calendar tab's grammar: the
+   window is the one `on` chip and everything that acts is a ghost chip. ONE
+   HEIGHT FOR ALL OF THEM — `.mchip.on` renders taller than its siblings on
+   its own, which reads as two control sizes in one row. Eight chips, a kicker
+   and a count share the content column, so the chip here runs one step
+   tighter than the house chip, which is what buys the single line at 1440. */
+.shead .mchip {
+    flex: none; box-sizing: border-box; height: 28px; padding: 0 10px; line-height: 1;
+    cursor: pointer; font-size: 10px; letter-spacing: .05em; gap: 6px;
 }
 
-.fg-cell.d { color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, transparent); }
-.fg-cell.n { color: var(--fog); background: color-mix(in srgb, var(--fog) 13%, transparent); }
-.fg-cell.o { color: var(--dim); background: none; border: 1px dashed var(--ln); }
-
-/* TODAY'S CELL IS OUTLINED, and it is the only column that carries a state. */
-.fg-cell.now { box-shadow: 0 0 0 1.5px var(--acc) inset; }
-
-.fg-cell .live {
-    display: block; font-size: 8px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .07em;
+/* On a phone the head wraps instead of overflowing, and the chips PACK: a set
+   of full-width chips spent five rows saying what four chips fit on two. */
+@media (max-width: 640px) {
+    .shead { gap: 6px 7px; padding-bottom: 12px; }
+    .shead .shsp { display: none; }
+    .shead > .rb-ttl { flex: 1 1 100%; }
+    /* the navigation stops being a group of its own so its four chips pack
+       with the filters instead of leaving `Today` alone on a row */
+    .shead .shnav { display: contents; }
+    .shead .mchip { font-size: 9.5px; padding: 0 9px; height: 26px; }
 }
 
-.fg-cell .live.at_post_verified { color: var(--ok); }
-.fg-cell .live.at_post_unverified { color: var(--warn); }
-.fg-cell .live.no_check_in { color: var(--fail); }
-.fg-cell .live.not_working, .fg-cell .live.working_elsewhere { color: var(--dim); }
-.fg-cell .live.special { color: var(--acc); }
+.psheetwrap {
+    overflow: auto; flex: 1 1 auto;
+    max-height: var(--sheetmax, calc(100vh - 300px)); min-height: 260px;
+    scrollbar-width: thin; scrollbar-color: var(--ln2) transparent;
+}
+.psheetwrap::-webkit-scrollbar { width: 10px; height: 10px; }
+.psheetwrap::-webkit-scrollbar-track { background: transparent; }
+.psheetwrap::-webkit-scrollbar-thumb {
+    background: var(--ln2); border-radius: 8px; border: 3px solid transparent; background-clip: content-box;
+}
+.psheetwrap::-webkit-scrollbar-thumb:hover { background: var(--fog); background-clip: content-box; }
 
-/* A SWAP IN FLIGHT. swapA is the watch being given up, swapB the one being
-   taken — and NEITHER DUTY HAS MOVED: until the handset answers, both stand
-   where the rotation put them, and these marks say a trade is in flight
-   rather than that anybody has been moved. */
-.fg-cell.swapA {
-    border: 1.5px solid var(--acc); color: var(--acc);
-    background: color-mix(in srgb, var(--acc) 14%, transparent);
+/* `.fg-rota` carries a top margin, which put the column head below the
+   scrollport and made it JUMP that distance the first time the sheet was
+   scrolled. The margin moves into the head's own padding: at rest and pinned
+   are now the same line. */
+.psheetwrap > table.csheet { min-width: 940px; margin-top: 0; border-collapse: separate; border-spacing: 0; }
+.psheetwrap > table.csheet thead th { padding-top: 4px; }
+
+/* THE DAYS STAY WHILE THE RANGERS SCROLL. Two things this needs: an OPAQUE
+   ground (--cv, the ground `.tab` already uses, because --raised is mixed and
+   the rows showed straight through it), and table-cell display on the name
+   header — the sheet's own `.who` is a flex cell, which takes a `<th>` out of
+   the table and out of sticky with it. */
+.psheetwrap > table.csheet thead th {
+    position: sticky; top: 0; z-index: 6; background: var(--cv); box-shadow: 0 1px 0 var(--ln);
+}
+.psheetwrap > table.csheet thead th.who { display: table-cell; }
+
+/* And the body gets its own stacking context, so a day cell — which is
+   position:relative, because an edited day carries a corner mark — can never
+   paint over the row that says which day it is. */
+.psheetwrap > table.csheet tbody { isolation: isolate; }
+
+/* At four weeks the name column is the only thing anchoring 28 columns, so it
+   stays while the month scrolls sideways. */
+.psheetwrap.w4 > table.csheet :is(th, td).who { position: sticky; left: 0; z-index: 5; background: var(--cv); }
+.psheetwrap.w4 > table.csheet thead th.who { z-index: 7; }
+
+table.csheet td { padding: 2px 3px; vertical-align: middle; border-bottom: 1px dashed var(--ln); }
+table.csheet tr:last-child td { border-bottom: 0; }
+table.csheet td.sep { padding: 0; }
+table.csheet td.who { max-width: 172px; }
+table.csheet th.who { text-align: left; }
+
+/* TODAY IS ONE TINT DOWN THE COLUMN, not an outline on each of 34 cells. */
+table.csheet td.today, table.csheet th.today { background: color-mix(in srgb, var(--acc) 7%, transparent); }
+table.csheet th.today { color: var(--acc); }
+
+/* ---- ONE DAY -------------------------------------------------------------
+ * SIX MARKS CAME OFF EVERY ONE OF THESE BEFORE ANYTHING WAS ADDED: the
+ * border, the centred text, the radius, the weekend stripes, the dashed box
+ * on every off day, and the outline on every cell in today's column. Owner:
+ * "it's even hard to look at it with all the colors and borders and
+ * everything on the shift pill".
+ */
+.cl {
+    display: block; min-height: 21px; line-height: 1.45; position: relative; padding: 3px 6px;
+    font-size: 10.5px; color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cl:hover { cursor: pointer; }
+.cl.off { background: none; border: 0; }
+
+/* THE ONLY OUTLINED THING ON THE SHEET. A gap always shows at once, which is
+   the whole reason this tab exists. */
+.cl.unf {
+    border: 1px dotted color-mix(in srgb, var(--fail) 75%, transparent); border-radius: 5px;
+    color: var(--fail); font: 700 8.5px ui-monospace, monospace; letter-spacing: .06em;
+    text-transform: uppercase; padding: 4px 5px; text-align: center;
 }
 
-.fg-cell.swapB {
-    border: 1.5px dashed var(--acc); color: var(--acc);
-    background: color-mix(in srgb, var(--acc) 7%, transparent);
+/* THE CORNER MARK ON A DAY SOMEBODY EDITED. */
+.cl > .hm {
+    position: absolute; top: 2px; right: 2px; width: 4px; height: 4px;
+    border-radius: 50%; background: var(--warn);
+}
+
+/* THE CALENDAR'S BAR: borderless, on a soft tint.
+   A SHIFT'S COLOUR IS THE SHIFT'S. RULED 21 sep: it is given from the plate
+   palette when the shift is created and it keeps it on every tab, so the cell
+   reads the stored slot (`data-cat` -> `--cat`, the shell's own resolver) and
+   never decides from a position in a list. The same value paints the swatch
+   on the Watches shift row and the cycle strip on a pattern. */
+.cl.bar {
+    display: flex; align-items: center; gap: 5px; border-radius: 5px; padding: 4px 6px;
+    font: 700 8px ui-monospace, monospace; letter-spacing: .05em; text-transform: uppercase;
+    background: color-mix(in srgb, var(--cat, var(--fog)) 15%, transparent); color: var(--cat, var(--fog));
+}
+.cl.bar > .dot { width: 5px; height: 5px; border-radius: 50%; flex: none; background: var(--cat, var(--fog)); }
+
+/* ---- A STATION BAND FOLDS ------------------------------------------------
+ * The grants page's fold, applied to a sheet. Owner: "each station section in
+ * the sheet as an accordion like the collapsibles on the grants page, so a
+ * user doesn't have to scroll for ages."
+ *
+ * It is a ROW and not a `<details>`, because a `<details>` cannot wrap
+ * `<tr>`s and the day columns have to stay in one grid across every station.
+ * A FOLDED STATION STILL STATES ITS UNFILLED DAYS, in the alarm ink: folding
+ * is for length, and it may never hide a gap.
+ */
+tr.stfold > td { border-bottom: 1px solid var(--ln); }
+.stfoldb {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%;
+    padding: 10px 4px 9px; background: none; border: 0; cursor: pointer; text-align: left;
+    font-family: inherit; border-radius: 8px;
+}
+.stfoldb:hover { background: color-mix(in srgb, var(--fog) 6%, transparent); }
+.stfoldb .pmf-car { flex: none; color: var(--fog); transform: rotate(0); transition: transform .15s; }
+tr.stfold.shut .stfoldb .pmf-car { transform: rotate(-90deg); }
+.stfoldb > b { font-size: 13px; font-weight: 700; color: var(--tx); }
+.stfoldb > .mono { font-size: 10px; color: var(--dim); letter-spacing: .06em; }
+.stfoldb > .stn { font: 500 10.5px ui-monospace, monospace; color: var(--fog); }
+.stfoldb > .stun {
+    margin-left: auto; font: 700 9.5px ui-monospace, monospace; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--fail);
+    border: 1px dotted color-mix(in srgb, var(--fail) 65%, transparent); border-radius: 6px; padding: 2px 7px;
+}
+.stfoldb > .stok {
+    margin-left: auto; font: 500 9.5px ui-monospace, monospace; letter-spacing: .06em; color: var(--dim);
+}
+tr.stfold.shut > td { border-bottom: 1px dashed var(--ln); }
+tr.strow[hidden] { display: none; }
+
+/* ---- THE FILL ROW --------------------------------------------------------
+ * Layout C: inline above the sheet, and the only thing above the sheet card.
+ */
+.prow {
+    display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 11px 13px;
+    margin-bottom: 14px; border: 1px solid var(--ln2); border-radius: 12px; background: var(--raised);
+}
+/* Preview and Fill are ONE thing and wrap as one: a flex line wraps before it
+   shrinks, so a loose "Fill these days" was dropping alone onto a second line
+   with 900px of empty row beside it. */
+.prow .pact { display: flex; align-items: center; gap: 9px; margin-left: auto; flex: none; }
+.prow > .k {
+    font: 600 9.5px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--dim); flex: none;
+}
+.prow .fld {
+    height: 32px; padding-top: 0; padding-bottom: 0; line-height: 30px; font-size: 12.5px;
+    width: auto; min-width: 0; max-width: 240px;
+}
+
+.prow2 {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: -6px;
+    margin-bottom: 14px; padding: 0 13px; font-size: 12.5px; color: var(--fog); line-height: 1.7;
+}
+.prow2 b { color: var(--tx); }
+
+/* WHAT A FILL OBEYS, STATED AND NOT EDITED. RULED 21 sep: the rules moved to
+   the Watches card, so the fill row states them read-only and the door goes
+   there. A caption, never a control — nothing here is clickable but the
+   door. */
+.prow2 .pfills {
+    margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 7px;
+    font: 500 11.5px ui-monospace, monospace; color: var(--dim);
+}
+.prow2 .pfills b { color: var(--fog); font-weight: 700; }
+.prow2 .pfills a { color: var(--acc); text-decoration: none; font-weight: 700; }
+.prow2 .pfills a:hover { text-decoration: underline; }
+@media (max-width: 760px) { .prow2 .pfills { margin-left: 0; flex: 1 1 100%; flex-wrap: wrap; } }
+
+/* ---- THE BY-HAND MENU ON ONE DAY ----------------------------------------- */
+.pmenuwrap { position: relative; display: block; }
+.pmenuwrap > .pmenu { display: none; }
+.pmenuwrap.on > .pmenu { display: block; }
+.pmenu {
+    position: absolute; z-index: 5; top: calc(100% + 5px); left: 50%; transform: translateX(-50%);
+    width: 232px; background: var(--cv); border: 1px solid var(--ln2); border-radius: 11px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .26); padding: 7px; text-align: left; white-space: normal;
+}
+.pmenu .hd {
+    font: 600 8.5px ui-monospace, monospace; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--dim); padding: 5px 8px 6px;
+}
+/* ONE ROW SHAPE FOR EVERY ITEM, whether it is a link or the button that
+   commits one. A menu whose five items were three shapes would read as three
+   kinds of thing. */
+.pmenu a, .pmenu .pmb {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border-radius: 7px;
+    text-decoration: none; font-size: 12.5px; color: var(--tx); background: none; border: 0;
+    text-align: left; font-family: inherit; cursor: pointer;
+}
+.pmenu a:hover, .pmenu .pmb:hover { background: color-mix(in srgb, var(--acc) 10%, transparent); color: var(--acc); }
+.pmenu .pmb.dg, .pmenu a.dg { color: var(--fail); }
+/* The two items that need a value carry it beside them rather than opening a
+   second panel: a menu that opened a menu would be a menu nobody finishes. */
+.pmenu .pmrow { display: flex; flex-direction: column; gap: 3px; }
+.pmenu .pmrow .wval { font-size: 11.5px; margin: 0 8px; }
+.pmenu .sep { display: block; height: 1px; background: var(--ln); margin: 5px 4px; }
+.pmenu .ft {
+    font-size: 11px; color: var(--fog); line-height: 1.55; padding: 6px 8px 3px;
+    border-top: 1px dashed var(--ln); margin-top: 4px;
+}
+
+/* ---- THE KEY UNDER THE SHEET --------------------------------------------- */
+.pkey {
+    flex: none; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 11px;
+    padding-top: 10px; border-top: 1px dashed var(--ln);
+    font: 500 10px ui-monospace, monospace; color: var(--dim);
+}
+.pkey span { display: inline-flex; align-items: center; gap: 6px; }
+.pkey i.k { width: 12px; height: 12px; border-radius: 4px; flex: none; }
+.pkey i.k[data-cat] { background: color-mix(in srgb, var(--cat) 40%, transparent); }
+.pkey i.k.o { border: 1px solid var(--ln2); background: none; opacity: .45; }
+.pkey i.k.u { border: 1px dotted color-mix(in srgb, var(--fail) 75%, transparent); }
+.pkey i.k.h { background: var(--warn); width: 7px; height: 7px; border-radius: 50%; }
+.pkey .sp { flex: 1; }
+
+/* ---- THE WINDOW: 1, 2 OR 4 WEEKS -----------------------------------------
+ * Four is the MONTH view and it compacts the cell the way the calendar does —
+ * the mark alone, the word in its title — so 28 columns and the name column
+ * measure about 1100px at 1440 and do not scroll. There is no three: anything
+ * between is a stretched fortnight.
+ */
+.psheetwrap.w1 > table.csheet { min-width: 820px; width: 100%; }
+.psheetwrap.w1 col.dy { width: 112px; }
+.psheetwrap.w4 > table.csheet { min-width: 0; width: auto; }
+.psheetwrap.w4 col.who { width: 140px; }
+.psheetwrap.w4 col.dy { width: 30px; }
+.psheetwrap.w4 .cl { min-height: 16px; padding: 0; font-size: 0; }
+.psheetwrap.w4 .cl.bar { height: 16px; gap: 0; padding: 0; justify-content: center; }
+.psheetwrap.w4 .cl.bar > .dot { display: none; }
+.psheetwrap.w4 .cl.unf { font-size: 0; height: 16px; padding: 0; }
+.psheetwrap.w4 .cl > .hm { width: 4px; height: 4px; top: 1px; right: 1px; }
+.psheetwrap.w4 .csheet th { font-size: 7.5px; letter-spacing: .03em; padding: 0 2px 8px; }
+.psheetwrap.w4 .csheet th em { font-size: 9px; }
+.psheetwrap.w4 .csheet td { padding: 2px 1px; }
+.psheetwrap.w4 .csheet td.who { max-width: 140px; }
+.psheetwrap.w4 .csheet td.who b { font-size: 11.5px; }
+
+@media (max-width: 640px) {
+    .prow { flex-direction: column; align-items: stretch; }
+    .prow .pact { margin-left: 0; }
+    .stfoldb > .stun, .stfoldb > .stok { margin-left: 0; }
+    .psheetwrap.w2 > table.csheet, .psheetwrap.w4 > table.csheet { min-width: 900px; }
 }
 
 /* ---- HERE NOW, AGAINST THE WATCH ------------------------------------------

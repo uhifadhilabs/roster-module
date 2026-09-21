@@ -70,9 +70,11 @@ final readonly class SheetService
     /**
      * THE WHOLE SHEET FOR ONE WINDOW.
      *
-     * @param Station|null $only the head's station filter; null is every station on the books
+     * NO STATION FILTER HERE, on purpose: narrowing is
+     * {@see Sheet::only()}, applied to one read, because the head's chip
+     * has to list every station whatever the sheet under it shows.
      */
-    public function read(AreaOfInterest $area, SheetWindow $window, ?Station $only = null): Sheet
+    public function read(AreaOfInterest $area, SheetWindow $window): Sheet
     {
         $stations = $this->stations->findByArea($area);
         /*
@@ -93,11 +95,6 @@ final readonly class SheetService
         $bands = [];
         foreach ($stations as $station) {
             $uuid = (string) $station->getUuidString();
-
-            if (null !== $only && $uuid !== (string) $only->getUuidString()) {
-                continue;
-            }
-
             $expected = $this->expectationOf($watches[$uuid] ?? null);
 
             $rows = [];
