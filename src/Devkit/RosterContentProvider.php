@@ -467,10 +467,18 @@ final readonly class RosterContentProvider implements ContentProviderInterface
             return null;
         }
 
-        if (null !== $this->rings->findOneForStation($post)) {
+        $standing = $this->rings->findOneForStation($post);
+        if (null !== $standing) {
             // A RING IS ALREADY TURNING HERE — this seeder's from an
             // earlier run, or somebody's own. Either way a second one at
-            // one post is two people on one watch.
+            // one post is two people on one watch. But somebody posted
+            // here SINCE it was made joins it, at the end of the ring:
+            // a ranger the sheet lists at a station with no watch in a
+            // month is not a demo of a roster, it is a demo of a ranger
+            // nobody rostered. Their days are drawn as the ring is
+            // carried on to the horizon, never over what already stands.
+            $this->joinTheStandingRing($standing, $post, $ringed);
+
             return null;
         }
 
@@ -546,6 +554,28 @@ final readonly class RosterContentProvider implements ContentProviderInterface
         $this->entityManager->flush();
 
         return $rotation;
+    }
+
+    /**
+     * @param array<string, true> $ringed
+     */
+    private function joinTheStandingRing(Rotation $ring, Station $post, array &$ringed): void
+    {
+        $position = -1;
+        foreach ($ring->getPool() as $member) {
+            $ringed[(string) $member->getPerson()->getUuidString()] = true;
+            $position = max($position, $member->getPosition());
+        }
+
+        foreach ($this->postings->findStandingByStation($post) as $posting) {
+            $person = $posting->getPerson();
+            if (!$person instanceof UserInterface || isset($ringed[(string) $person->getUuidString()])) {
+                continue;
+            }
+            $this->entityManager->persist(new RotationPoolMember($ring, $person, ++$position));
+            $ringed[(string) $person->getUuidString()] = true;
+        }
+        $this->entityManager->flush();
     }
 
     /**

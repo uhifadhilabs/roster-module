@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Uhifadhi\Roster\Tests\Integration\Devkit;
 
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
+use Uhifadhi\Bundle\AreaBundle\Entity\Posting;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
 use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
@@ -24,6 +25,7 @@ use Uhifadhi\Bundle\TeamBundle\Entity\Position;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Roster\Devkit\RosterContentProvider;
 use Uhifadhi\Roster\Entity\Rotation;
+use Uhifadhi\Roster\Entity\RotationPoolMember;
 use Uhifadhi\Roster\Enum\RotationScope;
 use Uhifadhi\Roster\Enum\SwapState;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
@@ -370,6 +372,36 @@ final class RosterContentProviderTest extends IntegrationTestCase
 
         self::assertNotEmpty($duties->findByAreaBetween($this->area, $cut->modify('+1 day'), $this->fillHorizon()), 'The standing rings were carried on to the horizon.');
         self::assertSame($kept, \count($duties->findByAreaBetween($this->area, $this->windowStart(), $cut)), 'And what stood already was not redrawn.');
+    }
+
+    /**
+     * SOMEBODY POSTED AFTER THE RING WAS MADE JOINS IT on the next seed,
+     * at the end of the ring — a stationed ranger with no watch for a
+     * month is not what a demo should show.
+     */
+    public function testSomebodyPostedLaterJoinsTheStandingRing(): void
+    {
+        $this->provider()->load();
+
+        $station = $this->em->getRepository(Station::class)->findOneBy(['area' => $this->area], ['code' => 'ASC']);
+        self::assertInstanceOf(Station::class, $station);
+        $late = new User()->setPassword('x')->setEmail('late@example.test')->setFirstName('Late')->setLastName('Joiner');
+        $this->em->persist($late);
+        $this->em->flush();
+        $this->em->persist(new Posting()->setStation($station)->setPerson($late)->setSince(new \DateTimeImmutable('today'))->setSource(PostingSource::WrittenHere));
+        $this->em->flush();
+        $this->em->clear();
+
+        $this->provider()->load();
+        $this->em->clear();
+
+        $again = $this->em->getRepository(Station::class)->find($station->getId());
+        self::assertInstanceOf(Station::class, $again);
+        $ring = $this->repository(RotationRepository::class)->findOneForStation($again);
+        self::assertInstanceOf(Rotation::class, $ring);
+        $members = array_map(static fn (RotationPoolMember $m): string => (string) $m->getPerson()->getUuidString(), $ring->getPool()->toArray());
+        self::assertContains((string) $late->getUuidString(), $members, 'The late joiner is in the ring.');
+        self::assertSame(\count($members), \count(array_unique($members)), 'And nobody is in it twice.');
     }
 
     /**
