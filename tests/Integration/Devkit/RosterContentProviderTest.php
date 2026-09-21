@@ -19,6 +19,7 @@ use Uhifadhi\Bundle\AreaBundle\Enum\PostingSource;
 use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
 use Uhifadhi\Bundle\TeamBundle\Entity\Department;
+use Uhifadhi\Bundle\TeamBundle\Entity\Placement;
 use Uhifadhi\Bundle\TeamBundle\Entity\Position;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Roster\Devkit\RosterContentProvider;
@@ -729,8 +730,13 @@ final class RosterContentProviderTest extends IntegrationTestCase
     }
 
     /**
-     * A DEPARTMENT WITH SOME OF THE AREA'S PEOPLE IN IT — a department, a
-     * position under it, and the people at that position.
+     * A DEPARTMENT WITH SOME OF THE AREA'S PEOPLE IN IT — a department, and
+     * the people PLACED in it.
+     *
+     * A DEPARTMENT IS A DIMENSION OF A PLACEMENT, not something a position
+     * owns: the position says what somebody may do, the placement says
+     * where and in which departments they do it. So membership is written
+     * on the person, one placement each.
      *
      * @param list<int> $whichPeople indexes into the twelve people the fixture posts
      */
@@ -739,11 +745,14 @@ final class RosterContentProviderTest extends IntegrationTestCase
         $department = new Department()->setName($name);
         $this->em->persist($department);
 
-        $position = new Position()->setName('Ranger')->setDepartment($department);
+        $position = new Position()->setName('Ranger');
         $this->em->persist($position);
 
         foreach ($whichPeople as $index) {
-            $this->people[$index]->setPosition($position);
+            $placement = new Placement()->acrossTheOrganization()->inDepartments([$department]);
+            $this->em->persist($placement);
+
+            $this->people[$index]->setPosition($position)->setPlacement($placement);
         }
 
         $this->em->flush();

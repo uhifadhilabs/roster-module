@@ -16,8 +16,10 @@ namespace Uhifadhi\Roster\Tests\Integration\Fixtures;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Vote;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
-use Uhifadhi\Bundle\AreaBundle\Access\AreaPermissions;
+use Uhifadhi\Bundle\AreaBundle\Access\AreaConcerns;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
+use Uhifadhi\Contracts\Access\Grant;
+use Uhifadhi\Contracts\Access\Verb;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
 use Uhifadhi\Roster\Controller\RosterController;
 
@@ -41,24 +43,37 @@ final class FixedManageVoter extends Voter
     public const string READER_EMAIL = 'reader@example.test';
 
     /**
-     * READING AN AREA — the platform's own word, spelt where the area's
-     * Stations configure page checks it. It is in the host's catalogue and
-     * not in this bundle's, so there is no constant upstream to import.
+     * THE GROUND'S OWN PAIRS, none of them this module's to declare and none
+     * of them ever checked by it. They are granted here because this module
+     * CONTRIBUTES to the area's and the organization's own screens and
+     * answers the area's own endpoint, and a suite that could not open them
+     * would be testing the contribution in a vacuum.
+     *
+     * THEY ARE SPELT FROM THE AREA'S OWN DECLARATION so that a rename
+     * upstream breaks this file rather than quietly closing every page it
+     * opens. `area.view` and `duty.checkin` were the old machinery's words
+     * and named nothing the core enforces any more.
+     *
+     * @return list<string>
      */
-    public const string AREA_VIEW = 'area.view';
+    private static function groundPairs(): array
+    {
+        return [
+            (string) Grant::of(AreaConcerns::AREAS, Verb::Read),
+            (string) Grant::of(AreaConcerns::ZONES, Verb::Read),
+            (string) Grant::of(AreaConcerns::STATIONS, Verb::Read),
+            (string) Grant::of(AreaConcerns::STATIONS, Verb::Configure),
+            (string) Grant::of(AreaConcerns::ASSIGNMENTS, Verb::Manage),
+            (string) Grant::of(AreaConcerns::DUTY, Verb::Record),
+        ];
+    }
 
     protected function supports(string $attribute, mixed $subject): bool
     {
         return \in_array($attribute, [
             RosterConfigureController::MANAGE_PERMISSION,
             RosterController::PLAN_PERMISSION,
-            // The AREA's own two, neither of them this module's to declare
-            // and neither of them ever checked by it. They are granted here
-            // because this module CONTRIBUTES to the area's own screens and
-            // answers the area's own endpoint, and a suite that could not
-            // open either would be testing the contribution in a vacuum.
-            AreaPermissions::CHECK_IN,
-            self::AREA_VIEW,
+            ...self::groundPairs(),
         ], true);
     }
 
@@ -70,10 +85,10 @@ final class FixedManageVoter extends Voter
         }
 
         // ANY SIGNED-IN ACCOUNT MAY READ THE PARK AND REPORT ITS OWN DAY.
-        // The two roster permissions are the manager's alone; check-in is
-        // every ranger's, which is what makes "me" mean the token's
+        // The two roster permissions are the manager's alone; the ground's
+        // are everybody's here, which is what makes "me" mean the token's
         // account.
-        if (\in_array($attribute, [AreaPermissions::CHECK_IN, self::AREA_VIEW], true)) {
+        if (\in_array($attribute, self::groundPairs(), true)) {
             return true;
         }
 

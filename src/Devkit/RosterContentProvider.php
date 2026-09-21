@@ -649,9 +649,10 @@ final readonly class RosterContentProvider implements ContentProviderInterface
      * because a park's own squad is the likelier answer and a demo should
      * show the likelier answer.
      *
-     * A DEPARTMENT'S PEOPLE ARE THE PEOPLE AT ITS POSITIONS. Team owns
-     * that chain and this only reads it; there is no membership of a
-     * department that is not held through a position.
+     * A DEPARTMENT'S PEOPLE ARE THE PEOPLE PLACED IN IT. Team owns that
+     * chain and this only reads it: a department is a dimension of a
+     * person's PLACEMENT, not something a position owns, so somebody may
+     * be placed in several and a position belongs to none.
      *
      * @param array<string, true> $ringed
      *
@@ -673,7 +674,11 @@ final readonly class RosterContentProvider implements ContentProviderInterface
                     continue;
                 }
 
-                if ($person->getPosition()?->getDepartment()?->getId() === $department->getId()) {
+                // PLACED IN THIS ONE BY NAME. A placement across ALL
+                // departments is not membership of any: it would make
+                // everybody a member of every department and the squad
+                // would be whoever the sort happened to reach first.
+                if (\in_array($department, $person->getPlacement()?->getDepartments() ?? [], true)) {
                     $carried[] = $person;
                 }
 
