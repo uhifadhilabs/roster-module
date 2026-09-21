@@ -20,6 +20,8 @@
  *      that registers `roster--sheet`, `roster--sheet-folds` and
  *      `roster--day-menu`.
  *   3. Serve <dir> on 127.0.0.1:8099 and `node sheet_menu_check.mjs`.
+ *      SHEET_BASE overrides that origin when the harness is served
+ *      somewhere else.
  *
  * It needs `playwright-core` and a Chromium build; it is NOT part of
  * `composer check`, because CI has neither.
@@ -44,7 +46,7 @@ import { chromium } from 'playwright-core';
  * sampled every frame of a scroll.
  */
 
-const BASE = 'http://127.0.0.1:8099';
+const BASE = process.env.SHEET_BASE || 'http://127.0.0.1:8099';
 const out = [];
 const say = (...a) => { const l = a.join(' '); out.push(l); console.log(l); };
 
@@ -206,7 +208,20 @@ const run = async (weeks, w, h) => {
           if (++n < 12) { step(); } else { done(gaps); }
         });
       };
-      step();
+      /*
+       * SETTLE BEFORE THE FIRST SAMPLE, for the reason stated at the top of
+       * this file and not only for a scroll: Chrome applies the anchor
+       * position on the frame AFTER the anchored element appears, so a
+       * sample taken in the same task as the CLICK reads the menu where it
+       * was laid out before the anchor resolved — 10px out, once, and never
+       * again. That one reading is what "the menu slips at the start of a
+       * scroll" was: measured with two settling frames it is 0px across
+       * every frame of the scroll, and measured without them it is 10px on
+       * the first frame whether the panel is anchored, lifted, or in the
+       * top layer as a manual popover (all three tried, 21 sep). The menu
+       * does not slip; the gauge was reading it too early.
+       */
+      requestAnimationFrame(() => requestAnimationFrame(step));
     });
   });
   if (gap) {

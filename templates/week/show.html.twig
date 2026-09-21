@@ -92,8 +92,14 @@
         cell collides with by name. The NUMBER is the ruling; it is declared
         here, scoped to `.cl.bar`, rather than inherited from a class this
         module does not own.
-     C  the menu's one-frame slip at the start of a scroll is unmeasured in
-        this round.
+     C  the menu's "one-frame 10px slip" was measured and is not one. In
+        real Chrome 153 the cell-to-panel gap is 0px drift across every
+        frame of a scroll, at two weeks and at four; the 10px was the gauge
+        sampling the panel in the same task as the click, before Chrome had
+        applied the anchor position for a panel that had just appeared.
+        `popover="manual"` in the top layer was tried and measures exactly
+        the same — 10px without settling frames, 0px with them — so it is
+        not kept: it would be a behaviour change bought for nothing.
 
    ========================================================================== #}
 {% extends '@UhifadhiRoster/base.html.twig' %}
