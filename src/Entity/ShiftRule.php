@@ -16,9 +16,10 @@ namespace Uhifadhi\Roster\Entity;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
+use Uhifadhi\Roster\Entity\Trait\RuleAnswerTrait;
 use Uhifadhi\Roster\Entity\Trait\TimestampableTrait;
+use Uhifadhi\Roster\Enum\RuleChoiceInterface;
 use Uhifadhi\Roster\Enum\RuleKind;
-use Uhifadhi\Roster\Enum\RuleUnit;
 use Uhifadhi\Roster\Model\RuleValue;
 use Uhifadhi\Roster\Repository\ShiftRuleRepository;
 
@@ -46,6 +47,7 @@ use Uhifadhi\Roster\Repository\ShiftRuleRepository;
 #[ORM\HasLifecycleCallbacks]
 class ShiftRule
 {
+    use RuleAnswerTrait;
     use TimestampableTrait;
 
     #[ORM\Id]
@@ -64,22 +66,25 @@ class ShiftRule
     private RuleKind $kind;
 
     /**
-     * THE NUMBER AS TYPED. A float because 1.5 km and 1.5 hours are both
-     * things somebody writes, and rounding them on the way in would answer
-     * a form with a different number than it sent.
+     * THE ANSWER IS EITHER SHAPE, and the row takes whichever the rule has.
+     * A single constructor rather than two: "this rule, for this
+     * area, says this" is one act, and a caller that had to know in
+     * advance which of two verbs a kind wanted would be carrying the
+     * enum's own knowledge around with it.
+     *
+     * @throws \InvalidArgumentException when the answer is not one this rule takes
      */
-    #[ORM\Column(type: 'float')]
-    private float $value;
-
-    #[ORM\Column(length: 16, enumType: RuleUnit::class)]
-    private RuleUnit $unit;
-
-    public function __construct(AreaOfInterest $area, RuleKind $kind, RuleValue $value)
+    public function __construct(AreaOfInterest $area, RuleKind $kind, RuleValue|RuleChoiceInterface $answer)
     {
         $this->uuid = Uuid::v7();
         $this->area = $area;
         $this->kind = $kind;
-        $this->set($value);
+
+        if ($answer instanceof RuleValue) {
+            $this->set($answer);
+        } else {
+            $this->choose($answer);
+        }
     }
 
     public function getId(): ?int
@@ -100,24 +105,5 @@ class ShiftRule
     public function getKind(): RuleKind
     {
         return $this->kind;
-    }
-
-    /** The pair, as one object — what everything reads and nothing reassembles. */
-    public function getValue(): RuleValue
-    {
-        return new RuleValue($this->value, $this->unit);
-    }
-
-    /**
-     * @throws \InvalidArgumentException when the unit cannot measure this kind
-     */
-    public function set(RuleValue $value): static
-    {
-        $checked = $this->kind->valueOf($value->value, $value->unit);
-
-        $this->value = $checked->value;
-        $this->unit = $checked->unit;
-
-        return $this;
     }
 }

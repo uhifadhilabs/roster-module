@@ -20,6 +20,8 @@ use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Roster\Entity\StationWatch;
+use Uhifadhi\Roster\Enum\ForbiddenDay;
+use Uhifadhi\Roster\Enum\NightThenDay;
 use Uhifadhi\Roster\Enum\RuleKind;
 use Uhifadhi\Roster\Enum\RuleUnit;
 use Uhifadhi\Roster\Model\RuleValue;
@@ -351,6 +353,73 @@ final class ConfigurePageTest extends WebTestCase
         $this->client->request('POST', $this->url('settings'), ['_token' => 'not-the-token', 'ping_interval_minutes' => '5']);
 
         self::assertResponseStatusCodeSame(403);
+    }
+
+    /**
+     * THE FOUR FILLING RULES ARE ON THIS CARD, under one group head.
+     *
+     * RULED 21 sep: what a fill obeys is an AREA rule, so it is set here
+     * and the sheet's fill row only states it. Two of the four are picked
+     * and not measured, and the row draws that difference — a select, not
+     * a number nobody would know how to write.
+     */
+    public function testTheRulesCardCarriesTheFourAFillObeys(): void
+    {
+        $this->signIn(FixedManageVoter::MANAGER_EMAIL);
+        $crawler = $this->client->request('GET', $this->url('watches'));
+        self::assertResponseIsSuccessful();
+
+        self::assertSame(
+            ['Filling'],
+            $crawler->filter('.rgrphd')->each(static fn (\Symfony\Component\DomCrawler\Crawler $head): string => trim($head->text())),
+            'One group head, over the rules that came across from the sheet.',
+        );
+
+        $card = $crawler->filter('.rb-body')->reduce(
+            static fn (\Symfony\Component\DomCrawler\Crawler $body): bool => str_contains($body->text(), 'Rest between watches'),
+        );
+        self::assertGreaterThan(0, $card->count(), 'The filling rules live on the rules card.');
+
+        $text = $card->text();
+        foreach (['Rest between watches', 'Night then day', 'Fill ahead', 'A day the rules forbid'] as $rule) {
+            self::assertStringContainsString($rule, $text);
+        }
+
+        // MEASURED, AND CHOSEN. The horizon is a number and a unit; what
+        // to do about a night then a day is a choice with no number in it.
+        self::assertCount(1, $crawler->filter('input[name="rule_value_fill_ahead"]'));
+        self::assertCount(1, $crawler->filter('select[name="rule_unit_fill_ahead"] option[value="weeks"]'));
+        self::assertCount(0, $crawler->filter('input[name="rule_value_night_then_day"]'));
+        self::assertCount(3, $crawler->filter('select[name="rule_choice_night_then_day"] option'));
+        self::assertCount(2, $crawler->filter('select[name="rule_choice_forbidden_day"] option'));
+    }
+
+    /** AND SAVING THE CARD WRITES BOTH SHAPES OF ANSWER. */
+    public function testAManagerSavesTheFillingRules(): void
+    {
+        $this->signIn(FixedManageVoter::MANAGER_EMAIL);
+        $crawler = $this->client->request('GET', $this->url('watches'));
+        $token = $crawler->filter('input[name=_token]')->attr('value');
+        self::assertIsString($token);
+
+        $this->client->request('POST', '/areas/'.$this->area->getUuidString().'/modules/roster/rules', [
+            '_token' => $token,
+            'rule_value_rest_between' => '9',
+            'rule_unit_rest_between' => 'hours',
+            'rule_value_fill_ahead' => '3',
+            'rule_unit_fill_ahead' => 'weeks',
+            'rule_choice_night_then_day' => 'warn',
+            'rule_choice_forbidden_day' => 'flagged',
+        ]);
+
+        self::assertResponseRedirects();
+
+        $this->em->clear();
+        $area = $this->areaAgain();
+        self::assertSame('9 hours', $this->rules()->forArea($area)[RuleKind::RestBetween->value]->label());
+        self::assertSame('3 weeks', $this->rules()->forArea($area)[RuleKind::FillAhead->value]->label());
+        self::assertSame(NightThenDay::WarnMe, $this->rules()->choicesForArea($area)[RuleKind::NightThenDay->value]);
+        self::assertSame(ForbiddenDay::FilledAndFlagged, $this->rules()->choicesForArea($area)[RuleKind::ForbiddenDay->value]);
     }
 
     /**

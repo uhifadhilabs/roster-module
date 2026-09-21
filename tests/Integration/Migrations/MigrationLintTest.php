@@ -115,12 +115,50 @@ final class MigrationLintTest extends MigrationsTestCase
     }
 
     /**
+     * A "DROP" THAT TAKES NO ROW WITH IT.
+     *
+     * @param list<string> $statements every statement the version plans
+     */
+    private static function losesNothing(string $statement, array $statements): bool
+    {
+        if (1 === preg_match('/\bALTER COLUMN\b.*\bDROP (?:NOT NULL|DEFAULT)\b/i', $statement)) {
+            return true;
+        }
+
+        if (1 !== preg_match('/^DROP INDEX (?:IF EXISTS )?"?(\w+)"?/i', $statement, $match)) {
+            return false;
+        }
+
+        foreach ($statements as $other) {
+            if (1 === preg_match('/^CREATE (?:UNIQUE )?INDEX (?:IF NOT EXISTS )?"?'.preg_quote($match[1], '/').'"?\b/i', $other)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @param list<string> $created    tables this version creates itself
      * @param list<string> $statements every statement the version plans
      */
     private function violation(string $statement, array $created, array $statements, bool $marked): ?string
     {
-        if (1 === preg_match('/\bDROP\b/i', $statement) && !$marked) {
+        /*
+         * NOT EVERY "DROP" LOSES ANYTHING. The marker exists to catch a
+         * column, a table or a constraint going away with the rows in it;
+         * three spellings carry no loss at all and were making the lint
+         * demand a marker that would have been a lie:
+         *
+         *   DROP NOT NULL / DROP DEFAULT   a column LOOSENS. Every row it
+         *                                  holds is still there and still
+         *                                  says the same thing.
+         *   DROP INDEX <n> … CREATE …<n>   an index is REPLACED in the
+         *                                  same version, which is how a
+         *                                  unique is narrowed to a partial
+         *                                  pair. An index holds no facts.
+         */
+        if (1 === preg_match('/\bDROP\b/i', $statement) && !$marked && !self::losesNothing($statement, $statements)) {
             return 'drops in up() without an @destructive marker in the class docblock.';
         }
 
@@ -135,7 +173,10 @@ final class MigrationLintTest extends MigrationsTestCase
             return null;
         }
 
-        if (1 !== preg_match('/\bNOT NULL\b/i', $change)) {
+        // AND "DROP NOT NULL" IS THE OPPOSITE OF REQUIRING ONE: the rule
+        // below is about a column that starts demanding a value, not one
+        // that stops.
+        if (1 !== preg_match('/\bNOT NULL\b/i', $change) || 1 === preg_match('/\bDROP NOT NULL\b/i', $change)) {
             return null;
         }
 

@@ -15,6 +15,9 @@ namespace Uhifadhi\Roster\Tests\Integration\Service;
 
 use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
+use Uhifadhi\Roster\Enum\ForbiddenDay;
+use Uhifadhi\Roster\Enum\NightThenDay;
+use Uhifadhi\Roster\Enum\RuleChoiceInterface;
 use Uhifadhi\Roster\Enum\RuleKind;
 use Uhifadhi\Roster\Enum\RuleUnit;
 use Uhifadhi\Roster\Model\RuleValue;
@@ -63,18 +66,49 @@ final class ShiftRuleServiceTest extends IntegrationTestCase
     }
 
     /**
-     * AN AREA NOBODY HAS CONFIGURED READS AS THE STANDARD, not as five
-     * blanks. A blank is a rule that measures nothing, and every surface
-     * that asked one would have to carry its own fallback.
+     * AN AREA NOBODY HAS CONFIGURED READS AS THE STANDARD, not as a card
+     * of blanks. A blank is a rule that measures nothing, and every
+     * surface that asked one would have to carry its own fallback.
      */
     public function testAnUntouchedAreaReadsAsTheStandard(): void
     {
         $values = $this->rules()->forArea($this->area);
 
-        self::assertCount(5, $values);
+        self::assertCount(7, $values, 'Every measured rule answers, the filling pair included.');
         self::assertSame('2 hours', $values[RuleKind::LateAfter->value]->label());
         self::assertSame('30 minutes', $values[RuleKind::PingEvery->value]->label());
         self::assertSame('1.5 km', $values[RuleKind::CheckInWithin->value]->label());
+        self::assertSame('11 hours', $values[RuleKind::RestBetween->value]->label());
+        self::assertSame('6 weeks', $values[RuleKind::FillAhead->value]->label());
+    }
+
+    /**
+     * AND THE TWO THAT ARE PICKED READ AS THEIR STANDARD TOO. Never, and
+     * a forbidden day left unfilled: the safe answer is the one an area
+     * that has said nothing gets.
+     */
+    public function testTheChosenRulesAlsoReadAsTheStandard(): void
+    {
+        $choices = $this->rules()->choicesForArea($this->area);
+
+        self::assertCount(2, $choices);
+        self::assertSame(NightThenDay::Never, $choices[RuleKind::NightThenDay->value]);
+        self::assertSame(ForbiddenDay::LeftUnfilled, $choices[RuleKind::ForbiddenDay->value]);
+    }
+
+    /** AND A CHOICE, ONCE SAVED, IS WHAT COMES BACK. */
+    public function testAChosenRuleComesBackAsItWasPicked(): void
+    {
+        $this->rules()->save($this->area, [
+            RuleKind::NightThenDay->value => NightThenDay::WarnMe,
+            RuleKind::ForbiddenDay->value => ForbiddenDay::FilledAndFlagged,
+        ]);
+
+        $this->em->clear();
+
+        $choices = $this->rules()->choicesForArea($this->reloadedArea());
+        self::assertSame(NightThenDay::WarnMe, $choices[RuleKind::NightThenDay->value]);
+        self::assertSame(ForbiddenDay::FilledAndFlagged, $choices[RuleKind::ForbiddenDay->value]);
     }
 
     /**
@@ -140,15 +174,40 @@ final class ShiftRuleServiceTest extends IntegrationTestCase
          * three hours would be testing the override with a pair the
          * entity is right to refuse.
          */
+        /** @var array<string, RuleValue> $values */
         $values = [
             RuleKind::LateAfter->value => new RuleValue(90.0, RuleUnit::Minutes),
             RuleKind::OfflineAfter->value => new RuleValue(3.0, RuleUnit::Days),
             RuleKind::PingEvery->value => new RuleValue(15.0, RuleUnit::Minutes),
             RuleKind::CheckInWithin->value => new RuleValue(800.0, RuleUnit::Metres),
             RuleKind::RaiseUnfilled->value => new RuleValue(6.0, RuleUnit::Hours),
+            RuleKind::RestBetween->value => new RuleValue(9.0, RuleUnit::Hours),
+            RuleKind::FillAhead->value => new RuleValue(3.0, RuleUnit::Weeks),
+        ];
+        // AND THE TWO THAT ARE PICKED RATHER THAN MEASURED. A station may
+        // overrule them too: a station allowing a night then a day is the
+        // case the exception mechanism exists for.
+        /** @var array<string, RuleChoiceInterface> $choices */
+        $choices = [
+            RuleKind::NightThenDay->value => NightThenDay::Allow,
+            RuleKind::ForbiddenDay->value => ForbiddenDay::FilledAndFlagged,
         ];
 
         foreach (RuleKind::cases() as $kind) {
+            if ($kind->isChoice()) {
+                $choice = $choices[$kind->value];
+
+                $this->rules()->setException($this->outpost, $kind, $choice);
+
+                self::assertSame(
+                    $choice,
+                    $this->rules()->effectiveChoice($this->outpost, $kind),
+                    \sprintf('"%s" is overridable at a station like every other rule.', $kind->label()),
+                );
+
+                continue;
+            }
+
             $value = $values[$kind->value];
 
             $this->rules()->setException($this->outpost, $kind, $value);

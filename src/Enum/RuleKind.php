@@ -16,7 +16,7 @@ namespace Uhifadhi\Roster\Enum;
 use Uhifadhi\Roster\Model\RuleValue;
 
 /**
- * THE FIVE RULES AN AREA SETS, AND ANY STATION MAY OVERRULE.
+ * THE RULES AN AREA SETS, AND ANY STATION MAY OVERRULE.
  *
  * RULED 20 sep. Owner: "rules configurable like exceptions" — any rule,
  * not just hours. So the five are one list with one shape, an area default
@@ -38,6 +38,19 @@ enum RuleKind: string
     case CheckInWithin = 'check_in_within';
     case RaiseUnfilled = 'raise_unfilled';
 
+    /*
+     * ---- FILLING. RULED 21 sep -------------------------------------------
+     * The four the SHEET obeys when it fills days from a pattern. They are
+     * area rules and they live here, on the Watches card, because a rule a
+     * fill obeys is a rule a station may overrule — and the fill row above
+     * the sheet states them read-only with a door back to this card rather
+     * than offering a second place to set them.
+     */
+    case RestBetween = 'rest_between';
+    case NightThenDay = 'night_then_day';
+    case FillAhead = 'fill_ahead';
+    case ForbiddenDay = 'forbidden_day';
+
     /** The uppercase mono label at the head of the row. */
     public function label(): string
     {
@@ -47,7 +60,21 @@ enum RuleKind: string
             self::PingEvery => 'Ping every',
             self::CheckInWithin => 'Check-in within',
             self::RaiseUnfilled => 'Raise unfilled',
+            self::RestBetween => 'Rest between watches',
+            self::NightThenDay => 'Night then day',
+            self::FillAhead => 'Fill ahead',
+            self::ForbiddenDay => 'A day the rules forbid',
         };
+    }
+
+    /**
+     * THE FOUR A FILL OBEYS. The card draws them under their own group
+     * head, and the sheet's fill row states them; everything else on this
+     * enum is about a watch that is already standing.
+     */
+    public function isFilling(): bool
+    {
+        return \in_array($this, [self::RestBetween, self::NightThenDay, self::FillAhead, self::ForbiddenDay], true);
     }
 
     /**
@@ -68,12 +95,72 @@ enum RuleKind: string
             self::PingEvery => 'per handset',
             self::CheckInWithin => 'of the station',
             self::RaiseUnfilled => 'before it starts · as needing a decision',
+            self::RestBetween => 'one watch ending to the next starting',
+            self::NightThenDay => 'a day watch the morning after a night watch',
+            self::FillAhead => 'refilled every night',
+            self::ForbiddenDay => 'never filled wrongly',
         };
+    }
+
+    /**
+     * A RULE WHOSE ANSWER IS PICKED AND NOT MEASURED. Two of the four
+     * filling rules have no number in them at all, so the row draws a
+     * select and the entity stores a case instead of a pair.
+     */
+    public function isChoice(): bool
+    {
+        return \in_array($this, [self::NightThenDay, self::ForbiddenDay], true);
+    }
+
+    /**
+     * THE OPTIONS THIS RULE OFFERS, in the order the select prints them;
+     * empty on every measured rule.
+     *
+     * @return list<RuleChoiceInterface>
+     */
+    public function choices(): array
+    {
+        return match ($this) {
+            self::NightThenDay => NightThenDay::cases(),
+            self::ForbiddenDay => ForbiddenDay::cases(),
+            default => [],
+        };
+    }
+
+    /**
+     * WHAT THIS AREA RUNS AT BEFORE ANYBODY TOUCHES IT, for a chosen rule.
+     *
+     * @throws \LogicException when the kind is measured and has no choices
+     */
+    public function standardChoice(): RuleChoiceInterface
+    {
+        return match ($this) {
+            self::NightThenDay => NightThenDay::Never,
+            self::ForbiddenDay => ForbiddenDay::LeftUnfilled,
+            default => throw new \LogicException(\sprintf('"%s" is measured, not chosen; ask it for its standard value.', $this->label())),
+        };
+    }
+
+    /**
+     * THE CASE THIS RULE STORED, READ BACK. A value this kind does not
+     * offer is refused here rather than three screens later.
+     *
+     * @throws \InvalidArgumentException when the stored value is not one of this rule's options
+     */
+    public function choiceOf(string $stored): RuleChoiceInterface
+    {
+        foreach ($this->choices() as $choice) {
+            if ($choice->value === $stored) {
+                return $choice;
+            }
+        }
+
+        throw new \InvalidArgumentException(\sprintf('"%s" is not one of the answers "%s" offers.', $stored, $this->label()));
     }
 
     public function measuresTime(): bool
     {
-        return self::CheckInWithin !== $this;
+        return self::CheckInWithin !== $this && !$this->isChoice();
     }
 
     /**
@@ -84,9 +171,15 @@ enum RuleKind: string
      */
     public function units(): array
     {
-        return $this->measuresTime()
-            ? [RuleUnit::Minutes, RuleUnit::Hours, RuleUnit::Days]
-            : [RuleUnit::Kilometres, RuleUnit::Metres];
+        return match (true) {
+            $this->isChoice() => [],
+            self::CheckInWithin === $this => [RuleUnit::Kilometres, RuleUnit::Metres],
+            // A HORIZON IS NOT A THRESHOLD. Nobody fills ninety minutes
+            // ahead, and offering minutes on this row would be offering an
+            // answer no area wants to give.
+            self::FillAhead === $this => [RuleUnit::Days, RuleUnit::Weeks, RuleUnit::Months],
+            default => [RuleUnit::Minutes, RuleUnit::Hours, RuleUnit::Days],
+        };
     }
 
     /**
@@ -97,6 +190,9 @@ enum RuleKind: string
     public function standard(): RuleValue
     {
         return match ($this) {
+            self::RestBetween => new RuleValue(11.0, RuleUnit::Hours),
+            self::FillAhead => new RuleValue(6.0, RuleUnit::Weeks),
+            self::NightThenDay, self::ForbiddenDay => throw new \LogicException(\sprintf('"%s" is chosen, not measured; ask it for its standard choice.', $this->label())),
             self::LateAfter => new RuleValue(2.0, RuleUnit::Hours),
             self::OfflineAfter => new RuleValue(1.0, RuleUnit::Days),
             self::PingEvery => new RuleValue(30.0, RuleUnit::Minutes),
@@ -112,8 +208,12 @@ enum RuleKind: string
      */
     public function valueOf(float $value, RuleUnit $unit): RuleValue
     {
-        if ($unit->measuresTime() !== $this->measuresTime()) {
-            throw new \InvalidArgumentException(\sprintf('"%s" is measured in %s, and %s does not measure that.', $this->label(), $this->measuresTime() ? 'time' : 'ground', $unit->value));
+        // THE UNITS THE ROW OFFERS ARE THE UNITS THE RULE TAKES. Asking
+        // whether the unit measures the right KIND of thing is not enough:
+        // "late after 3 weeks" measures time and is still not an answer
+        // this rule has ever offered anybody.
+        if (!\in_array($unit, $this->units(), true)) {
+            throw new \InvalidArgumentException(\sprintf('"%s" is not stated in %s.', $this->label(), $unit->value));
         }
 
         return new RuleValue($value, $unit);

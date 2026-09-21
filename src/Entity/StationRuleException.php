@@ -16,9 +16,10 @@ namespace Uhifadhi\Roster\Entity;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
+use Uhifadhi\Roster\Entity\Trait\RuleAnswerTrait;
 use Uhifadhi\Roster\Entity\Trait\TimestampableTrait;
+use Uhifadhi\Roster\Enum\RuleChoiceInterface;
 use Uhifadhi\Roster\Enum\RuleKind;
-use Uhifadhi\Roster\Enum\RuleUnit;
 use Uhifadhi\Roster\Model\RuleValue;
 use Uhifadhi\Roster\Repository\StationRuleExceptionRepository;
 
@@ -43,6 +44,7 @@ use Uhifadhi\Roster\Repository\StationRuleExceptionRepository;
 #[ORM\HasLifecycleCallbacks]
 class StationRuleException
 {
+    use RuleAnswerTrait;
     use TimestampableTrait;
 
     #[ORM\Id]
@@ -66,18 +68,26 @@ class StationRuleException
     #[ORM\Column(length: 32, enumType: RuleKind::class)]
     private RuleKind $kind;
 
-    #[ORM\Column(type: 'float')]
-    private float $value;
-
-    #[ORM\Column(length: 16, enumType: RuleUnit::class)]
-    private RuleUnit $unit;
-
-    public function __construct(Station $station, RuleKind $kind, RuleValue $value)
+    /**
+     * THE ANSWER IS EITHER SHAPE, and the row takes whichever the rule has.
+     * A single constructor rather than two: "this rule, for this
+     * station, says this" is one act, and a caller that had to know in
+     * advance which of two verbs a kind wanted would be carrying the
+     * enum's own knowledge around with it.
+     *
+     * @throws \InvalidArgumentException when the answer is not one this rule takes
+     */
+    public function __construct(Station $station, RuleKind $kind, RuleValue|RuleChoiceInterface $answer)
     {
         $this->uuid = Uuid::v7();
         $this->station = $station;
         $this->kind = $kind;
-        $this->set($value);
+
+        if ($answer instanceof RuleValue) {
+            $this->set($answer);
+        } else {
+            $this->choose($answer);
+        }
     }
 
     public function getId(): ?int
@@ -98,23 +108,5 @@ class StationRuleException
     public function getKind(): RuleKind
     {
         return $this->kind;
-    }
-
-    public function getValue(): RuleValue
-    {
-        return new RuleValue($this->value, $this->unit);
-    }
-
-    /**
-     * @throws \InvalidArgumentException when the unit cannot measure this kind
-     */
-    public function set(RuleValue $value): static
-    {
-        $checked = $this->kind->valueOf($value->value, $value->unit);
-
-        $this->value = $checked->value;
-        $this->unit = $checked->unit;
-
-        return $this;
     }
 }

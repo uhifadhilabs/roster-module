@@ -39,7 +39,14 @@ use Uhifadhi\Roster\Repository\EditedDayRepository;
  */
 #[ORM\Entity(repositoryClass: EditedDayRepository::class)]
 #[ORM\Table(name: 'roster_edited_day')]
-#[ORM\UniqueConstraint(name: 'uniq_roster_edited_day_station_day', columns: ['station_id', 'on_day'])]
+/*
+ * TWO PARTIAL UNIQUES, NOT ONE. Postgres treats NULLs as distinct, so a
+ * single unique over (station, day, person) would let the station-wide
+ * mark — the one with no person — be written twice for the same day.
+ */
+#[ORM\UniqueConstraint(name: 'uniq_roster_edited_day_station_day', columns: ['station_id', 'on_day'], options: ['where' => '(person_id IS NULL)'])]
+#[ORM\UniqueConstraint(name: 'uniq_roster_edited_day_station_day_person', columns: ['station_id', 'on_day', 'person_id'], options: ['where' => '(person_id IS NOT NULL)'])]
+#[ORM\Index(name: 'idx_roster_edited_day_person', columns: ['person_id'])]
 class EditedDay
 {
     #[ORM\Id]
@@ -67,12 +74,33 @@ class EditedDay
     #[ORM\Column(name: 'edited_at')]
     private \DateTimeImmutable $editedAt;
 
-    public function __construct(Station $station, \DateTimeImmutable $onDay, ?UserInterface $editedBy, \DateTimeImmutable $editedAt)
+    /**
+     * WHOSE DAY IT IS. Null is the station-wide mark the generator has
+     * always read — "nobody touches this station on this day" — and a
+     * person is the sheet's own mark on one cell, which is the only thing
+     * a people-down sheet can honestly draw.
+     */
+    #[ORM\ManyToOne(targetEntity: UserInterface::class)]
+    #[ORM\JoinColumn(name: 'person_id', nullable: true, onDelete: 'SET NULL')]
+    private ?UserInterface $person = null;
+
+    /**
+     * WHETHER THE HAND LEFT THE DAY OFF OR LEFT IT OPEN. Both are a day
+     * with no duty on it, and they are not the same fact: one is a ranger
+     * deliberately stood down and draws nothing, the other a seat the
+     * station still needs somebody on and draws as unfilled.
+     */
+    #[ORM\Column(name: 'left_off')]
+    private bool $leftOff = false;
+
+    public function __construct(Station $station, \DateTimeImmutable $onDay, ?UserInterface $editedBy, \DateTimeImmutable $editedAt, ?UserInterface $person = null, bool $leftOff = false)
     {
         $this->station = $station;
         $this->onDay = $onDay->setTime(0, 0);
         $this->editedBy = $editedBy;
         $this->editedAt = $editedAt;
+        $this->person = $person;
+        $this->leftOff = $leftOff;
     }
 
     public function getId(): ?int
@@ -98,6 +126,24 @@ class EditedDay
     public function getEditedAt(): \DateTimeImmutable
     {
         return $this->editedAt;
+    }
+
+    /** Whose day this mark is about; null where it is the whole station's. */
+    public function getPerson(): ?UserInterface
+    {
+        return $this->person;
+    }
+
+    public function isLeftOff(): bool
+    {
+        return $this->leftOff;
+    }
+
+    public function leaveOff(bool $leftOff): static
+    {
+        $this->leftOff = $leftOff;
+
+        return $this;
     }
 
     /** A second edit on the same day moves the clock and the name, not the row. */

@@ -19,6 +19,7 @@ use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Service\StationService;
 use Uhifadhi\Roster\Entity\ShiftRule;
 use Uhifadhi\Roster\Entity\StationRuleException;
+use Uhifadhi\Roster\Enum\RuleChoiceInterface;
 use Uhifadhi\Roster\Enum\RuleKind;
 use Uhifadhi\Roster\Model\RuleValue;
 use Uhifadhi\Roster\Repository\ShiftRuleRepository;
@@ -26,7 +27,7 @@ use Uhifadhi\Roster\Repository\StationRuleExceptionRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
 
 /**
- * THE FIVE RULES AN AREA SETS, AND WHAT EACH STATION DOES DIFFERENTLY.
+ * THE RULES AN AREA SETS, AND WHAT EACH STATION DOES DIFFERENTLY.
  *
  * RULED 20 sep, twice: "forcing predefined options is stupid" — a rule is a
  * number somebody typed and a unit they picked — and "rules configurable
@@ -75,6 +76,10 @@ final readonly class ShiftRuleService
 
         $values = [];
         foreach (RuleKind::cases() as $kind) {
+            if ($kind->isChoice()) {
+                continue;
+            }
+
             $values[$kind->value] = ($written[$kind->value] ?? null)?->getValue() ?? $kind->standard();
         }
 
@@ -82,11 +87,33 @@ final readonly class ShiftRuleService
     }
 
     /**
+     * AND THE ONES THAT ARE PICKED RATHER THAN MEASURED — the same
+     * question, asked of the rules that answer it with a word.
+     *
+     * @return array<string, RuleChoiceInterface> keyed by {@see RuleKind::value}
+     */
+    public function choicesForArea(AreaOfInterest $area): array
+    {
+        $written = $this->rules->findByArea($area);
+
+        $choices = [];
+        foreach (RuleKind::cases() as $kind) {
+            if (!$kind->isChoice()) {
+                continue;
+            }
+
+            $choices[$kind->value] = ($written[$kind->value] ?? null)?->getChoice() ?? $kind->standardChoice();
+        }
+
+        return $choices;
+    }
+
+    /**
      * SAVE THE CARD, WHOLE. The five are one form with one Save, so they are
      * written as one act: a per-row save would let somebody leave the page
      * having changed three of five and believing they changed five.
      *
-     * @param array<string, RuleValue> $values keyed by {@see RuleKind::value}; a kind left out keeps what it had
+     * @param array<string, RuleValue|RuleChoiceInterface> $values keyed by {@see RuleKind::value}; a kind left out keeps what it had
      *
      * @throws \InvalidArgumentException when a value cannot follow another, said in full
      */
@@ -95,19 +122,23 @@ final readonly class ShiftRuleService
         $written = $this->rules->findByArea($area);
 
         foreach (RuleKind::cases() as $kind) {
-            $value = $values[$kind->value] ?? null;
-            if (!$value instanceof RuleValue) {
+            $answer = $values[$kind->value] ?? null;
+            if (!$answer instanceof RuleValue && !$answer instanceof RuleChoiceInterface) {
                 continue;
             }
 
             $row = $written[$kind->value] ?? null;
             if (null === $row) {
-                $this->entityManager->persist(new ShiftRule($area, $kind, $value));
+                $this->entityManager->persist(new ShiftRule($area, $kind, $answer));
 
                 continue;
             }
 
-            $row->set($value);
+            if ($answer instanceof RuleValue) {
+                $row->set($answer);
+            } else {
+                $row->choose($answer);
+            }
         }
 
         $this->entityManager->flush();
@@ -128,17 +159,21 @@ final readonly class ShiftRuleService
     /**
      * GIVE ONE STATION ITS OWN ANSWER TO ONE RULE.
      *
-     * @throws \InvalidArgumentException when the unit cannot measure the kind, or the pair it produces cannot stand
+     * @throws \InvalidArgumentException when the answer is not one this rule takes, or the pair it produces cannot stand
      */
-    public function setException(Station $station, RuleKind $kind, RuleValue $value): StationRuleException
+    public function setException(Station $station, RuleKind $kind, RuleValue|RuleChoiceInterface $answer): StationRuleException
     {
         $row = $this->exceptions->findOneByStationAndKind($station, $kind);
 
         if (null === $row) {
-            $row = new StationRuleException($station, $kind, $value);
+            $row = new StationRuleException($station, $kind, $answer);
             $this->entityManager->persist($row);
         } else {
-            $row->set($value);
+            if ($answer instanceof RuleValue) {
+                $row->set($answer);
+            } else {
+                $row->choose($answer);
+            }
         }
 
         $this->entityManager->flush();
@@ -182,6 +217,27 @@ final readonly class ShiftRuleService
         }
 
         return $this->rules->findOneByAreaAndKind($area, $kind)?->getValue() ?? $kind->standard();
+    }
+
+    /**
+     * AND WHAT A CHOSEN RULE SAYS AT THIS STATION — the same walk, for the
+     * rules answered with a word.
+     *
+     * @throws \LogicException when the kind is measured rather than chosen
+     */
+    public function effectiveChoice(Station $station, RuleKind $kind): RuleChoiceInterface
+    {
+        $own = $this->exceptions->findOneByStationAndKind($station, $kind);
+        if (null !== $own) {
+            return $own->getChoice();
+        }
+
+        $area = $station->getArea();
+        if (null === $area) {
+            return $kind->standardChoice();
+        }
+
+        return $this->rules->findOneByAreaAndKind($area, $kind)?->getChoice() ?? $kind->standardChoice();
     }
 
     /**

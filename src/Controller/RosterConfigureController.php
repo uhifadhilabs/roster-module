@@ -40,6 +40,7 @@ use Uhifadhi\Roster\Entity\Shift;
 use Uhifadhi\Roster\Entity\StationWatch;
 use Uhifadhi\Roster\Enum\RestRule;
 use Uhifadhi\Roster\Enum\RotationPreset;
+use Uhifadhi\Roster\Enum\RuleChoiceInterface;
 use Uhifadhi\Roster\Enum\RuleKind;
 use Uhifadhi\Roster\Enum\RuleUnit;
 use Uhifadhi\Roster\Model\RotationDraft;
@@ -325,6 +326,10 @@ final class RosterConfigureController
             // decision rather than a guess.
             'runCounts' => self::runCounts($shifts, $watches),
             'rules' => $this->rules->forArea($area),
+            // THE CHOSEN RULES SEPARATELY, because they are a different
+            // shape of answer and a row that had to ask which of two
+            // arrays to look in would be a row carrying the enum's job.
+            'ruleChoices' => $this->rules->choicesForArea($area),
             'ruleKinds' => RuleKind::cases(),
             // ONE ROW PER STATION THE AREA REGISTERS, not per station on
             // these books: the table is where a station joins them, so a
@@ -693,16 +698,27 @@ final class RosterConfigureController
     }
 
     /**
-     * THE FIVE, AS THE CARD SENT THEM. A kind whose number did not arrive
+     * THE RULES, AS THE CARD SENT THEM. A kind whose answer did not arrive
      * keeps what it had — a blank field is somebody who did not answer, not
      * somebody who answered zero.
      *
-     * @return array<string, RuleValue>
+     * @return array<string, RuleValue|RuleChoiceInterface>
      */
     private function submittedRules(Request $request): array
     {
         $values = [];
         foreach (RuleKind::cases() as $kind) {
+            if ($kind->isChoice()) {
+                $picked = trim((string) $request->request->get('rule_choice_'.$kind->value, ''));
+                if ('' === $picked) {
+                    continue;
+                }
+
+                $values[$kind->value] = $kind->choiceOf($picked);
+
+                continue;
+            }
+
             $number = trim((string) $request->request->get('rule_value_'.$kind->value, ''));
             $unit = RuleUnit::tryFrom((string) $request->request->get('rule_unit_'.$kind->value, ''));
 

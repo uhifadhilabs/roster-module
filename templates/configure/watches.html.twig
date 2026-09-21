@@ -135,20 +135,40 @@
         <div class="c rband">
             <div class="rb-hd">
                 <span class="tab">The rules</span>
-                <span class="rb-ttl">one row per rule</span>
+                <span class="rb-ttl">one row per rule &middot; the last four are what a fill obeys</span>
             </div>
             <div class="rb-body">
+                {# ONE HEADING, OVER THE FOUR THAT CAME ACROSS FROM THE SHEET.
+                   The rules above it stay an ungrouped list: grouping the
+                   whole card under Presence / Check-in / Cover was drawn as
+                   variants-rules-card option C and rejected on 21 sep.
+
+                   A RULE IS MEASURED OR IT IS CHOSEN. Two of the filling
+                   four have no number in them at all, so the row draws the
+                   select the design draws rather than asking somebody to
+                   encode "never" as a quantity. #}
                 {% for kind in ruleKinds %}
-                    {% set value = rules[kind.value] %}
+                    {% if kind.isFilling and not (loop.first or ruleKinds[loop.index0 - 1].isFilling) %}
+                        <span class="rgrphd">Filling</span>
+                    {% endif %}
                     <div class="rl">
                         <span class="k">{{ kind.label }}</span>
                         <span class="v">
-                            <input class="wval n" name="rule_value_{{ kind.value }}" value="{{ value.number }}" aria-label="{{ kind.label }}, how much" {{ mayManage ? '' : 'disabled' }}>
-                            <select class="wval u" name="rule_unit_{{ kind.value }}" aria-label="{{ kind.label }}, in what" {{ mayManage ? '' : 'disabled' }}>
-                                {% for unit in kind.units %}
-                                    <option value="{{ unit.value }}" {{ unit == value.unit ? 'selected' : '' }}>{{ unit.label }}</option>
-                                {% endfor %}
-                            </select>
+                            {% if kind.isChoice %}
+                                <select class="fld" name="rule_choice_{{ kind.value }}" aria-label="{{ kind.label }}" {{ mayManage ? '' : 'disabled' }}>
+                                    {% for choice in kind.choices %}
+                                        <option value="{{ choice.value }}" {{ choice == ruleChoices[kind.value] ? 'selected' : '' }}>{{ choice.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% else %}
+                                {% set value = rules[kind.value] %}
+                                <input class="wval n" name="rule_value_{{ kind.value }}" value="{{ value.number }}" aria-label="{{ kind.label }}, how much" {{ mayManage ? '' : 'disabled' }}>
+                                <select class="wval u" name="rule_unit_{{ kind.value }}" aria-label="{{ kind.label }}, in what" {{ mayManage ? '' : 'disabled' }}>
+                                    {% for unit in kind.units %}
+                                        <option value="{{ unit.value }}" {{ unit == value.unit ? 'selected' : '' }}>{{ unit.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% endif %}
                         </span>
                         <span class="m">{{ kind.fragment }}</span>
                     </div>
@@ -281,14 +301,19 @@
        its own copy would be a second vocabulary going stale. #}
     <template data-roster-exception-template>
         <span class="ln">
+            {# THE MEASURED RULES ONLY. A station may overrule a chosen rule
+               too — the service takes one — but this row is a number and a
+               unit, and offering a kind it cannot express would be offering
+               a control that silently saves nothing. The chosen pair get
+               their own row when the design draws one. #}
             <select class="wval u" data-roster-field="kind" aria-label="Which rule">
-                {% for kind in ruleKinds %}
+                {% for kind in ruleKinds|filter(k => not k.isChoice) %}
                     <option value="{{ kind.value }}">{{ kind.label }}</option>
                 {% endfor %}
             </select>
             <input class="wval n" value="1" data-roster-field="value" aria-label="How much">
             <select class="wval u" data-roster-field="unit" aria-label="In what">
-                {% for kind in ruleKinds %}
+                {% for kind in ruleKinds|filter(k => not k.isChoice) %}
                     {% for unit in kind.units %}
                         <option value="{{ unit.value }}" data-for="{{ kind.value }}">{{ unit.label }}</option>
                     {% endfor %}
