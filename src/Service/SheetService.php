@@ -28,7 +28,6 @@ use Uhifadhi\Roster\Model\SheetRow;
 use Uhifadhi\Roster\Model\SheetWindow;
 use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\EditedDayRepository;
-use Uhifadhi\Roster\Repository\ShiftRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
 
 /**
@@ -65,7 +64,7 @@ final readonly class SheetService
         private StationWatchRepository $watches,
         private DutyRepository $duties,
         private EditedDayRepository $marks,
-        private ShiftRepository $shifts,
+        private ShiftVocabularyService $shifts,
     ) {
     }
 
@@ -368,12 +367,19 @@ final readonly class SheetService
      * THE AREA'S SHIFTS, AS THE CELL READS THEM — its own label, and the
      * palette slot it was given when it was created.
      *
+     * THROUGH THE VOCABULARY AND NOT THE REPOSITORY, because the list is
+     * SEEDED ON FIRST ASK. The sheet is the first thing an area opens, and
+     * asking the repository read an empty list: every cell on that first
+     * render fell back to `--fog` and the whole fortnight drew grey, then
+     * came back in colour on the next request. A read that has to be the
+     * second one is not a read.
+     *
      * @return array<string, array{label: string, colour: int}>
      */
     private function shiftFacts(AreaOfInterest $area): array
     {
         $facts = [];
-        foreach ($this->shifts->findByArea($area) as $shift) {
+        foreach ($this->shifts->forArea($area) as $shift) {
             $facts[$shift->getKey()] = ['label' => $shift->getLabel(), 'colour' => $shift->getColour()];
         }
 

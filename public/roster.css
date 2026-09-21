@@ -614,8 +614,19 @@
  */
 .fg-rota { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 4px; }
 
-.fg-rota col.who { width: 172px; }
+/* THE RANGER COLUMN IS 258px, measured on the design at 1440 — it is the
+   width the STATION's head line needs: the fold, the name, and under it the
+   call sign, the size and how many days it is short, all on one nowrap line.
+   The name and the call sign then share that whole width on ONE line. */
+.fg-rota col.who { width: 258px; }
 .fg-rota col.dy { width: 68px; }
+/* AND IT HOLDS AT 258 WHATEVER THE DATA SAYS. A colgroup width is advisory
+   in auto layout — the column is really as wide as its widest content, so a
+   station whose head line happened to be short shrank the ranger column to
+   220 and moved every day column with it. A min-width on the cell is what
+   the layout actually obeys; the day columns give up the space, exactly as
+   they do on the design. */
+.fg-rota :is(th, td).who, .fg-rota td.sep { min-width: 258px; }
 
 .fg-rota th {
     font: 600 8.5px var(--font-mono); letter-spacing: .09em; text-transform: uppercase;
@@ -640,7 +651,7 @@
    qualifier, not a second fact. */
 .fg-rota td.who {
     padding-right: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    max-width: 172px;
+    max-width: 258px;
 }
 .fg-rota td.who b { font-size: 12px; font-weight: 600; color: var(--tx); }
 .fg-rota td.who em {
@@ -800,6 +811,15 @@ button.cl {
     display: flex; align-items: center; gap: 5px; border-radius: 5px; padding: 4px 6px;
     font: 700 8px var(--font-mono); letter-spacing: .05em; text-transform: uppercase;
     background: color-mix(in srgb, var(--cat, var(--fog)) 15%, transparent); color: var(--cat, var(--fog));
+    /* THE BAR IS A BLOCK THAT FILLS ITS CELL, measured at 52px on the design
+       at 1440 — the tint is what the eye reads a fortnight in, and a 21px
+       strip in a 26px row reads as a label rather than as a day covered.
+       Stated here rather than inherited: in the design workspace this height
+       arrives from a `.bar` in the GLOBAL sheet (a legacy top bar, sticky and
+       52px tall) that `.cl.bar` collides with by name. The number is the
+       ruling; the collision is not, and nothing in this module may depend on
+       a class it does not own. Four weeks overrides it to 16 below. */
+    height: 52px; box-sizing: border-box;
 }
 .cl.bar > .dot { width: 5px; height: 5px; border-radius: 50%; flex: none; background: var(--cat, var(--fog)); }
 
@@ -1106,6 +1126,7 @@ td.sep:not([colspan]) > .stfoldb {
 .psheetwrap.w1 col.dy { width: 112px; }
 .psheetwrap.w4 > table.csheet { min-width: 0; width: auto; }
 .psheetwrap.w4 col.who { width: 140px; }
+.psheetwrap.w4 .csheet :is(th, td).who, .psheetwrap.w4 .csheet td.sep { min-width: 140px; }
 .psheetwrap.w4 col.dy { width: 30px; }
 .psheetwrap.w4 .cl { min-height: 16px; padding: 0; font-size: 0; }
 .psheetwrap.w4 .cl.bar { height: 16px; gap: 0; padding: 0; justify-content: center; }

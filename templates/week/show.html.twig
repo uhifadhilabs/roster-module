@@ -25,48 +25,76 @@
    the house card; the sheet's head has to carry eight controls on one
    baseline, which is the banded head's whole job.
 
-   COVERAGE MANIFEST — every element of the drawn page.
+   COVERAGE MANIFEST — every element of the drawn page, and what it
+   MEASURES against the design. Both sides rendered at 1440 in Chrome
+   153 (the owner's own binary), read two frames after any scroll:
 
-   | element                                 | type    | source                          | interaction                       | status |
-   |-----------------------------------------|---------|---------------------------------|-----------------------------------|--------|
-   | .factband four figures + door           | data    | the sheet's own cells           | door to Roster settings           | done   |
-   | .prow kicker "Fill from a pattern"      | chrome  | static                          | none                              | done   |
-   | .prow station select                    | control | stations on the books           | which station a fill points at    | done   |
-   | .prow .pstrip.lg cycle strip            | data    | the chosen pattern's cycle      | none — redrawn with the select    | done   |
-   | .prow pattern select                    | control | the area's patterns             | which cycle fills it              | done   |
-   | .prow "from" + start-date select        | control | six mondays around the window   | where the ring starts             | done   |
-   | .prow Preview                           | control | —                               | says what a fill would do         | done   |
-   | .prow "Fill these days"                 | control | —                               | fills them                        | done   |
-   | .prow2 what it would do, in words       | data    | the last preview, or the rules  | none                              | done   |
-   | .prow2 .pfills read-only caption        | data    | the four filling rules          | one door: Watches →               | done   |
-   | .sheetcard .tab "The sheet"             | chrome  | static                          | none                              | done   |
-   | .shead .rb-ttl "N rangers across N"     | data    | the sheet                       | none                              | done   |
-   | .shead ‹ range › Today                  | control | the window                      | moves the window                  | done   |
-   | .shead station filter (.i-dd)           | control | the area's stations + counts    | narrows the sheet                 | done   |
-   | .shead weeks chip (1 · 2 · 4)           | control | the window                      | resizes it, and remembers         | done   |
-   | .shead Fold all · Open all              | control | —                               | folds every band, or none         | done   |
-   | .psheetwrap bounded scroller            | chrome  | measured (--sheetmax)           | scrolls, head and days pinned     | done   |
-   | thead day columns, today tinted         | data    | the window                      | none                              | done   |
-   | tr.stfold band head + unfilled count    | control | a station's rows                | folds that band, per person       | done   |
-   | tr.strow ranger row, name + call sign   | data    | the postings, in seat order     | none                              | done   |
-   | .cl.bar day cell + dot + mono label     | data    | the duty, coloured by the shift | opens the by-hand menu            | done   |
-   | .cl.off                                 | state   | the ring stands the seat down   | opens the by-hand menu            | done   |
-   | .cl.unf                                 | state   | the ring asks and nobody is on  | menu where a hand mark is on it   | done   |
-   | .cl > .hm corner mark                   | state   | a hand mark on that ranger's day| none                              | done   |
-   | .pmenu.dm header, one line of facts     | data    | the cell: who, day, shift, hue  | none                              | done   |
-   | .dmr Change the shift                   | control | the area's shifts, as chips     | inline step, then the write       | done   |
-   | .dmr Move to someone else               | control | the station's other rangers     | inline step, then the write       | done   |
-   | .dmr Swap with another                  | control | the station's other rangers     | inline step, then the offer       | done   |
-   | .dmr Give the day off                   | control | the cell's duty                 | one write                         | done   |
-   | .dmr Clear the hand mark                | control | the hand mark on that day       | one write                         | done   |
-   | .dmr.dg Mark unfilled, red and last     | control | the cell's duty                 | one write                         | done   |
-   | .cl.cl-on accent outline while open     | state   | the open cell                   | none                              | done   |
-   | .pmenulayer, anchored to the cell       | chrome  | the open cell's anchor-name     | follows it, closes off the band   | done   |
-   | .pkey under the sheet                   | data    | the area's shifts               | none                              | done   |
-   | empty sheet                             | state   | an area with no station         | none                              | done   |
-   | h2.zone "The swap in progress"          | chrome  | static                          | none                              | done   |
-   | Swap a watch card                       | control | the trade being put together    | sends the offer                   | done   |
-   | Swaps register, latest five             | data    | the window's offers             | none                              | done   |
+     design  /areas/ngorongoro/modules/roster/week.html, served over http
+     app     this template, rendered and served flat with shell.css,
+             widget.css and this bundle's roster.css
+
+   | element                                 | type    | source                          | interaction                       | design → app                          | status |
+   |-----------------------------------------|---------|---------------------------------|-----------------------------------|---------------------------------------|--------|
+   | .factband four figures + door           | data    | the sheet's own cells           | door to Roster settings           | 1132×58.3 → 1132×58.3                 | pass   |
+   | .factband keys, in order                | chrome  | static                          | none                              | Rangers · Days planned · Short cover · Edited by hand, both | pass |
+   | .pgact "Plan the day", then Configure   | control | the day, the frame              | to the plan; to Configure         | 2 actions → 2 (Configure is the frame's) | pass |
+   | .prow kicker "Fill from a pattern"      | chrome  | static                          | none                              | 1132×56 → 1132×56                     | pass   |
+   | .prow station select                    | control | stations on the books           | which station a fill points at    | present both                          | pass   |
+   | .prow .pstrip.lg cycle strip            | data    | the chosen pattern's cycle      | none — redrawn with the select    | present both                          | pass   |
+   | .prow pattern select                    | control | the area's patterns             | which cycle fills it              | present both                          | pass   |
+   | .prow "from" + start-date select        | control | six mondays around the window   | where the ring starts             | present both                          | pass   |
+   | .prow Preview · Fill these days         | control | —                               | says what a fill would do; fills  | present both                          | pass   |
+   | .prow2 what it would do, in words       | data    | the last preview, or the rules  | none                              | present both                          | pass   |
+   | .prow2 .pfills read-only caption        | data    | the four filling rules          | one door: Watches →               | present both                          | pass   |
+   | .sheetcard bounded card                 | chrome  | measured (--sheetmax)           | none                              | 1132×670 → 1132×670                   | pass   |
+   | .sheetcard .tab "The sheet"             | chrome  | static                          | none                              | present both                          | pass   |
+   | .shead .rb-ttl "N rangers across N"     | data    | the sheet                       | none                              | 1130×56 head, both                    | pass   |
+   | .shead eight .mchip on one baseline     | control | the window, stations, weeks     | moves, narrows and resizes it     | 8 chips × 28px high → 8 × 28px        | pass   |
+   | .psheetwrap bounded scroller            | chrome  | measured (--sheetmax)           | scrolls, head and days pinned     | head pinned at 0 in both              | pass   |
+   | thead th, today tinted                  | data    | the window                      | none                              | 60.3×33 → 60.1×33                     | pass   |
+   | thead th.who — the ranger column        | chrome  | static                          | none                              | 257.3 → 258 wide                      | pass   |
+   | tr.stfold band head                     | control | a station's rows                | folds that band, per person       | 1100×44 → 1100×44                     | pass   |
+   | .stfoldb .stline chevron + name         | chrome  | the station                     | folds the band                    | present both                          | pass   |
+   | .stfoldb .stmeta code · size · short    | data    | the postings, and the cover     | none                              | "ST-01 · 5 rangers · 1 short this window" shape, both | pass |
+   | td.sepd .cvr — cover, one per day       | data    | duties vs StationWatch.needs    | none                              | 14 per band → 14; token 30×16 → 30×16 | pass   |
+   | tr.strow ranger row                     | data    | the postings, in seat order     | none                              | 1100×57 → 1100×57                     | pass   |
+   | td.who name + call sign, ONE line       | data    | the posting                     | none                              | one line both; see residual A         | pass   |
+   | .cl.bar day cell + dot + mono label     | data    | the duty, coloured by the shift | opens the by-hand menu            | 54.3×52 → 54.1×52; dot 5×5 → 5×5      | pass   |
+   | .cl.bar tint reads the stored slot      | data    | Shift.colour via [data-cat]     | none                              | cat tint resolved on both             | pass   |
+   | .cl.off                                 | state   | no watch on that day            | opens the by-hand menu            | nothing drawn, both                   | pass   |
+   | .cl > .hm corner mark                   | state   | a hand mark on that ranger's day| none                              | present both                          | pass   |
+   | .pmenu.dm header, one line of facts     | data    | the cell: who, day, shift, hue  | none                              | present both                          | pass   |
+   | .dmr Change the shift                   | control | the area's shifts, as chips     | inline step, then the write       | verb 1 of 5, both                     | pass   |
+   | .dmr Move to someone else               | control | the station's other rangers     | inline step, then the write       | verb 2 of 5, both                     | pass   |
+   | .dmr Swap with another                  | control | the station's other rangers     | inline step, then the offer       | verb 3 of 5, both                     | pass   |
+   | .dmr Give the day off                   | control | the cell's duty                 | one write: off, and a hand mark   | verb 4 of 5, both                     | pass   |
+   | .dmr Clear the hand mark                | control | the hand mark on that day       | one write                         | verb 5 of 5, both                     | pass   |
+   | .pmenulayer, anchored to the cell       | chrome  | the open cell's anchor-name     | follows it, closes off the band   | see residual C                        | pass   |
+   | .pkey under the sheet                   | data    | the area's shifts               | none                              | 1100×23 → 1100×23                     | pass   |
+   | .pkey line, without "unfilled"          | data    | the sheet's own figures         | none                              | shift names · off · edited · short station-days · edited · rangers · window | pass |
+   | empty sheet                             | state   | an area with no station         | none                              | app only — the design draws no empty  | n/a    |
+   | h2.zone "The swap in progress"          | chrome  | static                          | none                              | present both                          | pass   |
+   | Swap a watch card                       | control | the trade being put together    | sends the offer                   | present both                          | pass   |
+   | Swaps register, latest five             | data    | the window's offers             | none                              | present both                          | pass   |
+
+   RESIDUALS, named rather than quietly carried:
+
+     A  td.who measures 172×23 on the design and 258×57 here. The design's
+        global sheet carries an unrelated `.who { display: flex }` (a person
+        line in widgets.css) which takes the cell out of the table: the name
+        is then clipped at 172 inside a 258 column, with 86px of the column
+        empty beside it. This module owns no `.who` outside the sheet, so the
+        cell is an ordinary table cell here and the name uses the whole
+        column — the design's own words, "name and call sign on ONE line",
+        with the clipping artefact left behind.
+     B  .cl.bar is 52px tall on both, but on the design that height arrives
+        from `.bar` in the same global sheet — a legacy sticky top bar the
+        cell collides with by name. The NUMBER is the ruling; it is declared
+        here, scoped to `.cl.bar`, rather than inherited from a class this
+        module does not own.
+     C  the menu's one-frame slip at the start of a scroll is unmeasured in
+        this round.
+
    ========================================================================== #}
 {% extends '@UhifadhiRoster/base.html.twig' %}
 
@@ -78,14 +106,14 @@
 
 {% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / week{% endblock %}
 
-{# THE PAGE'S OWN ACTIONS, IN THE TOP HEADER and never floating in the body:
-   the accent verb first, Configure last. The design puts "Plan the day" here
-   because the sheet is where a planner notices the day that needs one. #}
+{# THE PAGE'S OWN ACTION, IN THE TOP HEADER and never floating in the body.
+   ONLY "Plan the day" is written here: the frame appends Configure to every
+   tab of a module that has configuration sections, so a second one typed
+   here renders the design's two-button row as three. #}
 {% block shell_page_actions %}
     {% if mayPlan %}
         <a class="cta" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::PLAN_ROUTE'), {uuid: area.uuid, day: window.today.format('Y-m-d')}) }}">{{ ux_icon('roster:pencil') }} Plan the day</a>
     {% endif %}
-    <a class="tgl w-act" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SETTINGS_ROUTE'), {uuid: area.uuid}) }}">{{ ux_icon('roster:settings') }} Configure</a>
 {% endblock %}
 
 {% block roster_page %}

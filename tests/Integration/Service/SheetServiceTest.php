@@ -256,6 +256,34 @@ final class SheetServiceTest extends IntegrationTestCase
         self::assertSame(1, $sheet->editedByHand());
     }
 
+    /**
+     * AND THE VERY FIRST RENDER OF A NEW AREA IS IN COLOUR.
+     *
+     * The shift list is SEEDED ON FIRST ASK, and the sheet is the first
+     * thing an area opens. Read through the repository it came back
+     * empty, every cell fell back to `--fog`, and a whole fortnight drew
+     * grey — then came back in colour on the next request, which is the
+     * kind of defect nobody can reproduce on the second look.
+     */
+    public function testTheFirstReadOfAnAreaThatHasNamedNoShiftIsStillInColour(): void
+    {
+        $fresh = $this->anArea();
+        $station = $this->aStation($fresh, 'loduare gate post', 'ST-05');
+        $person = $this->aPerson('cyd@example.test', 'Cyd', 'Example');
+        $this->em->flush();
+        $this->em->persist(
+            new Posting()->setStation($station)->setPerson($person)->setSince(new \DateTimeImmutable('-1 year'))->setSource(PostingSource::WrittenHere),
+        );
+        $this->em->persist(new Duty($fresh, $station, $person, 'day', $this->monday));
+        $this->em->flush();
+
+        $cell = $this->sheet()->read($fresh, $this->window())->bands[0]->rows[0]->cells[0];
+
+        self::assertSame(SheetCellKind::Watch, $cell->kind);
+        self::assertIsInt($cell->colour, 'A cell with no slot resolves to nothing and draws grey.');
+        self::assertSame('day', $cell->shiftLabel, 'And it reads the area\'s word, not the stored key.');
+    }
+
     /** ONE STATION ONLY, when the head's filter names one. */
     public function testTheFilterNarrowsTheSheetToOneStation(): void
     {

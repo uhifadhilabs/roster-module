@@ -251,7 +251,9 @@ return static function (ContainerConfigurator $container): void {
             service(StationWatchRepository::class),
             service(DutyRepository::class),
             service(EditedDayRepository::class),
-            service(ShiftRepository::class),
+            // THE VOCABULARY AND NOT THE REPOSITORY: the list is seeded on
+            // first ask, and the sheet is the first thing a new area opens.
+            service('roster.shift_vocabulary'),
         ]);
 
     /*
