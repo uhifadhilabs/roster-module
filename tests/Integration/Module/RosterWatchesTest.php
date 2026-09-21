@@ -90,7 +90,7 @@ final class RosterWatchesTest extends IntegrationTestCase
         self::assertSame('2026-09-19', $watches[0]->localDate);
         self::assertSame('2026-09-19 06:00', $watches[0]->startsAt->format('Y-m-d H:i'));
         self::assertSame('2026-09-19 18:00', $watches[0]->endsAt->format('Y-m-d H:i'));
-        self::assertSame('Day', $watches[0]->label);
+        self::assertSame('day', $watches[0]->label);
         self::assertSame($this->gate->getUuidString(), $watches[0]->stationUuid);
     }
 
@@ -160,7 +160,7 @@ final class RosterWatchesTest extends IntegrationTestCase
         $watches = $this->month();
 
         self::assertCount(1, $watches);
-        self::assertSame('Night', $watches[0]->label);
+        self::assertSame('night', $watches[0]->label);
     }
 
     public function testItAnswersOnlyTheWindowAsked(): void

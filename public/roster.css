@@ -1386,10 +1386,42 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
 .wsh:last-of-type,
 .wsh:has(+ .staddrow) { border-bottom: 0; }
 
-.wsw { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 1px solid var(--ln2); background: color-mix(in srgb, var(--cat, var(--fog)) 55%, transparent); cursor: pointer; padding: 0; position: relative; }
+.wsw {
+    flex: none; width: 22px; height: 22px; border-radius: 7px; border: 1px solid var(--ln2);
+    background: color-mix(in srgb, var(--cat, var(--fog)) 55%, transparent);
+    cursor: pointer; padding: 0; position: relative; list-style: none;
+}
+.wsw::-webkit-details-marker { display: none; }
 .wsw::after { content: ""; position: absolute; inset: 4px; border-radius: 4px; background: var(--cat, var(--fog)); }
 .wsw:hover { border-color: var(--fog); }
 .wsw:disabled { cursor: default; }
+
+/* ---- THE SHIFT'S COLOUR IS PICKED FROM THE PALETTE, NEVER TYPED ---------
+ * RULED 21 sep: the house owns eighteen plate slots and a shift wears one of
+ * them, so this is a picker over the eighteen — a free colour would be a hue
+ * this module invented, and a module has no hue.
+ *
+ * A SLOT ANOTHER SHIFT WEARS IS SHOWN WITH THAT SHIFT'S NAME and cannot be
+ * taken: two shifts in one tint is a fortnight nobody can read, and a bare
+ * grey square only raises the question it should answer.
+ */
+.wpick { flex: none; }
+.wpal { min-width: 222px; padding: 5px 5px 7px; }
+.wpalg { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 3px 4px 6px; }
+.wsl {
+    width: 26px; height: 22px; border-radius: 6px; border: 1px solid var(--ln2); background: none;
+    cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;
+}
+.wsl > i { display: block; width: 16px; height: 12px; border-radius: 3px; background: var(--cat, var(--fog)); }
+.wsl:hover { border-color: var(--acc); }
+.wsl.on { border-color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); }
+.wsl.gone { opacity: .32; cursor: not-allowed; }
+.wsl.gone:hover { border-color: var(--ln2); }
+.wptaken, .wpfoot {
+    font: 500 9px var(--font-mono); letter-spacing: .05em; color: var(--dim);
+    padding: 0 9px; white-space: normal; line-height: 1.5;
+}
+.wptaken { color: var(--fog); padding-bottom: 4px; }
 
 .wsh > .wnm { flex: 0 0 152px; height: 32px; padding-top: 0; padding-bottom: 0; line-height: 30px; font-size: 13px; font-weight: 600; }
 .wsh > .hrs { display: flex; align-items: center; gap: 6px; font: 600 12px var(--font-mono); color: var(--fog); }

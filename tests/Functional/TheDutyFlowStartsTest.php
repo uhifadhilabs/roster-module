@@ -215,7 +215,7 @@ final class TheDutyFlowStartsTest extends WebTestCase
         self::assertIsArray($onTheDay);
         self::assertSame($today->format('Y-m-d'), $onTheDay['localDate']);
         self::assertSame((string) $this->freshGate()->getUuidString(), $onTheDay['stationUuid']);
-        self::assertSame('Day', $onTheDay['label']);
+        self::assertSame('day', $onTheDay['label']);
     }
 
     /**

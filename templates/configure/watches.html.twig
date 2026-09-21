@@ -22,7 +22,7 @@
    | section intro under the heading  | —       | —                               | —                  | DROPPED 21 sep: the design has none, and it said the subline twice |
    | Shifts card head + caption       | chrome  | static                          | none               | done   |
    | .wsh per shift, data-cat         | data    | Shift.colour                    | —                  | done   |
-   | button.wsw colour swatch         | control | Shift.colour                    | cycles the slot    | done   |
+   | .wpick palette picker (18 slots) | control | Shift.colour + who wears what   | picks a free slot  | done   |
    | input.wnm shift name             | control | Shift.label                     | saved with the grid| done   |
    | .hrs two windows                 | control | Shift.startsAt/endsAt           | saved with the grid| done   |
    | .n "N stations run it"           | data    | watches expecting that key      | none               | done   |
@@ -91,10 +91,44 @@
                 {% for shift in shifts %}
                     {% set id = shift.uuid.toRfc4122 %}
                     <div class="wsh" data-cat="{{ shift.colour }}" data-roster-shift>
-                        <button type="button" class="wsw" aria-label="The colour of {{ shift.label }}"
-                                data-action="roster--station-table#recolour"
-                                {{ mayManage ? '' : 'disabled' }}></button>
+                        {# THE SLOT THIS SHIFT IS WEARING, POSTED FIRST. A slot
+                           picked below carries the same name and, being later
+                           in the document, is the value that arrives — so the
+                           row posts what it shows whether or not anybody opened
+                           the palette. #}
                         <input type="hidden" name="shift_colour_{{ id }}" value="{{ shift.colour }}" data-roster-colour>
+
+                        {# THE PALETTE, NEVER A FREE COLOUR. RULED 21 sep: the
+                           house owns eighteen slots and a shift wears one of
+                           them, so this is a picker over the eighteen and not a
+                           colour input. A slot another shift is wearing is
+                           shown with that shift's name and cannot be taken —
+                           two shifts in one hue is a fortnight nobody can read.
+
+                           IT IS THE HOUSE DROPDOWN, which is a `<details>`: it
+                           opens, chooses and closes with no script of ours, and
+                           choosing is a submit, so the picked slot is saved by
+                           the same write that saves the names and the hours. #}
+                        <details class="i-dd wpick">
+                            <summary class="wsw i-ddt" aria-label="The colour of {{ shift.label }}"></summary>
+                            <div class="i-ddmenu wpal" aria-label="The shift&rsquo;s colour">
+                                <span class="i-ddhead">the palette &middot; {{ freeSlots }} of {{ slots|length }} free</span>
+                                <div class="wpalg">
+                                    {% for slot, wornBy in slots %}
+                                        {% set mine = slot == shift.colour %}
+                                        <button type="{{ mine or (wornBy is not null) or not mayManage ? 'button' : 'submit' }}"
+                                                class="wsl{{ mine ? ' on' : (wornBy ? ' gone' : '') }}" data-cat="{{ slot }}"
+                                                {{ mine or (wornBy is not null) or not mayManage ? 'disabled' : '' }}
+                                                name="shift_colour_{{ id }}" value="{{ slot }}"
+                                                title="slot {{ slot }} &middot; {{ mine ? 'this shift' : (wornBy ?? 'free') }}"><i></i></button>
+                                    {% endfor %}
+                                </div>
+                                {% if takenBy is not empty %}
+                                    <span class="wptaken">taken: {{ takenBy|join(' · ') }}</span>
+                                {% endif %}
+                                <span class="wpfoot">one palette, never a free colour</span>
+                            </div>
+                        </details>
                         <input class="fld wnm" name="shift_label_{{ id }}" value="{{ shift.label }}" aria-label="Shift name" {{ mayManage ? '' : 'disabled' }}>
                         <span class="hrs">
                             <input class="wval" name="shift_start_{{ id }}" value="{{ shift.startsAt }}" aria-label="{{ shift.label }} starts at" {{ mayManage ? '' : 'disabled' }}>

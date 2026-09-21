@@ -26,9 +26,6 @@ import { Controller } from '@hotwired/stimulus';
  * only takes over the changing of them.
  */
 export default class extends Controller {
-    /** How many slots the house's plate palette has. Stated once. */
-    static SLOTS = 18;
-
     /** A station runs a shift, or stops running it. */
     toggle(event) {
         event.preventDefault();
@@ -43,25 +40,6 @@ export default class extends Controller {
         if (field) {
             field.disabled = !on;
         }
-    }
-
-    /**
-     * THE NEXT COLOUR IN THE PALETTE. A shift's colour is a SLOT and never a
-     * hue: the house owns the eighteen and this cycles through them, so a
-     * theme change reaches every shift in the product without a migration.
-     */
-    recolour(event) {
-        event.preventDefault();
-
-        const row = event.currentTarget.closest('[data-roster-shift]');
-        const field = row?.querySelector('[data-roster-colour]');
-        if (!row || !field) {
-            return;
-        }
-
-        const next = (parseInt(field.value, 10) % this.constructor.SLOTS) + 1;
-        field.value = String(next);
-        row.dataset.cat = String(next);
     }
 
     /** Give this station its own answer to one rule. */

@@ -47,7 +47,7 @@ final readonly class ShiftVocabularyService
         /**
          * The vocabulary a new area is seeded with.
          *
-         * @var list<array{key: string, label: string, start: string, end: string}>
+         * @var list<array{key: string, label: string, start: string, end: string, colour?: int}>
          */
         private array $seed,
     ) {
@@ -151,13 +151,18 @@ final readonly class ShiftVocabularyService
     }
 
     /**
+     * A SEEDED SHIFT OPENS ON ITS OWN PALETTE SLOT. Four shifts sharing one
+     * slot paint a whole fortnight in one hue, which is the sheet's hardest
+     * thing to read; the slot is the shift's from then on, and the Configure
+     * page is the only place it changes.
+     *
      * @return list<Shift>
      */
     private function seed(AreaOfInterest $area): array
     {
         $shifts = [];
         foreach ($this->seed as $position => $definition) {
-            $shift = new Shift($area, $definition['key'], $definition['label'], $definition['start'], $definition['end'], $position);
+            $shift = new Shift($area, $definition['key'], $definition['label'], $definition['start'], $definition['end'], $position, $definition['colour'] ?? Shift::FIRST_SLOT);
             $this->entityManager->persist($shift);
             $shifts[] = $shift;
         }

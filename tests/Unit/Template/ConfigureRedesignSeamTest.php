@@ -95,7 +95,6 @@ final class ConfigureRedesignSeamTest extends TestCase
         yield 'the editor drops a part' => ['roster--pattern-editor#drop', self::PATTERNS_PAGE, self::PATTERN_EDITOR];
         yield 'the editor re-derives' => ['roster--pattern-editor#render', self::PATTERNS_PAGE, self::PATTERN_EDITOR];
         yield 'a station runs a shift' => ['roster--station-table#toggle', self::WATCHES_PAGE, self::STATION_TABLE];
-        yield 'a shift is recoloured' => ['roster--station-table#recolour', self::WATCHES_PAGE, self::STATION_TABLE];
         yield 'a station is given its own rule' => ['roster--station-table#except', self::WATCHES_PAGE, self::STATION_TABLE];
         yield 'and follows the area again' => ['roster--station-table#forget', self::WATCHES_PAGE, self::STATION_TABLE];
     }
@@ -126,7 +125,7 @@ final class ConfigureRedesignSeamTest extends TestCase
             yield 'the editor reads '.$hook => [$hook, self::PATTERNS_PAGE, self::PATTERN_EDITOR];
         }
 
-        foreach (['data-roster-expects', 'data-roster-colour', 'data-roster-shift', 'data-roster-exceptions', 'data-roster-exception-template', 'data-roster-field'] as $hook) {
+        foreach (['data-roster-expects', 'data-roster-exceptions', 'data-roster-exception-template', 'data-roster-field'] as $hook) {
             yield 'the table reads '.$hook => [$hook, self::WATCHES_PAGE, self::STATION_TABLE];
         }
     }
@@ -222,17 +221,30 @@ final class ConfigureRedesignSeamTest extends TestCase
     }
 
     /**
-     * THE PALETTE HAS ONE SIZE, and the script that cycles through it says
-     * the same number the entity does. A browser that wrapped at sixteen
-     * would make two of the eighteen slots unreachable from the only control
-     * that sets one.
+     * THE PALETTE IS PICKED FROM, NOT CYCLED THROUGH, and it is the
+     * entity's own eighteen.
+     *
+     * RULED 21 sep, option: a shift wears a SLOT and never a colour, so
+     * the row opens the whole palette and shows what is left. There is no
+     * script: the picker is the house dropdown, which is a `<details>`,
+     * and choosing a slot is the same submit that saves the names and the
+     * hours — a control that needed JavaScript to set a stored value is a
+     * control that does nothing when the script fails to load.
      */
-    public function testTheScriptCyclesThroughTheSamePaletteTheEntityKnows(): void
+    public function testTheColourIsPickedFromTheHousesWholePalette(): void
     {
-        self::assertStringContainsString(
-            'static SLOTS = '.Shift::SLOTS.';',
-            self::read(self::STATION_TABLE),
-        );
+        $page = self::read(self::WATCHES_PAGE);
+
+        self::assertStringContainsString('class="i-dd wpick"', $page, 'The picker is the house dropdown.');
+        self::assertStringContainsString('class="wsl', $page, 'And every slot is a control of its own.');
+        self::assertStringContainsString('for slot, wornBy in slots', $page, 'Over the whole palette, not the free part of it.');
+        self::assertStringContainsString('name="shift_colour_{{ id }}" value="{{ slot }}"', $page, 'Choosing one posts it.');
+        self::assertStringNotContainsString('type="color"', $page, 'Never a free colour.');
+        self::assertStringNotContainsString('roster--station-table#recolour', $page, 'And never a cycle through the slots.');
+
+        // THE ENTITY OWNS HOW MANY THERE ARE; the page asks it.
+        self::assertStringContainsString('slots|length', $page);
+        self::assertSame(18, Shift::SLOTS);
     }
 
     /**

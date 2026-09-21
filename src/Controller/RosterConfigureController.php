@@ -325,6 +325,14 @@ final class RosterConfigureController
             // shift's own row, and the one fact that makes closing one a
             // decision rather than a guess.
             'runCounts' => self::runCounts($shifts, $watches),
+            // THE WHOLE PALETTE, AND WHO IS WEARING WHAT. The picker shows
+            // all eighteen slots because the reader has to see what is left,
+            // and a slot another shift wears is named by that shift rather
+            // than merely disabled — "why can I not have that one" is the
+            // first question a bare grey square asks.
+            'slots' => self::paletteSlots($shifts),
+            'freeSlots' => \count(array_filter(self::paletteSlots($shifts), static fn (?string $wornBy): bool => null === $wornBy)),
+            'takenBy' => self::paletteTaken($shifts),
             'rules' => $this->rules->forArea($area),
             // THE CHOSEN RULES SEPARATELY, because they are a different
             // shape of answer and a row that had to ask which of two
@@ -787,6 +795,45 @@ final class RosterConfigureController
         }
 
         return 'shift_'.$n;
+    }
+
+    /**
+     * THE EIGHTEEN SLOTS, EACH WITH THE SHIFT WEARING IT OR NULL.
+     *
+     * @param list<Shift> $shifts
+     *
+     * @return array<int, string|null> keyed by slot, 1 to 18
+     */
+    private static function paletteSlots(array $shifts): array
+    {
+        $worn = [];
+        foreach ($shifts as $shift) {
+            $worn[$shift->getColour()] ??= $shift->getLabel();
+        }
+
+        $slots = [];
+        for ($slot = Shift::FIRST_SLOT; $slot <= Shift::SLOTS; ++$slot) {
+            $slots[$slot] = $worn[$slot] ?? null;
+        }
+
+        return $slots;
+    }
+
+    /**
+     * WHICH SLOT EACH SHIFT IS WEARING, as the picker's own footer line.
+     *
+     * @param list<Shift> $shifts
+     *
+     * @return list<string>
+     */
+    private static function paletteTaken(array $shifts): array
+    {
+        $taken = [];
+        foreach ($shifts as $shift) {
+            $taken[] = $shift->getColour().' '.$shift->getLabel();
+        }
+
+        return $taken;
     }
 
     /**

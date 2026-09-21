@@ -108,7 +108,10 @@ final class RosterConfigurationTest extends TestCase
         ]])['shifts'];
 
         self::assertIsArray($shifts);
-        self::assertSame([['key' => 'tour', 'label' => 'Overnight tour', 'start' => '22:00', 'end' => '04:00']], $shifts);
+        // AND A SHIFT THAT NAMES NO SLOT OPENS ON THE FIRST ONE: the
+        // palette is the house's eighteen, and the Configure page is
+        // where a deployment moves a shift off a slot it shares.
+        self::assertSame([['key' => 'tour', 'label' => 'Overnight tour', 'start' => '22:00', 'end' => '04:00', 'colour' => 1]], $shifts);
     }
 
     public function testAShiftWithoutAClockTimeIsRefused(): void

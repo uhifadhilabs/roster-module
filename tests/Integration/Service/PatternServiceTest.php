@@ -76,7 +76,7 @@ final class PatternServiceTest extends IntegrationTestCase
     {
         $pattern = $this->patterns()->create($this->area, Cycle::of(['day', 'day', 'night', 'night', Cycle::OFF]));
 
-        self::assertSame('2 days of Day, 2 days of Night, 1 off', $this->patterns()->nameOf($pattern));
+        self::assertSame('2 days of day, 2 days of night, 1 off', $this->patterns()->nameOf($pattern));
         self::assertSame(5, $pattern->length());
     }
 
@@ -89,7 +89,7 @@ final class PatternServiceTest extends IntegrationTestCase
     public function testRenamingAShiftRenamesEveryPatternBuiltFromIt(): void
     {
         $pattern = $this->patterns()->create($this->area, Cycle::of(['day', 'day', Cycle::OFF]));
-        self::assertSame('2 days of Day, 1 off', $this->patterns()->nameOf($pattern));
+        self::assertSame('2 days of day, 1 off', $this->patterns()->nameOf($pattern));
 
         $vocabulary = $this->service(ShiftVocabularyService::class);
         self::assertInstanceOf(ShiftVocabularyService::class, $vocabulary);
@@ -141,7 +141,7 @@ final class PatternServiceTest extends IntegrationTestCase
 
         $this->patterns()->save($pattern, Cycle::of(['night', 'night', 'night', Cycle::OFF]));
 
-        self::assertSame('3 days of Night, 1 off', $this->patterns()->nameOf($pattern));
+        self::assertSame('3 days of night, 1 off', $this->patterns()->nameOf($pattern));
 
         $duties = $this->em->getRepository(Duty::class)->findAll();
         self::assertCount(1, $duties, 'Editing a cycle writes no duty and removes none.');

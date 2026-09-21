@@ -167,7 +167,7 @@ final class PatternsPageTest extends WebTestCase
         $patterns = $this->em->getRepository(Pattern::class)->findAll();
         self::assertCount(1, $patterns);
         self::assertSame(5, $patterns[0]->length());
-        self::assertSame('2 days of Day, 2 days of Night, 1 off', $this->patterns()->nameOf($patterns[0]));
+        self::assertSame('2 days of day, 2 days of night, 1 off', $this->patterns()->nameOf($patterns[0]));
     }
 
     /**
@@ -238,7 +238,7 @@ final class PatternsPageTest extends WebTestCase
         $this->em->clear();
         $patterns = $this->em->getRepository(Pattern::class)->findAll();
         self::assertCount(1, $patterns, 'An edit is not a second pattern.');
-        self::assertSame('4 days of Day, 4 off', $this->patterns()->nameOf($patterns[0]));
+        self::assertSame('4 days of day, 4 off', $this->patterns()->nameOf($patterns[0]));
     }
 
     /** DELETING ONE STOPS THE FILL AND KEEPS THE STATION on the books. */

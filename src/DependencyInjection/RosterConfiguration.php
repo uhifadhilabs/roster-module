@@ -15,6 +15,7 @@ namespace Uhifadhi\Roster\DependencyInjection;
 
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
+use Uhifadhi\Roster\Entity\Shift;
 use Uhifadhi\Roster\Model\Cycle;
 
 /**
@@ -37,7 +38,7 @@ use Uhifadhi\Roster\Model\Cycle;
  * SO `shifts` SEEDS A LIST, IT IS NOT THE LIST. Ruled: "one list for the whole
  * area", edited on the Configure page's Settings section, where a shift in use
  * cannot be deleted, only closed — which is a lifecycle, and a lifecycle needs
- * rows. {@see \Uhifadhi\Roster\Entity\Shift} is the running vocabulary; this
+ * rows. {@see Shift} is the running vocabulary; this
  * is the four windows an area starts with so that nobody has to invent a day
  * shift before they can write a rotation.
  *
@@ -65,13 +66,24 @@ final class RosterConfiguration
      * rotation and the week grid all have to be able to say which of the two
      * a person is on.
      *
-     * @var list<array{key: string, label: string, start: string, end: string}>
+     * A LABEL IS PRINTED AS IT WAS TYPED, everywhere — a pattern's derived
+     * name says "2 days of day" because the word IS "day". The product never
+     * capitalises, pluralises or otherwise edits a shift name: the words are
+     * the area's own and it does not know one from another.
+     *
+     * AND EACH ONE OPENS ON ITS OWN PALETTE SLOT. A shift is given a colour
+     * when it is created and keeps it on every tab; four shifts seeded on one
+     * slot would paint a whole fortnight in one hue, which is what made the
+     * sheet unreadable. The slots are spread rather than consecutive so that
+     * two shifts read as different at a glance, not as two steps of one ramp.
+     *
+     * @var list<array{key: string, label: string, start: string, end: string, colour: int}>
      */
     public const array DEFAULT_SHIFTS = [
-        ['key' => 'day', 'label' => 'Day', 'start' => '06:00', 'end' => '18:00'],
-        ['key' => 'night', 'label' => 'Night', 'start' => '18:00', 'end' => '06:00'],
-        ['key' => 'office', 'label' => 'Office', 'start' => '07:30', 'end' => '16:30'],
-        ['key' => 'radio', 'label' => 'Radio night', 'start' => '18:00', 'end' => '06:00'],
+        ['key' => 'day', 'label' => 'day', 'start' => '06:00', 'end' => '18:00', 'colour' => 1],
+        ['key' => 'night', 'label' => 'night', 'start' => '18:00', 'end' => '06:00', 'colour' => 5],
+        ['key' => 'office', 'label' => 'office', 'start' => '07:30', 'end' => '16:30', 'colour' => 3],
+        ['key' => 'radio', 'label' => 'radio night', 'start' => '18:00', 'end' => '06:00', 'colour' => 8],
     ];
 
     /**
@@ -173,6 +185,11 @@ final class RosterConfiguration
                                     ->ifTrue(self::notAClockTime(...))
                                     ->thenInvalid('A shift ends at an HH:MM clock time; got %s.')
                                 ->end()
+                            ->end()
+                            ->integerNode('colour')
+                                ->info('The palette slot the shift opens on, 1 to 18. It is the shift\'s from then on and is changed on the Configure page, never here.')
+                                ->min(Shift::FIRST_SLOT)->max(Shift::SLOTS)
+                                ->defaultValue(Shift::FIRST_SLOT)
                             ->end()
                         ->end()
                     ->end()
