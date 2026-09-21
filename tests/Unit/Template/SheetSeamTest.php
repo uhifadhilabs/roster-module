@@ -207,6 +207,96 @@ final class SheetSeamTest extends TestCase
     }
 
     /**
+     * THE BY-HAND MENU IS PORTALLED OUT OF THE SHEET, and this is the
+     * assertion that keeps it there.
+     *
+     * The sheet is a scroller with a sticky column head, a sticky ranger
+     * column at four weeks, and an isolated `<tbody>` so a positioned day
+     * cell cannot paint over the row saying which day it is. Every one of
+     * those is a STACKING CONTEXT, and a menu opened inside them is
+     * trapped underneath — which is how this menu came to open BEHIND the
+     * day cells. No z-index wins an argument with an ancestor stacking
+     * context, so the only fix is to leave.
+     */
+    public function testTheMenuLeavesTheSheetToOpen(): void
+    {
+        $js = self::read(self::MENU);
+
+        self::assertStringContainsString('document.body.appendChild(menu)', $js, 'The menu has to leave the sheet, not out-rank it.');
+        self::assertStringContainsString('getBoundingClientRect()', $js, 'And be placed from the cell it belongs to.');
+        self::assertStringContainsString("classList.add('pmout')", $js);
+        self::assertStringContainsString("classList.remove('pmout')", $js);
+        self::assertStringContainsString('.pmenu.pmout', self::read(self::SHEET_CSS), 'The portalled state has to be shipped.');
+        self::assertStringContainsString('position: fixed', self::read(self::SHEET_CSS));
+    }
+
+    /**
+     * AND IT IS PUT BACK, never cloned. The template is the one place the
+     * menu exists; a controller that copied it would answer a form the
+     * second copy had already answered, and one that forgot to return it
+     * would strand a node on the body after a navigation.
+     */
+    public function testTheMenuIsReturnedToItsCellAndNeverCloned(): void
+    {
+        $js = self::read(self::MENU);
+
+        self::assertStringContainsString('this.home.appendChild(this.open_)', $js, 'Closing puts it back.');
+        self::assertStringContainsString('this.close();', $js);
+        self::assertMatchesRegularExpression('/disconnect\(\)\s*\{\s*(?:\/\/[^
+]*
+\s*)*this\.close\(\);/', $js, 'And so does going away.');
+        self::assertStringNotContainsString('cloneNode', $js);
+    }
+
+    /**
+     * BEING FIXED, IT CANNOT FOLLOW THE CELL — so anything that moves the
+     * cell closes it. A menu left hanging over a scrolled sheet points at
+     * a day that is no longer under it.
+     */
+    public function testAnythingThatMovesTheCellClosesTheMenu(): void
+    {
+        $js = self::read(self::MENU);
+
+        self::assertStringContainsString("addEventListener('scroll', this.away, true)", $js, 'Capture, so the sheet\'s own scroller counts.');
+        self::assertStringContainsString("addEventListener('resize', this.away)", $js);
+        self::assertStringContainsString("'Escape'", $js);
+        self::assertStringContainsString("addEventListener('click', this.dismiss)", $js);
+    }
+
+    /**
+     * THE PORTALLED MENU OUT-RANKS EVERY LAYER THE SHEET PINS — read out
+     * of the sheet rather than typed here, so a new sticky layer raised
+     * above it fails this test instead of hiding the menu again.
+     *
+     * AND IT STAYS UNDER THE SHELL'S CONFIRM MODAL (120), which is the one
+     * thing that must always win: a question about destroying something
+     * cannot be covered by the menu that asked it.
+     */
+    public function testThePortalledMenuOutRanksEverySheetLayer(): void
+    {
+        $css = self::read(self::SHEET_CSS);
+
+        preg_match('/\.pmenu\.pmout\s*\{[^}]*z-index:\s*(\d+)/', $css, $portal);
+        $declared = $portal[1] ?? '';
+        self::assertNotSame('', $declared, 'The portalled menu has to declare the layer it opens on.');
+        $top = (int) $declared;
+
+        // Every z-index the sheet's own sticky and isolated layers spend.
+        preg_match_all('/(\.psheetwrap|table\.csheet|\.cl)[^{}]*\{[^}]*z-index:\s*(\d+)/', $css, $layers);
+        self::assertNotSame([], $layers[2], 'The sheet pins layers; this test is about beating them.');
+
+        foreach ($layers[2] as $layer) {
+            self::assertGreaterThan((int) $layer, $top, 'A sheet layer is pinned above the menu, which is how it opened behind the cells.');
+        }
+
+        self::assertLessThan(120, $top, 'The shell\'s confirm modal has to stay on top of everything.');
+
+        // The controller sets the same number inline, because a portalled
+        // element has left the cascade this rule lives in.
+        self::assertStringContainsString('PORTAL_Z = '.$top, self::read(self::MENU), 'The inline z-index and the sheet\'s must be one number.');
+    }
+
+    /**
      * THE CELL READS THE SHIFT'S STORED SLOT AND NEVER A HUE OF ITS OWN.
      * RULED 21 sep: a shift is given a colour when it is created and keeps
      * it on every tab, so the cell resolves `[data-cat]` through the

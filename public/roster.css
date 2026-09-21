@@ -865,15 +865,37 @@ tr.strow[hidden] { display: none; }
 .prow2 .pfills a:hover { text-decoration: underline; }
 @media (max-width: 760px) { .prow2 .pfills { margin-left: 0; flex: 1 1 100%; flex-wrap: wrap; } }
 
-/* ---- THE BY-HAND MENU ON ONE DAY ----------------------------------------- */
+/* ---- THE BY-HAND MENU ON ONE DAY -----------------------------------------
+ * IT IS DRAWN IN THE CELL AND OPENED OUTSIDE THE SHEET.
+ *
+ * The sheet is a scroller with a sticky column head and, at four weeks, a
+ * sticky ranger column, and its `<tbody>` is isolated so a positioned day
+ * cell can never paint over the row saying which day it is. Every one of
+ * those is a STACKING CONTEXT, and a menu opened inside them is trapped
+ * underneath whatever the sheet has pinned — which is exactly how this menu
+ * came to open behind the day cells.
+ *
+ * NO z-index WINS AN ARGUMENT WITH AN ANCESTOR STACKING CONTEXT. So the menu
+ * leaves: the controller moves the element to the body, fixes it at the
+ * cell's own rect and gives it `.pmout`. At rest it sits in its cell,
+ * hidden, so the template stays the one place it exists and nothing is
+ * cloned.
+ */
 .pmenuwrap { position: relative; display: block; }
 .pmenuwrap > .pmenu { display: none; }
-.pmenuwrap.on > .pmenu { display: block; }
 .pmenu {
-    position: absolute; z-index: 5; top: calc(100% + 5px); left: 50%; transform: translateX(-50%);
+    position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%);
     width: 232px; background: var(--cv); border: 1px solid var(--ln2); border-radius: 11px;
     box-shadow: 0 14px 34px rgba(0, 0, 0, .26); padding: 7px; text-align: left; white-space: normal;
 }
+
+/* PORTALLED: on the body, at the cell's rect, above every layer the sheet
+   pins. The z-index is set inline by the controller from one constant and
+   restated here so the sheet declares its own top layer; both are above the
+   sticky head (6), the sticky ranger column (5) and the house's grouped
+   dropdown (50), and below the shell's confirm modal (120), which must
+   always win. */
+.pmenu.pmout { display: block; position: fixed; transform: none; z-index: 80; }
 .pmenu .hd {
     font: 600 8.5px ui-monospace, monospace; letter-spacing: .13em; text-transform: uppercase;
     color: var(--dim); padding: 5px 8px 6px;
