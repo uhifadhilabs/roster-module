@@ -20,13 +20,22 @@ use Uhifadhi\Bundle\AreaBundle\Repository\AreaOfInterestRepository;
 use Uhifadhi\Contracts\Shell\ConfigurationSection;
 use Uhifadhi\Contracts\Shell\ConfigurationSectionsInterface;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
+use Uhifadhi\Roster\Controller\RosterPatternsController;
 use Uhifadhi\Roster\Controller\RosterWidgetsController;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 
 /**
- * WHAT IS ON THE ROSTER'S CONFIGURE PAGE — the rotation, what each post's
- * watch expects, and the module's own settings. Configuration only: the
- * figures live on the tabs.
+ * WHAT IS ON THE ROSTER'S CONFIGURE PAGE — the cycles this area fills from,
+ * the shifts and rules its stations run on, and the module's own settings.
+ * Configuration only: the figures live on the tabs.
+ *
+ * PATTERNS TOOK ROTATION'S PLACE ON THE STRIP, ruled 21 sep. A rotation was
+ * one ring per post; a pattern is ONE object at area level applied to many,
+ * and it is said in the area's own shifts rather than chosen from presets
+ * the product invented. The rotation's own screen keeps its address while
+ * the surfaces that generate from it are moved across, as the module's rule
+ * about retiring a shipped screen requires — it is simply no longer a
+ * section anybody is sent to.
  *
  * ALL THREE KEEP AN ADDRESS OF THEIR OWN, and the STYLESHEET is the reason
  * rather than taste. A section the shell renders as a BODY inside its own
@@ -52,8 +61,8 @@ final readonly class RosterConfigurationSections implements ConfigurationSection
     /** How this area's roster dashboard is composed. */
     public const string WIDGETS = 'widgets';
 
-    /** The rotation a post or a team runs. */
-    public const string ROTATION = 'rotation';
+    /** The cycles this area fills a station from. */
+    public const string PATTERNS = 'patterns';
 
     /** The four columns this module owns on a station. */
     public const string WATCHES = 'watches';
@@ -84,7 +93,7 @@ final readonly class RosterConfigurationSections implements ConfigurationSection
 
     public function summary(): string
     {
-        return 'The rotation, what each post’s watch expects, and the module’s own settings. Configuration only — the figures live on the tabs.';
+        return 'The cycles this area fills a station from, the shifts and rules its stations run on, and the module’s own settings. Configuration only — the figures live on the tabs.';
     }
 
     public function sections(): array
@@ -99,7 +108,7 @@ final readonly class RosterConfigurationSections implements ConfigurationSection
 
         return [
             ConfigurationSection::screen(self::WIDGETS, 'Widget library', RosterWidgetsController::LIBRARY_ROUTE, ['uuid' => $uuid]),
-            ConfigurationSection::screen(self::ROTATION, 'Rotation', RosterConfigureController::ROTATION_ROUTE, ['uuid' => $uuid]),
+            ConfigurationSection::screen(self::PATTERNS, 'Patterns', RosterPatternsController::ROUTE, ['uuid' => $uuid]),
             ConfigurationSection::screen(self::WATCHES, 'Watches', RosterConfigureController::WATCHES_ROUTE, ['uuid' => $uuid]),
             ConfigurationSection::screen(ConfigurationSection::SETTINGS, 'Settings', RosterConfigureController::SETTINGS_ROUTE, ['uuid' => $uuid]),
         ];

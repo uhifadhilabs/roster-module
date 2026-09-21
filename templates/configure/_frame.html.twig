@@ -1,6 +1,6 @@
 {# THE CONFIGURE FRAME A ROSTER SECTION WEARS.
 
-   Each of this module's three sections keeps an address of its own — it draws
+   Each of this module's sections keeps an address of its own — it draws
    families the shell's sheet does not ship, and the shell's configure page
    links no module stylesheet — so each renders itself. What it must NOT do is
    look like a different page: it wears the configure page's heading, the
@@ -18,7 +18,7 @@
 
 {% block shell_page_title %}{{ area.name }} — Roster · configure{% endblock %}
 
-{% block shell_page_subtitle %}The rotation, what each post&rsquo;s watch expects, and the module&rsquo;s own settings. Configuration only &mdash; the figures live on the tabs.{% endblock %}
+{% block shell_page_subtitle %}The cycles this area fills a station from, the shifts and rules its stations run on, and the module&rsquo;s own settings. Configuration only &mdash; the figures live on the tabs.{% endblock %}
 
 {% block roster_trail_tail %} <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::OVERVIEW_ROUTE'), {uuid: area.uuid}) }}">roster</a> / configure{% endblock %}
 

@@ -27,7 +27,6 @@ use Uhifadhi\Bundle\AreaBundle\Service\AreaPlateService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInService;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
 use Uhifadhi\Bundle\AreaBundle\Service\PostingService;
-use Uhifadhi\Bundle\AreaBundle\Service\StationService;
 use Uhifadhi\Bundle\AreaBundle\Service\ZoneSetService;
 use Uhifadhi\Bundle\ShellBundle\Widget\Registry\WidgetSurfaceInterface;
 use Uhifadhi\Bundle\ShellBundle\Widget\Service\WidgetEndpoint;
@@ -42,6 +41,7 @@ use Uhifadhi\Contracts\Shell\ModuleTabsInterface;
 use Uhifadhi\Roster\Controller\RosterConfigureController;
 use Uhifadhi\Roster\Controller\RosterController;
 use Uhifadhi\Roster\Controller\RosterOrgController;
+use Uhifadhi\Roster\Controller\RosterPatternsController;
 use Uhifadhi\Roster\Controller\RosterWidgetsController;
 use Uhifadhi\Roster\DependencyInjection\RosterConfiguration;
 use Uhifadhi\Roster\Devkit\PresenceContentProvider;
@@ -51,6 +51,7 @@ use Uhifadhi\Roster\Module\RosterWatches;
 use Uhifadhi\Roster\Org\RosterOrgOverview;
 use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
+use Uhifadhi\Roster\Repository\PatternRepository;
 use Uhifadhi\Roster\Repository\RotationPoolMemberRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
@@ -564,10 +565,10 @@ final class UhifadhiRosterBundle extends AbstractBundle
                     service('roster.identity'),
                     service('roster.settings'),
                     service('roster.shift_vocabulary'),
+                    service('roster.shift_rules'),
                     service('roster.station_watches'),
                     service(StationRepository::class),
                     service(PostingRepository::class),
-                    service(StationService::class),
                     service(CheckInStatusService::class),
                     service('roster.rostered_people'),
                     service('roster.rotation_editor'),
@@ -579,6 +580,25 @@ final class UhifadhiRosterBundle extends AbstractBundle
                 ])
                 ->public();
             $services->alias(RosterConfigureController::class, 'roster.controller.configure')->public();
+
+            /*
+             * PATTERNS — the configure page's own section, and a screen of
+             * its own for the reason every one of these has one: it draws
+             * this module's cycle strip and its sentence editor, and the
+             * shell's configure page links no module stylesheet.
+             */
+            $services->set('roster.controller.patterns', RosterPatternsController::class)
+                ->args([
+                    service('twig'),
+                    service('router'),
+                    service('roster.identity'),
+                    service('roster.patterns'),
+                    service(PatternRepository::class),
+                    service('security.authorization_checker'),
+                    service('security.csrf.token_manager'),
+                ])
+                ->public();
+            $services->alias(RosterPatternsController::class, 'roster.controller.patterns')->public();
 
             /*
              * THE WIDGET LIBRARY — the configure page's first section.

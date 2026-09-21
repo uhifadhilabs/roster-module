@@ -34,15 +34,16 @@ use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\AreaBundle\Repository\PostingRepository;
 use Uhifadhi\Bundle\AreaBundle\Repository\StationRepository;
 use Uhifadhi\Bundle\AreaBundle\Service\CheckInStatusService;
-use Uhifadhi\Bundle\AreaBundle\Service\StationService;
 use Uhifadhi\Roster\Entity\Rotation;
 use Uhifadhi\Roster\Entity\RotationPoolMember;
+use Uhifadhi\Roster\Entity\Shift;
 use Uhifadhi\Roster\Entity\StationWatch;
-use Uhifadhi\Roster\Enum\LateThreshold;
 use Uhifadhi\Roster\Enum\RestRule;
 use Uhifadhi\Roster\Enum\RotationPreset;
-use Uhifadhi\Roster\Enum\VacancyAnnounce;
+use Uhifadhi\Roster\Enum\RuleKind;
+use Uhifadhi\Roster\Enum\RuleUnit;
 use Uhifadhi\Roster\Model\RotationDraft;
+use Uhifadhi\Roster\Model\RuleValue;
 use Uhifadhi\Roster\Module\RosterModuleProvider;
 use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Service\RosteredPeople;
@@ -51,6 +52,7 @@ use Uhifadhi\Roster\Service\RosterSettingsService;
 use Uhifadhi\Roster\Service\RotationEditor;
 use Uhifadhi\Roster\Service\RotationGenerator;
 use Uhifadhi\Roster\Service\RotationPreview;
+use Uhifadhi\Roster\Service\ShiftRuleService;
 use Uhifadhi\Roster\Service\ShiftVocabularyService;
 use Uhifadhi\Roster\Service\StationWatchService;
 
@@ -96,6 +98,13 @@ final class RosterConfigureController
     /** The query that opens the rotation section on a blank declaration. */
     public const string NEW_QUERY = 'new';
 
+    /** THE SHIFTS CARD AND THE RULES CARD ARE ONE FORM, so they are one write. */
+    public const string SAVE_SHIFTS_AND_RULES_ROUTE = 'roster_configure_rules_save';
+
+    /** And the two controls on that form that do something else. */
+    public const string ADD_SHIFT_ROUTE = 'roster_configure_shift_add';
+    public const string CLOSE_SHIFT_ROUTE = 'roster_configure_shift_close';
+
     public const string SAVE_ROTATION_ROUTE = 'roster_configure_rotation_save';
     public const string GENERATE_ROTATION_ROUTE = 'roster_configure_rotation_generate';
     public const string SAVE_WATCHES_ROUTE = 'roster_configure_watches_save';
@@ -127,15 +136,15 @@ final class RosterConfigureController
         private readonly RosterIdentityService $identity,
         private readonly RosterSettingsService $settings,
         private readonly ShiftVocabularyService $shifts,
+        // THE FIVE RULES AND WHAT ONE STATION DOES DIFFERENTLY — and the one
+        // writer of the columns every live surface still reads.
+        private readonly ShiftRuleService $rules,
         private readonly StationWatchService $watches,
         private readonly StationRepository $stations,
         // WHO STANDS AT A POST — the ring a new rotation starts with draws
         // on the people the AREA posted there, which is the only list this
         // module could honestly seed a pool from.
         private readonly PostingRepository $postings,
-        // THE POST'S OWN CATCHMENT is the column verification measures a
-        // ping against, and the area owns the verb that writes it.
-        private readonly StationService $stationDesk,
         private readonly CheckInStatusService $checkInStatuses,
         private readonly RosteredPeople $people,
         private readonly RotationEditor $editor,
@@ -289,26 +298,141 @@ final class RosterConfigureController
         return $this->backTo(self::ROTATION_ROUTE, $area, ['rotation' => $rotation->getUuid()->toRfc4122()]);
     }
 
+    /**
+     * WATCHES — this area's own shift names, the five rules, and which of
+     * its stations runs what.
+     *
+     * THREE CARDS AND TWO FORMS, as drawn (layout A, ruled 21 sep): the
+     * shifts and the rules stand side by side and are saved together
+     * because they are one grid with one Save; the station table is full
+     * width below and saved on its own, because toggling twelve stations
+     * and typing a threshold are two acts a duty officer does at two
+     * different moments.
+     */
     #[Route('/areas/{uuid}/modules/roster/watches', name: self::WATCHES_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['GET'])]
     public function watches(
         #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
     ): Response {
         $watches = $this->watches->forArea($area);
+        $shifts = $this->shifts->openFor($area);
 
         return new Response($this->twig->render('@UhifadhiRoster/configure/watches.html.twig', [
             'area' => $area,
             'band' => $this->identity->bandFor($area),
-            'watches' => $watches,
-            // THE AREA'S DEFAULT RING, for a post that carries none of its
-            // own — the field shows what verification would actually use.
-            'settings' => $this->settings->forArea($area),
-            'pools' => $this->poolSizes($watches),
-            'shifts' => $this->shifts->openFor($area),
+            'shifts' => $shifts,
+            // HOW MANY STATIONS STAND EACH SHIFT — the quiet figure on a
+            // shift's own row, and the one fact that makes closing one a
+            // decision rather than a guess.
+            'runCounts' => self::runCounts($shifts, $watches),
+            'rules' => $this->rules->forArea($area),
+            'ruleKinds' => RuleKind::cases(),
+            // ONE ROW PER STATION THE AREA REGISTERS, not per station on
+            // these books: the table is where a station joins them, so a
+            // station missing from it could never be added.
+            'rows' => $this->stationRows($area, $shifts),
             // The area's other posts — what "Add a post to the roster" offers.
             'postsOffTheBooks' => $this->postsOffTheBooks($area, $watches),
             'mayManage' => $this->authorization->isGranted(self::MANAGE_PERMISSION, $area),
             'csrfToken' => $this->csrfTokenManager->getToken(self::CSRF_TOKEN_ID)->getValue(),
         ]));
+    }
+
+    /**
+     * SAVE THE SHIFTS AND THE RULES — one grid, one Save, one write.
+     *
+     * A PER-CARD SAVE WAS REJECTED and it is worth writing down why: the two
+     * cards are one row of the page and a reader treats them as one form, so
+     * a Save that persisted half of what they had typed would be a page that
+     * quietly threw work away. The drawn cta says "Save the rules"; it saves
+     * the grid, which is what the person pressing it means.
+     */
+    #[Route('/areas/{uuid}/modules/roster/rules', name: self::SAVE_SHIFTS_AND_RULES_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function saveShiftsAndRules(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardWrite($area, $request);
+
+        try {
+            $this->applyShiftRows($area, $request);
+            $this->rules->save($area, $this->submittedRules($request));
+        } catch (\InvalidArgumentException $refused) {
+            self::flash($request, 'error', $refused->getMessage());
+        }
+
+        return $this->backTo(self::WATCHES_ROUTE, $area);
+    }
+
+    /**
+     * ADD A SHIFT. It arrives named, because a nameless row is a row nobody
+     * can tell from the next one — and the name is this area's own from the
+     * first keystroke after that.
+     */
+    #[Route('/areas/{uuid}/modules/roster/shifts/add', name: self::ADD_SHIFT_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function addShift(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardWrite($area, $request);
+
+        try {
+            // THE ROWS ALREADY ON THE PAGE ARE SAVED FIRST. Adding a shift
+            // must not be a way to lose the three names somebody had just
+            // corrected above it.
+            $this->applyShiftRows($area, $request);
+
+            $existing = $this->shifts->forArea($area);
+            $shift = $this->shifts->add($area, self::freeShiftKey($existing), 'new shift', '06:00', '18:00');
+            $shift->recolour(self::freeColourSlot($existing));
+            $this->shifts->rename($shift, $shift->getLabel());
+        } catch (\InvalidArgumentException $refused) {
+            self::flash($request, 'error', $refused->getMessage());
+        }
+
+        return $this->backTo(self::WATCHES_ROUTE, $area);
+    }
+
+    /**
+     * CLOSE A SHIFT. Closed and never deleted: the duties that named it are
+     * what keep the word that described a past month, so it stops being
+     * offered and every row that used it stays readable.
+     */
+    #[Route('/areas/{uuid}/modules/roster/shifts/close', name: self::CLOSE_SHIFT_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
+    public function closeShift(
+        #[MapEntity(mapping: ['uuid' => 'uuid'])] AreaOfInterest $area,
+        Request $request,
+    ): Response {
+        $this->guardWrite($area, $request);
+
+        $asked = $request->request->get('close');
+        $subject = null;
+        foreach ($this->shifts->forArea($area) as $shift) {
+            if (\is_string($asked) && $shift->getUuid()->toRfc4122() === $asked) {
+                $subject = $shift;
+            }
+        }
+
+        if (null === $subject) {
+            self::flash($request, 'error', 'That shift is not one of this area’s, so it cannot be closed here.');
+
+            return $this->backTo(self::WATCHES_ROUTE, $area);
+        }
+
+        try {
+            $this->applyShiftRows($area, $request);
+            $this->shifts->close($subject, new \DateTimeImmutable('today'));
+        } catch (\InvalidArgumentException $refused) {
+            self::flash($request, 'error', $refused->getMessage());
+
+            return $this->backTo(self::WATCHES_ROUTE, $area);
+        }
+
+        self::flash($request, 'success', \sprintf(
+            '“%s” is closed. It stops being offered and every day that named it still reads.',
+            $subject->getLabel(),
+        ));
+
+        return $this->backTo(self::WATCHES_ROUTE, $area);
     }
 
     #[Route('/areas/{uuid}/modules/roster/settings', name: self::SETTINGS_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['GET'])]
@@ -325,8 +449,6 @@ final class RosterConfigureController
             // roster looks for them, and links to where they are edited.
             'checkInStatuses' => $this->checkInStatuses->offeredBy($area),
             'shifts' => $this->shifts->forArea($area),
-            'lateThresholds' => LateThreshold::cases(),
-            'vacancyAnnouncements' => VacancyAnnounce::cases(),
             'mayManage' => $this->authorization->isGranted(self::MANAGE_PERMISSION, $area),
             'csrfToken' => $this->csrfTokenManager->getToken(self::CSRF_TOKEN_ID)->getValue(),
         ]));
@@ -409,9 +531,17 @@ final class RosterConfigureController
     }
 
     /**
-     * SAVE EVERY WATCH ON THE PAGE, in one write, because the section is one
-     * form with one Save. A per-row save would let somebody leave the page
-     * having changed four of six and believing they changed six.
+     * SAVE THE STATION TABLE — which stations run which shifts, and what
+     * each one does differently.
+     *
+     * IN ONE WRITE, because the table is one form with one Save. A per-row
+     * save would let somebody leave the page having changed four of twelve
+     * and believing they changed twelve.
+     *
+     * A STATION'S EXCEPTIONS ARE REPLACED BY WHAT THE ROW SENT, never
+     * merged. Removing an exception is how a station goes back to following
+     * the area, and the only thing that says so is the row's silence — so a
+     * save that merged would make the cross on an exception do nothing.
      */
     #[Route('/areas/{uuid}/modules/roster/watches', name: self::SAVE_WATCHES_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
     public function saveWatches(
@@ -423,26 +553,248 @@ final class RosterConfigureController
         foreach ($this->watches->forArea($area) as $watch) {
             $station = $watch->getStation();
             $id = (string) $station->getId();
-            // THE RING'S ONE HOME IS THE POST. The watch's own column is
-            // retired and no longer read, so the value that stands when the
-            // form omits one is the post's.
-            $catchment = $this->positiveInt($request, 'catchment_'.$id, $station->getCatchmentM() ?? $this->settings->forArea($area)->getDefaultCatchmentMetres());
 
             $this->watches->save(
                 $watch,
                 $this->shiftKeys($request, 'expects_'.$id),
-                $this->positiveInt($request, 'silence_'.$id, $watch->getSilenceWindowMinutes()),
-                $this->positiveInt($request, 'offline_'.$id, $watch->getOfflineAfterMinutes()),
+                $watch->getSilenceWindowMinutes(),
+                $watch->getOfflineAfterMinutes(),
             );
 
-            // AND THE RING GOES TO ITS ONE HOME. A claim is verified
-            // against the POST's catchment, so that is the only column
-            // this writes: the roster states the distance and the area
-            // does the measuring.
-            $this->stationDesk->setCatchment($station, $catchment);
+            try {
+                $this->applyExceptions($station, $request, 'exception_'.$id);
+            } catch (\InvalidArgumentException $refused) {
+                self::flash($request, 'error', \sprintf('%s: %s', $station->getName() ?? 'That station', $refused->getMessage()));
+            }
         }
 
         return $this->backTo(self::WATCHES_ROUTE, $area);
+    }
+
+    /**
+     * ONE ROW PER STATION THE AREA REGISTERS — what it runs, what it needs,
+     * and what it does differently.
+     *
+     * A STATION OFF THE BOOKS IS A ROW LIKE ANY OTHER, drawn quiet. The
+     * table is the register of what this module works, so a station missing
+     * from it would be a station nobody could ever add.
+     *
+     * @param list<Shift> $shifts
+     *
+     * @return list<array{station: Station, onTheBooks: bool, needs: int|null, runs: array<string, bool>, exceptions: list<array{kind: RuleKind, value: RuleValue}>}>
+     */
+    private function stationRows(AreaOfInterest $area, array $shifts): array
+    {
+        $exceptions = $this->rules->exceptionsForArea($area);
+
+        $rows = [];
+        foreach ($this->stations->findByArea($area) as $station) {
+            $watch = $this->watches->forStation($station);
+
+            $runs = [];
+            foreach ($shifts as $shift) {
+                $runs[$shift->getKey()] = null !== $watch && \in_array($shift->getKey(), $watch->getExpects(), true);
+            }
+
+            $own = [];
+            foreach ($exceptions[(string) $station->getUuidString()] ?? [] as $exception) {
+                $own[] = ['kind' => $exception->getKind(), 'value' => $exception->getValue()];
+            }
+
+            $rows[] = [
+                'station' => $station,
+                'onTheBooks' => null !== $watch,
+                // HOW MANY PEOPLE THE PLACE NEEDS, added across the shifts
+                // it stands. NULL and not zero where it has declared none:
+                // a station nobody has stated a need for is short of
+                // nobody, and a zero would read as a place that needs
+                // nobody at all.
+                'needs' => null === $watch ? null : self::needsTotal($watch, $shifts),
+                'runs' => $runs,
+                'exceptions' => $own,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param list<Shift> $shifts
+     */
+    private static function needsTotal(StationWatch $watch, array $shifts): ?int
+    {
+        $total = 0;
+        foreach ($shifts as $shift) {
+            $total += $watch->needsOn($shift->getKey());
+        }
+
+        return $total > 0 ? $total : null;
+    }
+
+    /**
+     * HOW MANY STATIONS STAND EACH SHIFT.
+     *
+     * @param list<Shift>        $shifts
+     * @param list<StationWatch> $watches
+     *
+     * @return array<string, int>
+     */
+    private static function runCounts(array $shifts, array $watches): array
+    {
+        $counts = [];
+        foreach ($shifts as $shift) {
+            $counts[$shift->getKey()] = 0;
+        }
+
+        foreach ($watches as $watch) {
+            foreach ($watch->getExpects() as $key) {
+                if (isset($counts[$key])) {
+                    ++$counts[$key];
+                }
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * THE SHIFT ROWS AS THE CARD SENT THEM — a name and a window this area
+     * typed, and the palette slot it keeps on every surface.
+     *
+     * THE KEY IS NOT IN THE FORM, and cannot be: it is issued once and every
+     * duty stores it, so a name corrected on this card renames the shift
+     * everywhere and changes no stored row.
+     *
+     * @throws \InvalidArgumentException when a window is not a window
+     */
+    private function applyShiftRows(AreaOfInterest $area, Request $request): void
+    {
+        foreach ($this->shifts->forArea($area) as $shift) {
+            $id = $shift->getUuid()->toRfc4122();
+
+            $label = trim((string) $request->request->get('shift_label_'.$id, ''));
+            if ('' !== $label && $label !== $shift->getLabel()) {
+                $this->shifts->rename($shift, $label);
+            }
+
+            $start = trim((string) $request->request->get('shift_start_'.$id, ''));
+            $end = trim((string) $request->request->get('shift_end_'.$id, ''));
+            if ('' !== $start && '' !== $end && ($start !== $shift->getStartsAt() || $end !== $shift->getEndsAt())) {
+                $this->shifts->moveWindow($shift, $start, $end);
+            }
+
+            $colour = $request->request->getInt('shift_colour_'.$id);
+            if ($colour > 0 && $colour !== $shift->getColour()) {
+                $shift->recolour($colour);
+                // The vocabulary owns the flush; renaming to the label it
+                // already has is a no-op write that commits the slot.
+                $this->shifts->rename($shift, $shift->getLabel());
+            }
+        }
+    }
+
+    /**
+     * THE FIVE, AS THE CARD SENT THEM. A kind whose number did not arrive
+     * keeps what it had — a blank field is somebody who did not answer, not
+     * somebody who answered zero.
+     *
+     * @return array<string, RuleValue>
+     */
+    private function submittedRules(Request $request): array
+    {
+        $values = [];
+        foreach (RuleKind::cases() as $kind) {
+            $number = trim((string) $request->request->get('rule_value_'.$kind->value, ''));
+            $unit = RuleUnit::tryFrom((string) $request->request->get('rule_unit_'.$kind->value, ''));
+
+            if ('' === $number || !is_numeric($number) || null === $unit) {
+                continue;
+            }
+
+            $values[$kind->value] = $kind->valueOf((float) $number, $unit);
+        }
+
+        return $values;
+    }
+
+    /**
+     * WHAT ONE STATION DOES DIFFERENTLY, REPLACED BY WHAT ITS ROW SENT.
+     *
+     * @throws \InvalidArgumentException when a submitted pair cannot stand
+     */
+    private function applyExceptions(Station $station, Request $request, string $prefix): void
+    {
+        $kinds = $request->request->all($prefix.'_kind');
+        $numbers = $request->request->all($prefix.'_value');
+        $units = $request->request->all($prefix.'_unit');
+
+        $sent = [];
+        foreach ($kinds as $index => $raw) {
+            $kind = RuleKind::tryFrom(\is_string($raw) ? $raw : '');
+            $number = \is_scalar($numbers[$index] ?? null) ? trim((string) $numbers[$index]) : '';
+            $unit = RuleUnit::tryFrom(\is_string($units[$index] ?? null) ? $units[$index] : '');
+
+            if (null === $kind || null === $unit || '' === $number || !is_numeric($number)) {
+                continue;
+            }
+
+            $sent[$kind->value] = $kind->valueOf((float) $number, $unit);
+        }
+
+        foreach (RuleKind::cases() as $kind) {
+            if (isset($sent[$kind->value])) {
+                $this->rules->setException($station, $kind, $sent[$kind->value]);
+
+                continue;
+            }
+
+            $this->rules->clearException($station, $kind);
+        }
+    }
+
+    /**
+     * A KEY NO SHIFT IN THIS AREA HAS. It is an identifier and not a label:
+     * every duty stores it and it is never edited, which is why it is
+     * issued here rather than typed into the row.
+     *
+     * @param list<Shift> $existing
+     */
+    private static function freeShiftKey(array $existing): string
+    {
+        $taken = [];
+        foreach ($existing as $shift) {
+            $taken[$shift->getKey()] = true;
+        }
+
+        $n = \count($existing) + 1;
+        while (isset($taken['shift_'.$n])) {
+            ++$n;
+        }
+
+        return 'shift_'.$n;
+    }
+
+    /**
+     * THE FIRST PALETTE SLOT NOBODY IS WEARING, wrapping round the
+     * eighteen — a fifth shift should not open the same colour as the first
+     * while fourteen slots are free.
+     *
+     * @param list<Shift> $existing
+     */
+    private static function freeColourSlot(array $existing): int
+    {
+        $taken = [];
+        foreach ($existing as $shift) {
+            $taken[$shift->getColour()] = true;
+        }
+
+        for ($slot = Shift::FIRST_SLOT; $slot <= Shift::SLOTS; ++$slot) {
+            if (!isset($taken[$slot])) {
+                return $slot;
+            }
+        }
+
+        return Shift::FIRST_SLOT;
     }
 
     #[Route('/areas/{uuid}/modules/roster/settings', name: self::SAVE_SETTINGS_ROUTE, requirements: ['uuid' => Requirement::UUID], methods: ['POST'])]
@@ -454,14 +806,21 @@ final class RosterConfigureController
 
         $current = $this->settings->forArea($area);
 
+        /*
+         * ONLY WHAT THIS PAGE STILL OWNS. The ping interval, the default
+         * catchment and the late threshold became three of the five RULES
+         * on the Watches section, so they are passed through untouched
+         * here: a second editor for one fact is a fact that disagrees with
+         * itself the first time somebody uses the other one.
+         */
         $this->settings->save(
             $area,
-            $this->positiveInt($request, 'ping_interval_minutes', $current->getPingIntervalMinutes()),
+            $current->getPingIntervalMinutes(),
             $request->request->getBoolean('off_day_has_no_state', $current->offDayHasNoState()),
             $request->request->getBoolean('leave_approval_shown', $current->isLeaveApprovalShown()),
-            $this->positiveInt($request, 'default_catchment_metres', $current->getDefaultCatchmentMetres()),
-            LateThreshold::tryFrom((string) $request->request->get('late_threshold')) ?? $current->getLateThreshold(),
-            VacancyAnnounce::tryFrom((string) $request->request->get('vacancy_announce')) ?? $current->getVacancyAnnounce(),
+            $current->getDefaultCatchmentMetres(),
+            $current->getLateThreshold(),
+            $current->getVacancyAnnounce(),
         );
 
         return $this->backTo(self::SETTINGS_ROUTE, $area);
@@ -485,18 +844,6 @@ final class RosterConfigureController
     }
 
     /**
-     * A NUMBER OUT OF A FORM IS UNTRUSTED. A blank, a word or a negative is
-     * the value that was already stored — the entity refuses nonsense anyway,
-     * and answering a fat-fingered field with a 500 helps nobody.
-     */
-    private function positiveInt(Request $request, string $field, int $fallback): int
-    {
-        $value = $request->request->getInt($field);
-
-        return $value > 0 ? $value : $fallback;
-    }
-
-    /**
      * @return list<string>
      */
     private function shiftKeys(Request $request, string $field): array
@@ -507,26 +854,6 @@ final class RosterConfigureController
             array_map(static fn (mixed $key): string => \is_string($key) ? $key : '', $submitted),
             static fn (string $key): bool => '' !== $key,
         ));
-    }
-
-    /**
-     * @param list<StationWatch> $watches
-     *
-     * @return array<int, int> station id => how many people its ring draws from
-     */
-    private function poolSizes(array $watches): array
-    {
-        $pools = [];
-        foreach ($watches as $watch) {
-            $id = $watch->getStation()->getId();
-            if (null === $id) {
-                continue;
-            }
-
-            $pools[$id] = $this->watches->poolSizeFor($watch->getStation());
-        }
-
-        return $pools;
     }
 
     /**

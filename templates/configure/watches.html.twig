@@ -1,106 +1,297 @@
 {# ============================================================================
-   WATCHES — the four columns the roster owns on a station, ported from the
-   design's configure.html#watches.
+   WATCHES — this area's own shift names, the five rules that decide late,
+   offline and a valid check-in, and which station runs what.
 
-   THE NAME, KIND, POINT AND CALL SIGN ARE THE AREA'S. This section edits only
-   what the roster owns: the shifts a post expects, how long its silence may
-   run, how long before that is offline, and how wide its catchment is. Ruled
-   18 sep, and it is why the rows here are read-only about everything else.
+   PORTED FROM designs/…/modules/roster/configure-watches.html, which is
+   variants-watches option A arranged per variants-watches-layout option A
+   and the rules card per variants-rules-card option A.
 
-   ONE PLACE IT IS EDITED, TWO DOORS ONTO IT. The same block renders on the
-   area's own Stations configure card; both call StationWatchService, and
-   neither screen owns the other.
+   THE RULINGS THIS PAGE IS, in the owner's words: "users should be able to
+   define their shift names", "rules configurable like exceptions", "forcing
+   predefined options is stupid". So the product knows NO shift name and NO
+   blessed value: a shift is a field this area typed, a rule is a number and
+   a unit, and any rule may be given to one station — on that station's own
+   row, never in a fourth card listing stations the table above already has.
 
-   A POST WITH NO WATCH IS NOT A FAULT. A post that declares none is never
-   counted, never late and never a hole — only offline.
+   COVERAGE MANIFEST — every element of the drawn page.
 
-   AND A POST OFF THE BOOKS IS NOT INVISIBLE. The area's other posts are the
-   add row's own list, so the section that says which posts this module
-   works is also the one place a post joins them. Ported from the design's
-   `.staddrow` on this card.
+   | element                          | type    | source                          | interaction        | status |
+   |----------------------------------|---------|---------------------------------|--------------------|--------|
+   | h2.zone + p.pgsub                | chrome  | static + station count          | none               | done   |
+   | Shifts card head + caption       | chrome  | static                          | none               | done   |
+   | .wsh per shift, data-cat         | data    | Shift.colour                    | —                  | done   |
+   | button.wsw colour swatch         | control | Shift.colour                    | cycles the slot    | done   |
+   | input.wnm shift name             | control | Shift.label                     | saved with the grid| done   |
+   | .hrs two windows                 | control | Shift.startsAt/endsAt           | saved with the grid| done   |
+   | .n "N stations run it"           | data    | watches expecting that key      | none               | done   |
+   | a.x close this shift             | control | —                               | closes, never drops| done   |
+   | .staddrow + Add a shift          | control | —                               | adds a shift row   | done   |
+   | .wfollow follow line             | chrome  | static                          | none               | done   |
+   | Rules card head + caption        | chrome  | static                          | none               | done   |
+   | .rl × 5 (k / v / m)              | control | ShiftRule, else the standard    | saved with the grid| done   |
+   | .rl.chk "say it sooner"          | —       | —                               | —                  | CUT, ruled 21 sep |
+   | Discard / Save the rules         | control | —                               | reload / one write | done   |
+   | Stations card head + caption     | data    | station and run counts          | none               | done   |
+   | table.wmx head, one th per shift | data    | the area's open list            | none               | done   |
+   | td.l station name, code · kind   | data    | Station                         | none               | done   |
+   | td.n Rangers                     | data    | StationWatch.needsPerShift      | none               | done   |
+   | button.wtg per station × shift   | control | StationWatch.expects            | toggles            | done   |
+   | .wexcin exceptions + add         | control | StationRuleException            | adds / removes     | done   |
+   | tr.none for a station off books  | state   | no watch                        | none               | done   |
+   | Discard / Save                   | control | —                               | reload / one write | done   |
+   | empty shift list                 | state   | a fresh area names its own      | none               | done   |
+
+   TWO STATED DEPARTURES FROM THE DRAWING, both because a drawing cannot be
+   pressed:
+
+   1. THE SHIFTS CARD IS DRAWN WITH NO SAVE. It is a card of editable fields,
+      so it needs one; rather than invent a control the design does not have,
+      the two cards of the grid are ONE form and the drawn "Save the rules"
+      saves both. Adding and closing a shift submit the same form, so neither
+      is a way to lose a name somebody had just corrected.
+   2. THE DRAWN "1 station run it" IS A TYPO and is written "1 station runs
+      it" here.
    ========================================================================== #}
 {% extends '@UhifadhiRoster/configure/_frame.html.twig' %}
 
+{% set save_grid = path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SAVE_SHIFTS_AND_RULES_ROUTE'), {uuid: area.uuid}) %}
+{% set runs_at_least_one = rows|filter(r => r.runs|filter(v => v)|length > 0)|length %}
+
 {% block roster_section %}
+{# ONE CONTROLLER FOR THE WHOLE SECTION, and not one per form: the colour
+   swatch is in the first form and the station table is in the second, and a
+   controller mounted on each would be two instances that have to agree about
+   nothing. It is named for its largest job. #}
+<div data-controller="roster--station-table">
+<h2 class="zone" id="watches">Watches</h2>
+<p class="pgsub">Shifts this area names itself, the rules that decide late, offline and a valid check-in, and which of the {{ rows|length }} station{{ rows|length == 1 ? '' : 's' }} runs what &middot; every setting is an area default, and a station that needs its own says so on its own row</p>
+
+<form method="post" action="{{ save_grid }}">
+    <input type="hidden" name="_token" value="{{ csrfToken }}">
+    <div class="grid g2">
+
+        {# ---- THIS AREA'S OWN SHIFTS ------------------------------------
+           THE PRODUCT KNOWS NONE. A fresh area opens on an empty list and
+           names its own; the four in the drawing are what one park typed.
+           A shift's COLOUR is a stored palette slot given at creation and
+           kept on every surface — never its position in this list, which is
+           what used to recolour a park the day somebody reordered it. #}
+        <div class="c rband">
+            <div class="rb-hd">
+                <span class="tab">Shifts</span>
+                <span class="rb-ttl">this area&rsquo;s own names, hours and colours &mdash; every sheet, every day board and every station list reads this list</span>
+            </div>
+            <div class="rb-body">
+                {% for shift in shifts %}
+                    {% set id = shift.uuid.toRfc4122 %}
+                    <div class="wsh" data-cat="{{ shift.colour }}" data-roster-shift>
+                        <button type="button" class="wsw" aria-label="The colour of {{ shift.label }}"
+                                data-action="roster--station-table#recolour"
+                                {{ mayManage ? '' : 'disabled' }}></button>
+                        <input type="hidden" name="shift_colour_{{ id }}" value="{{ shift.colour }}" data-roster-colour>
+                        <input class="fld wnm" name="shift_label_{{ id }}" value="{{ shift.label }}" aria-label="Shift name" {{ mayManage ? '' : 'disabled' }}>
+                        <span class="hrs">
+                            <input class="wval" name="shift_start_{{ id }}" value="{{ shift.startsAt }}" aria-label="{{ shift.label }} starts at" {{ mayManage ? '' : 'disabled' }}>
+                            to
+                            <input class="wval" name="shift_end_{{ id }}" value="{{ shift.endsAt }}" aria-label="{{ shift.label }} ends at" {{ mayManage ? '' : 'disabled' }}>
+                        </span>
+                        <span class="n">{{ runCounts[shift.key]|default(0) }} station{{ runCounts[shift.key]|default(0) == 1 ? ' runs' : 's run' }} it</span>
+                        <span class="sp"></span>
+                        {% if mayManage %}
+                            {# A REAL CONTROL AND NOT A LINK. Closing is a write
+                               that needs the page's token, and Stimulus binds
+                               no default event to an <a> that goes nowhere. #}
+                            <button type="submit" class="x" name="close" value="{{ id }}" title="Close this shift"
+                                    formaction="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::CLOSE_SHIFT_ROUTE'), {uuid: area.uuid}) }}">&times;</button>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="rfrag"><b>This area has named no shift yet</b><em>the product ships none on purpose &mdash; a shift is a word this area chooses, and nothing can be rostered until there is one</em></div>
+                {% endfor %}
+
+                <div class="staddrow">
+                    {% if mayManage %}
+                        <button type="submit" class="btn sm"
+                                formaction="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ADD_SHIFT_ROUTE'), {uuid: area.uuid}) }}">+ Add a shift</button>
+                    {% endif %}
+                    <span class="sp"></span>
+                    <span class="wfollow">your own names &middot; colour kept on every tab &middot; a shift in use can be closed, not removed</span>
+                </div>
+            </div>
+        </div>
+
+        {# ---- THE FIVE RULES --------------------------------------------
+           A NUMBER AND A UNIT, never a menu of blessed answers. RAISE
+           UNFILLED says when a gap is raised as needing a decision, and
+           nothing more: a gap is on the sheet the moment it exists, always,
+           with no setting — which is why the checkbox the first drawing put
+           beside it was cut on 21 sep and is not here. #}
+        <div class="c rband">
+            <div class="rb-hd">
+                <span class="tab">The rules</span>
+                <span class="rb-ttl">one row per rule</span>
+            </div>
+            <div class="rb-body">
+                {% for kind in ruleKinds %}
+                    {% set value = rules[kind.value] %}
+                    <div class="rl">
+                        <span class="k">{{ kind.label }}</span>
+                        <span class="v">
+                            <input class="wval n" name="rule_value_{{ kind.value }}" value="{{ value.number }}" aria-label="{{ kind.label }}, how much" {{ mayManage ? '' : 'disabled' }}>
+                            <select class="wval u" name="rule_unit_{{ kind.value }}" aria-label="{{ kind.label }}, in what" {{ mayManage ? '' : 'disabled' }}>
+                                {% for unit in kind.units %}
+                                    <option value="{{ unit.value }}" {{ unit == value.unit ? 'selected' : '' }}>{{ unit.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </span>
+                        <span class="m">{{ kind.fragment }}</span>
+                    </div>
+                {% endfor %}
+
+                {% if mayManage %}
+                    <div class="staddrow">
+                        <span class="sp"></span>
+                        {# DISCARD IS A RELOAD, which is exactly what it means:
+                           nothing has been written, so throwing the edits away
+                           is asking the server for the page again. #}
+                        <a class="btn sm" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::WATCHES_ROUTE'), {uuid: area.uuid}) }}">Discard</a>
+                        <button type="submit" class="cta">Save the rules</button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</form>
+
+{# ---- WHICH STATION RUNS WHAT, AND WHAT IT DOES DIFFERENTLY -------------
+   ITS OWN FORM, because toggling twelve stations and typing a threshold are
+   two acts a duty officer does at two different moments. An exception lives
+   on its station's own row (ruled 21 sep): the stations with nothing to say
+   are not made to say it. #}
 <form method="post" action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::SAVE_WATCHES_ROUTE'), {uuid: area.uuid}) }}">
     <input type="hidden" name="_token" value="{{ csrfToken }}">
     <div class="c rband">
-        {# HEADER = IDENTITY ONLY. Ruled 2026-09-20, measured against the
-           area's own Stations configure card: a configure card's band says
-           what the card IS and carries no door. Ways out are the section
-           strip, the lit Configure action and the crumb. #}
         <div class="rb-hd">
-            <span class="tab">Watches</span>
-            <span class="rb-ttl">what each post expects, how long its silence may run, and how wide its catchment is</span>
+            <span class="tab">Stations</span>
+            <span class="rb-ttl">{{ rows|length }} station{{ rows|length == 1 ? '' : 's' }} &middot; {{ runs_at_least_one }} run{{ runs_at_least_one == 1 ? 's' : '' }} at least one shift &middot; the last column is what each one does differently</span>
         </div>
         <div class="rb-body">
-            {% for watch in watches %}
-                {% set station = watch.station %}
-                {% set id = station.id %}
-                <div class="rset">
-                    <span class="lb"><b>{{ station.name }}</b><em>{{ station.code ?: '—' }}</em></span>
-                    <span class="ct">
-                        {% for shift in shifts %}
-                            <label class="r-sh {{ shift.key in watch.expects ? 'on' : '' }}">
-                                <input type="checkbox" name="expects_{{ id }}[]" value="{{ shift.key }}"
-                                       {{ shift.key in watch.expects ? 'checked' : '' }}
-                                       {{ mayManage ? '' : 'disabled' }}>
-                                <i></i>{{ shift.label|lower }}
-                            </label>
+            <div class="wmxwrap">
+                <table class="wmx">
+                    <thead>
+                        <tr>
+                            <th class="l">Station</th>
+                            <th class="l">Rangers</th>
+                            {% for shift in shifts %}
+                                <th data-cat="{{ shift.colour }}">{{ shift.label }}<em>{{ shift.startsAt }}&ndash;{{ shift.endsAt }}</em></th>
+                            {% endfor %}
+                            <th class="l">Its own rules</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            {% set station = row.station %}
+                            <tr class="{{ row.onTheBooks and row.runs|filter(v => v)|length > 0 ? '' : 'none' }}">
+                                {# THE DRAWN "ST-01 · gate" IS A CODE AND A
+                                   STATION KIND. The kind is the AREA's field
+                                   and the area module has no such column, so
+                                   this prints the code and the locality it
+                                   does have — naming the gap rather than
+                                   inventing a kind here, where a station's
+                                   own vocabulary is not this module's to
+                                   define. #}
+                                <td class="l"><b>{{ station.name }}</b><em>{{ station.code ?: '—' }}{% if station.locality %} &middot; {{ station.locality|lower }}{% endif %}</em></td>
+                                {# NULL AND ZERO ARE DIFFERENT FACTS. A station
+                                   nobody has stated a need for is short of
+                                   nobody; a zero would read as a place that
+                                   needs nobody at all. #}
+                                <td class="n">{{ row.needs ?? '—' }}</td>
+                                {% for shift in shifts %}
+                                    <td>
+                                        <button type="button" class="wtg {{ row.runs[shift.key] ? 'on' : '' }}"
+                                                aria-pressed="{{ row.runs[shift.key] ? 'true' : 'false' }}"
+                                                aria-label="{{ station.name }} runs {{ shift.label }}"
+                                                data-action="roster--station-table#toggle"
+                                                {{ mayManage and row.onTheBooks ? '' : 'disabled' }}>{{ ux_icon('roster:check') }}</button>
+                                        <input type="hidden" name="expects_{{ station.id }}[]" value="{{ shift.key }}"
+                                               data-roster-expects {{ row.runs[shift.key] ? '' : 'disabled' }}>
+                                    </td>
+                                {% endfor %}
+                                <td class="l">
+                                    <div class="wexcin" data-roster-exceptions data-station="{{ station.id }}">
+                                        {% for exception in row.exceptions %}
+                                            <span class="ln">
+                                                <b>{{ exception.kind.label }}</b>{{ exception.value.label }}
+                                                <input type="hidden" name="exception_{{ station.id }}_kind[]" value="{{ exception.kind.value }}">
+                                                <input type="hidden" name="exception_{{ station.id }}_value[]" value="{{ exception.value.number }}">
+                                                <input type="hidden" name="exception_{{ station.id }}_unit[]" value="{{ exception.value.unit.value }}">
+                                                {% if mayManage %}
+                                                    <button type="button" class="x" title="Follow the area again"
+                                                            data-action="roster--station-table#forget">&times;</button>
+                                                {% endif %}
+                                            </span>
+                                        {% endfor %}
+                                        {% if mayManage and row.onTheBooks %}
+                                            <button type="button" class="add"
+                                                    data-action="roster--station-table#except">{{ row.exceptions is empty ? '+ give it its own rule' : '+ another' }}</button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
                         {% else %}
-                            <span class="r-sh">no shift vocabulary</span>
+                            <tr><td class="l" colspan="3"><b>This area registers no station</b><em>there is nothing for a roster to watch until it does</em></td></tr>
                         {% endfor %}
-                        {% if watch.expectsNothing %}<span class="r-sh">no watch</span>{% endif %}
-                    </span>
-                    <span class="why">
-                        <span class="unit">silence</span>
-                        <input class="fld" type="number" min="1" name="silence_{{ id }}" value="{{ watch.silenceWindowMinutes }}" aria-label="Silence window for {{ station.name }}, minutes" {{ mayManage ? '' : 'disabled' }}>
-                        <span class="unit">min, offline after</span>
-                        <input class="fld" type="number" min="1" name="offline_{{ id }}" value="{{ watch.offlineAfterMinutes }}" aria-label="Offline threshold for {{ station.name }}, minutes" {{ mayManage ? '' : 'disabled' }}>
-                        <span class="unit">min, catchment</span>
-                        <input class="fld" type="number" min="1" name="catchment_{{ id }}" value="{{ station.catchmentM ?? settings.defaultCatchmentMetres }}" aria-label="Catchment for {{ station.name }}, metres" {{ mayManage ? '' : 'disabled' }}>
-                        <span class="unit">m</span>
-                        <span class="unit">pool {{ pools[id]|default(0) }}</span>
-                    </span>
-                </div>
-            {% else %}
-                <div class="rfrag"><b>No post is on the roster&rsquo;s books yet</b><em>the area registers {{ band.stationsInArea }} station{{ band.stationsInArea == 1 ? '' : 's' }}; a watch is given to a post deliberately, so none is assumed</em></div>
-            {% endfor %}
+                    </tbody>
+                </table>
+            </div>
 
-            {# THE DOOR, AND IT IS THE REASON THIS SECTION EXISTS. Ported
-               from the design's own `.staddrow` on this card: the add
-               control on the left, the save at the right-hand end.
-
-               ONE FORM, TWO SUBMITS. Adding a post and saving the page are
-               two writes at two addresses, and `formaction` is how one form
-               offers both — a second `<form>` cannot be nested inside this
-               one, and a form outside it could not carry the same token.
-
-               THE PICKER IS THIS MODULE'S ADDITION TO THE DRAWING, stated
-               rather than slipped in: the design's button names no post
-               because the drawing has one meaning and a running area has
-               twelve, and a button that cannot say which post is not a
-               control. It wears the reference card's own add-row shape —
-               label, control, quiet button. #}
+            {# THE PICKER IS THIS MODULE'S ADDITION TO THE DRAWING, stated
+               rather than slipped in: a station joins these books here, and
+               a drawing with one park's twelve rows has nowhere to say which
+               one. It wears the reference card's own add-row shape. #}
             {% if mayManage %}
                 <div class="staddrow">
                     {% if postsOffTheBooks is not empty %}
-                        <label class="fldlab" for="roster-add-post">Add a post</label>
+                        <label class="fldlab" for="roster-add-post">Add a station</label>
                         <select class="fld" id="roster-add-post" name="station">
                             {% for station in postsOffTheBooks %}
                                 <option value="{{ station.uuidString }}">{{ station.name }}{% if station.code %} &middot; {{ station.code }}{% endif %}</option>
                             {% endfor %}
                         </select>
                         <button type="submit" class="btn sm"
-                                formaction="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ADD_TO_ROSTER_ROUTE'), {uuid: area.uuid}) }}">Add a post to the roster</button>
-                    {% else %}
-                        <span class="more">every post this area registers is on these books</span>
+                                formaction="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::ADD_TO_ROSTER_ROUTE'), {uuid: area.uuid}) }}">Put it on the books</button>
                     {% endif %}
                     <span class="sp"></span>
-                    <button type="submit" class="cta">Save the watches</button>
+                    <a class="btn sm" href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterConfigureController::WATCHES_ROUTE'), {uuid: area.uuid}) }}">Discard</a>
+                    <button type="submit" class="cta">Save</button>
                 </div>
             {% endif %}
         </div>
     </div>
+
+    {# THE SHAPE A NEW EXCEPTION IS STAMPED FROM. One template in the markup
+       rather than a string inside the controller: the kinds and the units it
+       offers are the SERVER's list, and a script that built the select from
+       its own copy would be a second vocabulary going stale. #}
+    <template data-roster-exception-template>
+        <span class="ln">
+            <select class="wval u" data-roster-field="kind" aria-label="Which rule">
+                {% for kind in ruleKinds %}
+                    <option value="{{ kind.value }}">{{ kind.label }}</option>
+                {% endfor %}
+            </select>
+            <input class="wval n" value="1" data-roster-field="value" aria-label="How much">
+            <select class="wval u" data-roster-field="unit" aria-label="In what">
+                {% for kind in ruleKinds %}
+                    {% for unit in kind.units %}
+                        <option value="{{ unit.value }}" data-for="{{ kind.value }}">{{ unit.label }}</option>
+                    {% endfor %}
+                {% endfor %}
+            </select>
+            <button type="button" class="x" title="Follow the area again"
+                    data-action="roster--station-table#forget">&times;</button>
+        </span>
+    </template>
 </form>
+</div>
 {% endblock %}

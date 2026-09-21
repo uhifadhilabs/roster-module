@@ -922,3 +922,191 @@ a.fg-stn:hover .loc, a.fg-zn:hover .loc, .fg-stn.on .loc, .fg-zn.on .loc { color
 .fg-lst details.rl-more[open] > summary .cv { transform: rotate(180deg); }
 /* Nobody in the tail is a row to act on, so none of them reads as one. */
 .fg-lst .pr.note, .fg-lst .pr.note:hover { cursor: default; background: none; box-shadow: none; }
+
+/* ============================================================================
+   THE CONFIGURE REDESIGN — WATCHES AND PATTERNS.
+
+   Ported from the design's roster.css blocks for configure-watches.html and
+   configure-patterns.html (variants-watches option A, variants-watches-layout
+   option A, variants-rules-card option A, variants-pattern-editor option C).
+
+   EVERY CLASS BELOW IS THIS MODULE'S OWN. The card band, the page head, the
+   section strip, the grid, the fields, the buttons and the eighteen palette
+   slots are the SHELL's and are spent here, never restated: a second copy of
+   a shared class wins or loses by load order and drifts every page in the
+   product. A colour is read as var(--cat), which the shell sets from
+   [data-cat="1".."18"] — this sheet names no hue at all.
+   ========================================================================== */
+
+/* ---- A SHIFT ROW ---------------------------------------------------------
+ * The name is a FIELD, because the name is this area's. The swatch beside it
+ * is the shift's stored palette slot: a colour given at creation and kept on
+ * every surface, never derived from a position in this list.
+ */
+.wsh { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 0; border-bottom: 1px dashed var(--ln); }
+.wsh:last-of-type { border-bottom: 0; }
+
+.wsw { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 1px solid var(--ln2); background: color-mix(in srgb, var(--cat, var(--fog)) 55%, transparent); cursor: pointer; padding: 0; position: relative; }
+.wsw::after { content: ""; position: absolute; inset: 4px; border-radius: 4px; background: var(--cat, var(--fog)); }
+.wsw:hover { border-color: var(--fog); }
+.wsw:disabled { cursor: default; }
+
+.wsh > .wnm { flex: 0 0 152px; height: 32px; padding-top: 0; padding-bottom: 0; line-height: 30px; font-size: 13px; font-weight: 600; }
+.wsh > .hrs { display: flex; align-items: center; gap: 6px; font: 600 12px ui-monospace, monospace; color: var(--fog); }
+.wsh > .hrs input { width: 5.2em; }
+.wsh > .n { font: 600 11px ui-monospace, monospace; color: var(--dim); }
+.wsh > .sp { flex: 1; }
+/* A REAL BUTTON: closing a shift is a write, and Stimulus binds no default
+   event to a link that goes nowhere. It wears the drawn cross exactly. */
+.wsh .x { color: var(--fail); background: none; border: 0; font-family: inherit; text-decoration: none; font-size: 15px; line-height: 1; padding: 0 4px; opacity: .75; cursor: pointer; }
+.wsh .x:hover { opacity: 1; }
+
+/* The quiet line at the end of a card's action row. */
+.wfollow { font-size: 12px; color: var(--fog); line-height: 1.65; }
+
+/* ---- ONE CONTROL INSIDE A SENTENCE ---------------------------------------
+ * RULED 20 sep: "forcing predefined options is stupid." A rule is a number
+ * somebody types and a unit they pick, so the two wear one shape and neither
+ * is a menu of blessed answers.
+ */
+.wval, select.wval, input.wval { appearance: none; -webkit-appearance: none; font: 600 13px ui-monospace, monospace; color: var(--acc); background: var(--raised); border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); border-radius: 8px; padding: 3px 9px; line-height: 1.5; cursor: pointer; vertical-align: baseline; font-variant-numeric: tabular-nums; }
+.wval:focus, select.wval:focus, input.wval:focus { outline: none; border-color: var(--acc); }
+
+/* ---- THE RULES CARD, AS ROWS --------------------------------------------
+ * RULED 21 sep, owner: "a paragraph style is always hard for users to read;
+ * see how clean the shifts card contents are." So the card wears the shifts
+ * card's own shape — a label in uppercase mono, the pair on one baseline, the
+ * meaning as a short fragment — and the two read as one card cut in half.
+ */
+.rl { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px dashed var(--ln); }
+.rl:last-of-type { border-bottom: 0; }
+.rl > .k { flex: 0 0 118px; font: 600 9.5px ui-monospace, monospace; letter-spacing: .11em; text-transform: uppercase; color: var(--dim); }
+.rl > .v { flex: 0 0 172px; display: flex; align-items: center; gap: 7px; }
+.rl > .v .n { width: 4.4em; }
+.rl > .m { flex: 1 1 180px; min-width: 0; font-size: 12.5px; color: var(--fog); }
+.rl > .m b { color: var(--tx); }
+
+/* ---- THE STATION × SHIFT TABLE -------------------------------------------
+ * Its own scroller, so a narrow screen moves the table and never the page.
+ */
+.wmxwrap { overflow-x: auto; scrollbar-width: none; }
+.wmxwrap::-webkit-scrollbar { display: none; }
+
+table.wmx { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px; }
+table.wmx th { font: 600 9px ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); text-align: center; padding: 0 6px 9px; white-space: nowrap; border-bottom: 1px solid var(--ln); }
+table.wmx th.l { text-align: left; }
+table.wmx th em { display: block; font-style: normal; font-size: 8.5px; letter-spacing: .06em; color: var(--fog); text-transform: none; margin-top: 2px; }
+table.wmx td { padding: 6px; border-bottom: 1px dashed color-mix(in srgb, var(--fog) 18%, transparent); text-align: center; }
+/* THE LAST ROW CARRIES NO RULE. A table whose final row is underlined reads
+   as a list that was cut off rather than one that ended. */
+table.wmx tr:last-child td { border-bottom: 0; }
+table.wmx td.l { text-align: left; }
+table.wmx td.l b { font-size: 12.5px; font-weight: 600; color: var(--tx); display: block; }
+table.wmx td.l em { font: 500 9px ui-monospace, monospace; font-style: normal; color: var(--dim); letter-spacing: .06em; }
+table.wmx td.n { font: 600 11.5px ui-monospace, monospace; color: var(--fog); font-variant-numeric: tabular-nums; }
+/* A station running nothing is drawn quiet, not hidden: it is where one is
+   put on the books. */
+table.wmx tr.none td { opacity: .55; }
+
+.wtg { appearance: none; width: 26px; height: 26px; border: 1px solid var(--ln2); border-radius: 8px; background: none; cursor: pointer; color: transparent; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.wtg:hover { border-color: var(--fog); }
+.wtg:disabled { cursor: default; opacity: .5; }
+.wtg.on { background: color-mix(in srgb, var(--acc) 16%, transparent); border-color: color-mix(in srgb, var(--acc) 55%, transparent); color: var(--acc); }
+.wtg svg { width: 14px; height: 14px; display: block; }
+
+/* ---- AN EXCEPTION LIVES ON ITS STATION'S ROW -----------------------------
+ * RULED 21 sep (layout A). There is no fourth card at the bottom naming
+ * stations the table already lists: the rules a station gives itself are the
+ * last column of its own row. Removing the line is how it goes back to
+ * following the area, which is why its only other control is a cross.
+ */
+.wexcin { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.wexcin > .ln { display: flex; align-items: baseline; gap: 7px; flex-wrap: nowrap; font-size: 11.5px; color: var(--tx); white-space: nowrap; }
+.wexcin > .ln > b { flex: none; font: 600 8.5px ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--fog); font-weight: 600; }
+.wexcin > .ln > .x { color: var(--fail); background: none; border: 0; font-family: inherit; text-decoration: none; font-size: 13px; line-height: 1; opacity: .7; cursor: pointer; padding: 0; }
+.wexcin > .ln > .x:hover { opacity: 1; }
+.wexcin > .add { font: 600 9px ui-monospace, monospace; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); background: none; border: 0; padding: 1px 0; cursor: pointer; }
+.wexcin > .add:hover { color: var(--acc); }
+
+/* ---- A PATTERN, DRAWN AS ITS DAYS ----------------------------------------
+ * A pattern is never a sentence in a select on its own: it shows its cycle as
+ * a row of days, and a day wears THE SHIFT'S OWN STORED COLOUR — never a kind
+ * the product knows. Off is the only day with no fill.
+ */
+.pstrip { display: inline-flex; gap: 3px; align-items: center; vertical-align: middle; flex-wrap: nowrap; }
+.pd { width: 13px; height: 13px; border-radius: 4px; flex: none; display: block; }
+.pd[data-cat] { background: color-mix(in srgb, var(--cat) 45%, transparent); }
+.pd.o { border: 1px dashed var(--ln2); }
+.pmore { font: 700 9.5px ui-monospace, monospace; font-style: normal; color: var(--dim); margin-left: 2px; }
+.pstrip.lg .pd { width: 19px; height: 19px; border-radius: 5px; }
+
+/* ---- THE PATTERN EDITOR --------------------------------------------------
+ * RULED 21 sep, owner: "the name should not be written by user but rather
+ * generated from the config the user chooses." There is no name field here or
+ * anywhere else — the derived name is the TITLE of the thing.
+ */
+.ptool { display: flex; flex-direction: column; gap: 13px; }
+
+.pfld { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px dashed var(--ln); margin-bottom: 2px; }
+.pfld > label { font: 600 9.5px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); flex: none; }
+.pdname { flex: 1 1 240px; min-width: 0; font-size: 16px; font-weight: 700; color: var(--tx); letter-spacing: -.01em; }
+.pdname.empty { font-size: 13px; font-weight: 500; color: var(--dim); font-style: italic; }
+.pfld > .len { font: 600 11px ui-monospace, monospace; color: var(--fog); margin-left: auto; }
+.pfld > .len b { color: var(--tx); }
+
+/* The sentence. One part per line, so a six-part cycle reads as six lines and
+   not as a paragraph that wraps differently at every width. */
+.psb { display: flex; flex-direction: column; gap: 7px; }
+.psbl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14.5px; line-height: 2.1; color: var(--tx); }
+.psbl > .lead { font: 600 9.5px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); flex: 0 0 52px; }
+.psbl > .x { color: var(--fail); background: none; border: 0; font-family: inherit; text-decoration: none; font-size: 15px; line-height: 1; padding: 0 4px; opacity: .7; margin-left: auto; cursor: pointer; }
+.psbl > .x:hover { opacity: 1; }
+.psbhint { font-size: 12px; color: var(--fog); margin-left: 6px; }
+
+.psbn, select.psbs { appearance: none; -webkit-appearance: none; font: 600 13px ui-monospace, monospace; color: var(--acc); background: var(--raised); border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); border-radius: 8px; padding: 3px 9px; line-height: 1.5; cursor: pointer; font-variant-numeric: tabular-nums; }
+.psbn { width: 3.4em; text-align: center; cursor: text; }
+select.psbs { padding-right: 24px; }
+.psbn:focus, select.psbs:focus { outline: none; border-color: var(--acc); }
+
+/* The cycle, drawn from the same parts the sentence names — never written out
+   beside them, so the two cannot disagree and neither needs a round trip. */
+.ppreview { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 11px 13px; border-radius: 10px; border: 1px dashed color-mix(in srgb, var(--acc) 42%, transparent); }
+.ppreview > .k { font: 600 9px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.ppreview > .t { font-size: 12.5px; color: var(--fog); }
+.ppreview > .t b { color: var(--tx); }
+
+.pwhere { display: flex; align-items: flex-start; gap: 10px; padding-top: 12px; border-top: 1px dashed var(--ln); font-size: 12.5px; color: var(--fog); line-height: 1.7; }
+.pwhere svg { flex: none; width: 15px; height: 15px; color: var(--acc); margin-top: 3px; }
+.pwhere b { color: var(--tx); }
+
+/* One pattern as a card. Its title IS the derived name, so it carries no
+   heading of its own beyond the kind. */
+.pregc { display: flex; flex-direction: column; gap: 9px; }
+.pregc > .nm { font-size: 15px; font-weight: 700; color: var(--tx); letter-spacing: -.01em; }
+.pregc > .mt { font: 500 10px ui-monospace, monospace; color: var(--dim); letter-spacing: .05em; }
+.pregc > .at { font-size: 12px; color: var(--fog); line-height: 1.6; }
+.pregc > .at b { color: var(--tx); }
+.pregc > .acts { display: flex; align-items: center; gap: 8px; margin-top: 2px; padding-top: 10px; border-top: 1px dashed var(--ln); }
+.pregc > .acts .sp { flex: 1; }
+
+.c.pnew { border-style: dashed; border-color: color-mix(in srgb, var(--acc) 45%, transparent); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; text-align: center; color: var(--fog); font-size: 12.5px; line-height: 1.6; min-height: 150px; }
+.c.pnew b { color: var(--tx); font-size: 13.5px; }
+
+.pempty { border: 1px dashed var(--ln2); border-radius: 11px; padding: 20px 16px; text-align: center; color: var(--fog); font-size: 13px; line-height: 1.7; }
+.pempty b { display: block; color: var(--tx); font-size: 13.5px; margin-bottom: 3px; }
+
+/* ---- AND AT A PHONE'S WIDTH ---------------------------------------------
+ * A row of controls that cannot fit stacks; nothing on these pages is allowed
+ * to widen the page itself, which is what the table's own scroller is for.
+ */
+@media (max-width: 720px) {
+    .rl { flex-wrap: wrap; gap: 6px 12px; }
+    .rl > .k { flex: 1 1 100%; }
+    .rl > .v { flex: 0 0 auto; }
+    .rl > .m { flex: 1 1 100%; }
+    .wsh { flex-wrap: wrap; }
+    .wsh > .wnm { flex: 1 1 100%; }
+    .wsh > .hrs { flex-wrap: wrap; }
+    .pfld > .len { margin-left: 0; flex: 1 1 100%; }
+    .psbl > .lead { flex: 1 1 100%; }
+}

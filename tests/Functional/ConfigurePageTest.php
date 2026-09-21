@@ -20,9 +20,11 @@ use Uhifadhi\Bundle\AreaBundle\Entity\AreaOfInterest;
 use Uhifadhi\Bundle\AreaBundle\Entity\Station;
 use Uhifadhi\Bundle\TeamBundle\Entity\User;
 use Uhifadhi\Roster\Entity\StationWatch;
-use Uhifadhi\Roster\Enum\LateThreshold;
-use Uhifadhi\Roster\Enum\VacancyAnnounce;
+use Uhifadhi\Roster\Enum\RuleKind;
+use Uhifadhi\Roster\Enum\RuleUnit;
+use Uhifadhi\Roster\Model\RuleValue;
 use Uhifadhi\Roster\Service\RosterSettingsService;
+use Uhifadhi\Roster\Service\ShiftRuleService;
 use Uhifadhi\Roster\Service\StationWatchService;
 use Uhifadhi\Roster\Tests\FreshDatabase;
 use Uhifadhi\Roster\Tests\Integration\Fixtures\FixedManageVoter;
@@ -101,6 +103,23 @@ final class ConfigurePageTest extends WebTestCase
         return $service;
     }
 
+    /** The fixture area, re-read after a request has rebooted the kernel. */
+    private function areaAgain(): AreaOfInterest
+    {
+        $area = $this->em->getRepository(AreaOfInterest::class)->findOneBy(['name' => 'demo reserve']);
+        self::assertInstanceOf(AreaOfInterest::class, $area);
+
+        return $area;
+    }
+
+    private function rules(): ShiftRuleService
+    {
+        $service = static::getContainer()->get('test_public.'.ShiftRuleService::class);
+        self::assertInstanceOf(ShiftRuleService::class, $service);
+
+        return $service;
+    }
+
     private function settings(): RosterSettingsService
     {
         $service = static::getContainer()->get('test_public.'.RosterSettingsService::class);
@@ -147,6 +166,7 @@ final class ConfigurePageTest extends WebTestCase
      */
     public static function sections(): iterable
     {
+        yield 'patterns' => ['patterns'];
         yield 'rotation' => ['rotation'];
         yield 'watches' => ['watches'];
         yield 'settings' => ['settings'];
@@ -196,7 +216,7 @@ final class ConfigurePageTest extends WebTestCase
         $crawler = $this->client->request('GET', $this->url('settings'));
 
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('Ping interval', $crawler->filter('body')->text());
+        self::assertStringContainsString('Off days on a tour', $crawler->filter('body')->text());
         self::assertSame(0, $crawler->filter('button[type=submit]')->count());
     }
 
@@ -214,12 +234,8 @@ final class ConfigurePageTest extends WebTestCase
 
         $this->client->request('POST', $this->url('settings'), [
             '_token' => $token,
-            'ping_interval_minutes' => '15',
             'off_day_has_no_state' => '0',
             'leave_approval_shown' => '1',
-            'default_catchment_metres' => '900',
-            'late_threshold' => LateThreshold::FourHours->value,
-            'vacancy_announce' => VacancyAnnounce::AtTheWatch->value,
         ]);
 
         self::assertResponseRedirects($this->url('settings'));
@@ -227,12 +243,38 @@ final class ConfigurePageTest extends WebTestCase
         $this->em->clear();
         $settings = $this->settings()->forArea($this->em->getRepository(AreaOfInterest::class)->findOneBy(['name' => 'demo reserve']) ?? throw new \LogicException('The fixture area vanished.'));
 
-        self::assertSame(15, $settings->getPingIntervalMinutes());
         self::assertFalse($settings->offDayHasNoState());
         self::assertTrue($settings->isLeaveApprovalShown());
-        self::assertSame(900, $settings->getDefaultCatchmentMetres());
-        self::assertSame(LateThreshold::FourHours, $settings->getLateThreshold());
-        self::assertSame(VacancyAnnounce::AtTheWatch, $settings->getVacancyAnnounce());
+    }
+
+    /**
+     * AND WHAT THIS PAGE NO LONGER OWNS, IT NO LONGER WRITES. The ping
+     * interval, the default catchment and the late threshold became three of
+     * the five RULES on the Watches section, so a post here naming them must
+     * change nothing — otherwise the two editors would take turns
+     * overwriting each other, which is the drift every ruling on this module
+     * has been about.
+     */
+    public function testTheSettingsPageCannotWriteWhatTheRulesOwn(): void
+    {
+        $this->signIn(FixedManageVoter::MANAGER_EMAIL);
+        $crawler = $this->client->request('GET', $this->url('settings'));
+        $token = $crawler->filter('input[name=_token]')->attr('value');
+        self::assertIsString($token);
+
+        $before = $this->settings()->forArea($this->area)->getPingIntervalMinutes();
+
+        $this->client->request('POST', $this->url('settings'), [
+            '_token' => $token,
+            'ping_interval_minutes' => '5',
+            'default_catchment_metres' => '900',
+        ]);
+
+        $this->em->clear();
+        $settings = $this->settings()->forArea($this->em->getRepository(AreaOfInterest::class)->findOneBy(['name' => 'demo reserve']) ?? throw new \LogicException('The fixture area vanished.'));
+
+        self::assertSame($before, $settings->getPingIntervalMinutes(), 'The rules card is the one home for it.');
+        self::assertNotSame(900, $settings->getDefaultCatchmentMetres());
     }
 
     /** A reader who posts anyway is refused, token or no token. */
@@ -260,11 +302,11 @@ final class ConfigurePageTest extends WebTestCase
     }
 
     /**
-     * SAVING A WATCH STORES THE FOUR COLUMNS THIS MODULE OWNS — and an empty
-     * `expects` is a real answer, not a missing one: it declares a post that
-     * runs nothing.
+     * SAVING THE STATION TABLE STORES WHICH SHIFTS A STATION RUNS, and the
+     * one rule it does differently — on its own row, never in a fourth card
+     * naming stations the table already lists.
      */
-    public function testAManagerSavesAPostsWatch(): void
+    public function testAManagerSavesWhichShiftsAStationRuns(): void
     {
         $watch = $this->watches()->addToRoster($this->gate);
         $watch->expect(['day', 'night']);
@@ -279,9 +321,9 @@ final class ConfigurePageTest extends WebTestCase
         $this->client->request('POST', $this->url('watches'), [
             '_token' => $token,
             'expects_'.$id => ['day'],
-            'silence_'.$id => '240',
-            'offline_'.$id => '2880',
-            'catchment_'.$id => '2000',
+            'exception_'.$id.'_kind' => [RuleKind::LateAfter->value],
+            'exception_'.$id.'_value' => ['1'],
+            'exception_'.$id.'_unit' => [RuleUnit::Hours->value],
         ]);
 
         self::assertResponseRedirects($this->url('watches'));
@@ -290,13 +332,46 @@ final class ConfigurePageTest extends WebTestCase
         $stored = $this->em->getRepository(StationWatch::class)->findOneBy([]);
         self::assertInstanceOf(StationWatch::class, $stored);
         self::assertSame(['day'], $stored->getExpects());
-        self::assertSame(240, $stored->getSilenceWindowMinutes());
-        self::assertSame(2880, $stored->getOfflineAfterMinutes());
 
-        // AND THE RING WENT TO THE POST, which is the column verification
-        // measures against — the watch's own is retired and unread.
-        $station = $stored->getStation();
-        self::assertSame(2000, $station->getCatchmentM(), 'Saving the watches writes the ring where it is read.');
+        // AND IT REACHED THE COLUMN THE LIVE SURFACES READ. The rules are the
+        // authoring model and the watch's window is their projection, so the
+        // card and the day board cannot disagree for a single request.
+        self::assertSame(60, $stored->getSilenceWindowMinutes(), 'Late after 1 hour is sixty minutes of silence.');
+    }
+
+    /**
+     * AND REMOVING THE LINE IS HOW A STATION FOLLOWS THE AREA AGAIN. There is
+     * no "same as the area" value to send: the row's silence is that answer,
+     * which is why a save REPLACES a station's exceptions rather than
+     * merging them, and why the only control beside one is a cross.
+     */
+    public function testAStationGoesBackToFollowingTheAreaWhenItsRowSaysNothing(): void
+    {
+        $watch = $this->watches()->addToRoster($this->gate);
+        $this->em->flush();
+        $this->rules()->setException($this->gate, RuleKind::LateAfter, new RuleValue(1.0, RuleUnit::Hours));
+        self::assertSame(60, $watch->getSilenceWindowMinutes());
+
+        $this->signIn(FixedManageVoter::MANAGER_EMAIL);
+        $crawler = $this->client->request('GET', $this->url('watches'));
+        $token = $crawler->filter('input[name=_token]')->attr('value');
+        self::assertIsString($token);
+
+        $this->client->request('POST', $this->url('watches'), ['_token' => $token]);
+        self::assertResponseRedirects();
+
+        // RE-READ, because a request reboots the kernel and the object above
+        // belongs to the entity manager the previous one had.
+        $this->em->clear();
+        $stored = $this->em->getRepository(StationWatch::class)->findOneBy([]);
+        self::assertInstanceOf(StationWatch::class, $stored);
+
+        self::assertSame(
+            RuleKind::LateAfter->standard()->toMinutes(),
+            $stored->getSilenceWindowMinutes(),
+            'Back on the area own answer.',
+        );
+        self::assertSame([], $this->rules()->exceptionsForArea($this->areaAgain()), 'And no row is left behind.');
     }
 
     /**
@@ -315,13 +390,7 @@ final class ConfigurePageTest extends WebTestCase
         $token = $crawler->filter('input[name=_token]')->attr('value');
         self::assertIsString($token);
 
-        $id = $this->gate->getId();
-        $this->client->request('POST', $this->url('watches'), [
-            '_token' => $token,
-            'silence_'.$id => '120',
-            'offline_'.$id => '1440',
-            'catchment_'.$id => '1500',
-        ]);
+        $this->client->request('POST', $this->url('watches'), ['_token' => $token]);
 
         $this->em->clear();
         $stored = $this->em->getRepository(StationWatch::class)->findOneBy([]);
@@ -377,7 +446,7 @@ final class ConfigurePageTest extends WebTestCase
         $crawler = $this->client->request('GET', $this->url('watches'));
 
         self::assertResponseIsSuccessful();
-        self::assertSame(0, $crawler->filter('button:contains("Add a post to the roster")')->count());
+        self::assertSame(0, $crawler->filter('button:contains("Put it on the books")')->count());
     }
 
     /**

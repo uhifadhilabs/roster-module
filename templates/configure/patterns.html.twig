@@ -1,0 +1,196 @@
+{# ============================================================================
+   PATTERNS — the cycles this area fills a station from.
+
+   PORTED FROM designs/…/modules/roster/configure-patterns.html, which is
+   variants-pattern-editor option C.
+
+   THE RULINGS THIS PAGE IS, in the owner's words: "users should be the ones
+   defining the fill patterns, not the system forcing the user", and "the
+   name should not be written by user but rather generated from the config
+   the user chooses." So the product ships NO patterns, a cycle is said as a
+   sentence out of this area's own shifts plus off, and there is no name
+   field anywhere — the name is derived from the cycle, live in the editor
+   and again on the server, by one function.
+
+   ONE OBJECT AT AREA LEVEL, applied to stations from the Week sheet's fill
+   row and not from here. Editing changes FUTURE FILLS ONLY: no day already
+   planned moves, at any station running it, and a day somebody edited by
+   hand is never touched. That is what makes one shared object safe.
+
+   COVERAGE MANIFEST — every element of the drawn page.
+
+   | element                          | type    | source                     | interaction            | status |
+   |----------------------------------|---------|----------------------------|------------------------|--------|
+   | h2.zone + p.pgsub (Week link)    | chrome  | static                     | link to the sheet      | done   |
+   | header cta "New pattern"         | control | —                          | opens a blank editor   | done   |
+   | editor .c (full width)           | state   | the chosen pattern, or new | —                      | done   |
+   | .pfld label + .pdname            | data    | derived on every read      | none — read-only       | done   |
+   | .pfld .len "N days long"         | data    | the cycle                  | none                   | done   |
+   | .psbl one part: lead/n/shift     | control | the cycle, as runs         | edits the sentence     | done   |
+   | .psbl a.x remove a part          | control | —                          | removes it             | done   |
+   | "+ then…" + .psbhint             | control | —                          | adds a part            | done   |
+   | .ppreview k / .pstrip / t        | data    | drawn from the same parts  | none                   | done   |
+   | .pwhere info + where it runs     | data    | the stations running it    | none                   | done   |
+   | Delete / Cancel / Save           | control | —                          | three writes, or none  | done   |
+   | .pregc card per pattern          | data    | the register               | Edit opens it          | done   |
+   | .pstrip on a card, +N overflow   | data    | the cycle                  | none                   | done   |
+   | .at "running at N — names"       | data    | the stations running it    | none                   | done   |
+   | .c.pnew                          | control | —                          | opens a blank editor   | done   |
+   | empty register                   | state   | a fresh area fills by hand | none                   | done   |
+   ========================================================================== #}
+{% extends '@UhifadhiRoster/configure/_frame.html.twig' %}
+
+{% set here = path(constant('Uhifadhi\\Roster\\Controller\\RosterPatternsController::ROUTE'), {uuid: area.uuid}) %}
+{% set blank = here ~ '?' ~ constant('Uhifadhi\\Roster\\Controller\\RosterPatternsController::NEW_QUERY') %}
+
+{# HOW MANY DAYS A STRIP DRAWS BEFORE IT SAYS "+N". A card is BOUNDED: a
+   twenty-eight day cycle must not make one card twice the height of the one
+   beside it. #}
+{% set strip_days = 14 %}
+
+{# THE PAGE HEADER'S ONE ACCENT ACTION, beside the frame's Configure marker.
+   Creating a pattern is a PAGE-LEVEL act (ruled 20 sep), so it is here and
+   not a footer button and not a card header's door. #}
+{% block shell_page_actions %}
+    {% if mayManage %}<a class="cta" href="{{ blank }}">{{ ux_icon('shell:plus') }} New pattern</a>{% endif %}
+{% endblock %}
+
+{% block roster_section %}
+<h2 class="zone" id="patterns">Patterns</h2>
+<p class="pgsub">The cycles this area fills a station from. A pattern is a cycle said as a sentence, built out of the shifts this area named, and <b>its name is derived from that cycle</b> &mdash; nothing here is typed. You apply one to a station from the <a href="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterController::WEEK_ROUTE'), {uuid: area.uuid}) }}">Week sheet</a>&rsquo;s fill row, and editing one changes future fills only.</p>
+
+<div class="grid g2">
+
+    {# ---- THE EDITOR ---------------------------------------------------
+       A STATE OF THIS PAGE and not an address of its own: a cycle is said
+       and then saved, and sending somebody to a second screen to do the
+       first half would be two pages for one act. #}
+    {% if open is not null or declaring %}
+        {% set cycle = open is null ? [] : open.days %}
+        <div class="c" style="grid-column:1/-1">
+            <span class="tab">Pattern<span class="src">&middot; open</span></span>
+            <form method="post" class="ptool" data-controller="roster--pattern-editor"
+                  data-action="input->roster--pattern-editor#render change->roster--pattern-editor#render"
+                  action="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterPatternsController::SAVE_ROUTE'), {uuid: area.uuid}) }}">
+                <input type="hidden" name="_token" value="{{ csrfToken }}">
+                {% if open is not null %}<input type="hidden" name="{{ constant('Uhifadhi\\Roster\\Controller\\RosterPatternsController::OPEN_QUERY') }}" value="{{ open.uuid }}">{% endif %}
+                {# THE CYCLE GOES AS ONE FIELD, because it is validated as one
+                   object: a ring applied half-way is a ring that plans a
+                   month nobody asked for. The controller keeps it in step
+                   with the sentence above it. #}
+                <input type="hidden" name="{{ constant('Uhifadhi\\Roster\\Controller\\RosterPatternsController::CYCLE_FIELD') }}" value="[]" data-roster-cycle>
+
+                <div class="pfld">
+                    <label>Its name</label>
+                    {# READ-ONLY BY RULE, so it must not look like something
+                       you can type into: it is the TITLE of the thing. #}
+                    <span class="pdname {{ open is null ? 'empty' : '' }}" data-roster-name>{{ open is null ? 'Build the cycle and the name writes itself' : open.name }}</span>
+                    <span class="len" data-roster-length>{% if open is null %}nothing in the cycle yet{% else %}<b>{{ open.length }} day{{ open.length == 1 ? '' : 's' }} long</b>{% endif %}</span>
+                </div>
+
+                <div class="psb">
+                    {% for part in runs %}
+                        <div class="psbl" data-roster-part>
+                            <span class="lead">{{ loop.first ? '' : 'then' }}</span>
+                            <input class="psbn" value="{{ part.days }}" aria-label="How many days" data-roster-days>
+                            {# THE WORD BETWEEN THE NUMBER AND THE SHIFT, kept
+                               in step by the controller. The drawing writes
+                               "1 day <shift>" and "2 days of <shift>"; the
+                               derived name says "1 day of night", and one
+                               wording is used here so the sentence and the
+                               name above it read the same. #}
+                            <span data-roster-unit>{{ part.days == 1 ? 'day' : 'days' }} of</span>
+                            <select class="psbs" aria-label="Which shift" data-roster-shift>
+                                {% for shift in shifts %}
+                                    <option value="{{ shift.key }}" data-cat="{{ shift.colour }}" {{ shift.key == part.key ? 'selected' : '' }}>{{ shift.label }}</option>
+                                {% endfor %}
+                                <option value="off" {{ part.key == 'off' ? 'selected' : '' }}>off</option>
+                            </select>
+                            {% if not loop.first %}<button type="button" class="x" title="Remove this part" data-action="roster--pattern-editor#drop">&times;</button>{% endif %}
+                        </div>
+                    {% endfor %}
+                    <div class="psbl">
+                        <span class="lead"></span>
+                        <button type="button" class="btn sm" data-action="roster--pattern-editor#add">+ then&hellip;</button>
+                        <span class="psbhint">and round again from the start</span>
+                    </div>
+                </div>
+
+                {# THE STRIP IS THE CYCLE, drawn from the same parts the
+                   sentence names rather than written out beside them — so
+                   the two cannot disagree, and neither needs a round trip. #}
+                <div class="ppreview">
+                    <span class="k">the cycle</span>
+                    <span class="pstrip lg" data-roster-strip></span>
+                    <span class="t">repeats for as long as a station runs it, then round again</span>
+                </div>
+
+                <div class="pwhere">
+                    {{ ux_icon('shell:info') }}
+                    <span>
+                        {%- if open is null or open.stations is empty -%}
+                            <b>No station is filled from this yet.</b> You apply it from the Week sheet&rsquo;s fill row, and it fills future days only.
+                        {%- else -%}
+                            <b>Running at {{ open.stations|join(', ') }}.</b> Saving a change here changes <b>future fills only</b> &mdash; no day already planned moves, and no day anybody edited by hand is ever touched.
+                        {%- endif -%}
+                    </span>
+                </div>
+
+                <div class="staddrow">
+                    {% if open is not null %}
+                        <button type="submit" class="btn sm dg" title="Delete this pattern"
+                                formaction="{{ path(constant('Uhifadhi\\Roster\\Controller\\RosterPatternsController::DELETE_ROUTE'), {uuid: area.uuid, pattern: open.uuid}) }}">Delete this pattern</button>
+                    {% endif %}
+                    <span class="sp"></span>
+                    <a class="btn sm" href="{{ here }}">Cancel</a>
+                    <button type="submit" class="cta">Save this pattern</button>
+                </div>
+            </form>
+        </div>
+    {% endif %}
+
+    {# ---- THE REGISTER --------------------------------------------------
+       One card per pattern. The card's title IS the derived name, so it
+       carries no .tab beyond the kind. #}
+    {% for card in cards %}
+        {% if open is null or card.uuid != open.uuid %}
+            <div class="c">
+                <span class="tab">Pattern</span>
+                <div class="pregc">
+                    <span class="nm">{{ card.name }}</span>
+                    <span class="mt">{{ card.length }} day{{ card.length == 1 ? '' : 's' }} long &middot; the name is derived from the cycle</span>
+                    <span class="pstrip">
+                        {% for day in card.days|slice(0, strip_days) %}
+                            <i class="pd {{ day.colour is null ? 'o' : '' }}" {% if day.colour is not null %}data-cat="{{ day.colour }}"{% endif %} title="{{ day.key }}"></i>
+                        {% endfor %}
+                        {% if card.length > strip_days %}<em class="pmore">+{{ card.length - strip_days }}</em>{% endif %}
+                    </span>
+                    <span class="at">
+                        {%- if card.stations is empty -%}
+                            no station is filled from it
+                        {%- else -%}
+                            running at <b>{{ card.stations|length }}</b> station{{ card.stations|length == 1 ? '' : 's' }} &mdash; {{ card.stations|join(', ') }}
+                        {%- endif -%}
+                    </span>
+                    <span class="acts">
+                        <span class="sp"></span>
+                        <a class="btn sm" href="{{ here }}?{{ constant('Uhifadhi\\Roster\\Controller\\RosterPatternsController::OPEN_QUERY') }}={{ card.uuid }}">Edit</a>
+                    </span>
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+
+    {% if mayManage %}
+        <div class="c pnew">
+            <b>New pattern</b>Say a cycle and it gets a name. Nothing has to be filled in first.
+            <a class="cta" href="{{ blank }}">+ New pattern</a>
+        </div>
+    {% elseif cards is empty %}
+        <div class="c" style="grid-column:1/-1">
+            <span class="tab">Patterns</span>
+            <div class="pempty"><b>This area fills by hand</b>No cycle has been said yet, and the product ships none &mdash; a pattern is this area&rsquo;s own.</div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -15,6 +15,18 @@
                 "name": "roster--now-line",
                 "fetch": "eager",
                 "enabled": true
+            },
+            "pattern-editor": {
+                "main": "controllers/pattern_editor_controller.js",
+                "name": "roster--pattern-editor",
+                "fetch": "eager",
+                "enabled": true
+            },
+            "station-table": {
+                "main": "controllers/station_table_controller.js",
+                "name": "roster--station-table",
+                "fetch": "eager",
+                "enabled": true
             }
         },
         "importmap": {

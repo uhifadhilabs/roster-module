@@ -122,7 +122,7 @@ final class TheDutyFlowStartsTest extends WebTestCase
 
         $watches = $this->client->request('GET', '/areas/'.$uuid.'/modules/roster/watches');
         self::assertResponseIsSuccessful();
-        self::assertSame(1, $watches->filter('button:contains("Add a post to the roster")')->count(), 'The door the defect was missing.');
+        self::assertSame(1, $watches->filter('button:contains("Put it on the books")')->count(), 'The door the defect was missing.');
 
         $token = $watches->filter('input[name="_token"]')->attr('value');
         self::assertIsString($token);
@@ -142,9 +142,6 @@ final class TheDutyFlowStartsTest extends WebTestCase
         $this->client->request('POST', '/areas/'.$uuid.'/modules/roster/watches', [
             '_token' => $token,
             'expects_'.$this->gate->getId() => ['day'],
-            'silence_'.$this->gate->getId() => 120,
-            'offline_'.$this->gate->getId() => 1440,
-            'catchment_'.$this->gate->getId() => 1500,
         ]);
         self::assertResponseRedirects();
 

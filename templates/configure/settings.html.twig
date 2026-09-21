@@ -1,7 +1,16 @@
 {# ============================================================================
-   SETTINGS — the six answers this module cannot guess about an organisation,
-   ported from the design's configure.html#settings, plus the shift vocabulary
-   and the check-in statuses list.
+   SETTINGS — the answers this module cannot guess about an organization,
+   ported from the design's configure.html, plus the shift vocabulary it reads
+   and the check-in statuses list the area owns.
+
+   THREE OF THE DRAWN SIX ARE NOT HERE. The ping interval, the default
+   catchment and the late threshold became three of the five RULES on the
+   Watches section when that card was ruled (20–21 sep), and the drawn
+   settings page predates it. Leaving them here as well would be two editors
+   for one fact — the exact drift every ruling on this module has been
+   about — so they are named on the section they moved to and this page
+   keeps only what is genuinely its own. THIS IS A DEPARTURE FROM THE DRAWN
+   PAGE and is flagged for a verdict rather than settled here.
 
    EVERY ONE OF THESE WAS AN OPEN VERDICT while the module was being designed.
    They are fields now, each with its default and the CONSEQUENCE of choosing
@@ -23,16 +32,11 @@
         </div>
         <div class="rb-body">
 
-            <div class="rset">
-                <span class="lb"><b>Ping interval</b><em>positions per hour, per handset</em></span>
-                <span class="ct">
-                    <input class="fld" type="number" min="1" name="ping_interval_minutes" value="{{ settings.pingIntervalMinutes }}" aria-label="Ping interval in minutes" {{ mayManage ? '' : 'disabled' }}>
-                    <span class="unit">minutes</span>
-                    <span class="unit">default {{ constant('Uhifadhi\\Roster\\DependencyInjection\\RosterConfiguration::DEFAULT_PING_INTERVAL_MINUTES') }}</span>
-                </span>
-                <span class="why"><b>It trades against the catchment.</b> A wide catchment tolerates a slow interval; a tight one does not &mdash; at 2 km and 60 min a ranger can leave and return unseen. Every minute you take off it costs battery in a place with no mains.</span>
-            </div>
-
+            {# PING INTERVAL, DEFAULT CATCHMENT AND THE LATE THRESHOLD ARE
+               NOT HERE ANY MORE. They are three of the five RULES now, on the
+               Watches section, where a station may also overrule any of them
+               — and a fact with two editors is a fact that disagrees with
+               itself the first time somebody uses the other one. #}
             <div class="rset">
                 <span class="lb"><b>Off days on a tour</b><em>what an off day in a cycle produces</em></span>
                 <span class="ct">
@@ -59,36 +63,14 @@
                 <span class="lb"><b>Shift vocabulary</b><em>the named shifts and their windows</em></span>
                 <span class="ct">
                     {% for shift in shifts %}
-                        <span class="r-sh {{ shift.isOpen ? '' : 'closed' }}"><i></i>{{ shift.label|lower }} {{ shift.startsAt }}&ndash;{{ shift.endsAt }}</span>
+                        {# THE COLOUR IS THE SHIFT'S OWN STORED SLOT, kept on
+                           every surface — this chip, the sheet, the day board
+                           and the cycle strip all read the same value, so
+                           reordering the list recolours nothing. #}
+                        <span class="r-sh {{ shift.isOpen ? '' : 'closed' }}" data-cat="{{ shift.colour }}"><i></i>{{ shift.label|lower }} {{ shift.startsAt }}&ndash;{{ shift.endsAt }}</span>
                     {% endfor %}
                 </span>
-                <span class="why"><b>One list for the whole area.</b> Every rotation, every rota cell and every day-board block reads from it, so a fifth shift is a fifth chip everywhere and nothing has to be redrawn. A shift in use cannot be deleted, only closed.</span>
-            </div>
-
-            <div class="rset">
-                <span class="lb"><b>Default catchment</b><em>used by a post that sets none of its own</em></span>
-                <span class="ct">
-                    <input class="fld" type="number" min="1" name="default_catchment_metres" value="{{ settings.defaultCatchmentMetres }}" aria-label="Default catchment in metres" {{ mayManage ? '' : 'disabled' }}>
-                    <span class="unit">m</span>
-                </span>
-                <span class="why"><b>It decides who reads as unverified.</b> A radius smaller than the post&rsquo;s own compound will flag people who are standing in it; one larger than the nearest road will verify people driving past. Changing it <b>re-derives every past day</b>, because a state is never stored. It is the ring a post falls back on: verification measures against the POST&rsquo;s own catchment, and a post that sets none takes this.</span>
-            </div>
-
-            <div class="rset">
-                <span class="lb"><b>Late and vacancy thresholds</b><em>when a post reads late, and when a hole is announced</em></span>
-                <span class="ct">
-                    <select class="fld" name="late_threshold" aria-label="Late threshold" {{ mayManage ? '' : 'disabled' }}>
-                        {% for threshold in lateThresholds %}
-                            <option value="{{ threshold.value }}" {{ threshold == settings.lateThreshold ? 'selected' : '' }}>{{ threshold.label }}</option>
-                        {% endfor %}
-                    </select>
-                    <select class="fld" name="vacancy_announce" aria-label="When a hole is announced" {{ mayManage ? '' : 'disabled' }}>
-                        {% for announce in vacancyAnnouncements %}
-                            <option value="{{ announce.value }}" {{ announce == settings.vacancyAnnounce ? 'selected' : '' }}>{{ announce.label }}</option>
-                        {% endfor %}
-                    </select>
-                </span>
-                <span class="why"><b>Late is per post</b> and falls back to twice its ping interval; a post may override it on the Watches section. <b>A hole is announced as soon as it is known</b> &mdash; an unfit check-in at 05:58 makes tonight&rsquo;s hole visible at 05:58, not at 18:00.</span>
+                <span class="why"><b>One list for the whole area.</b> Every pattern, every sheet cell and every day-board block reads from it, so a fifth shift is a fifth chip everywhere and nothing has to be redrawn. It is <b>named and coloured on the Watches section</b>; a shift in use cannot be deleted, only closed.</span>
             </div>
 
 
