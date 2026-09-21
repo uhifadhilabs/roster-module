@@ -20,13 +20,17 @@ use Uhifadhi\Roster\Repository\AbsenceRepository;
 use Uhifadhi\Roster\Repository\AreaRosterSettingsRepository;
 use Uhifadhi\Roster\Repository\DutyRepository;
 use Uhifadhi\Roster\Repository\EditedDayRepository;
+use Uhifadhi\Roster\Repository\PatternRepository;
 use Uhifadhi\Roster\Repository\RotationPoolMemberRepository;
 use Uhifadhi\Roster\Repository\RotationRepository;
 use Uhifadhi\Roster\Repository\ShiftRepository;
+use Uhifadhi\Roster\Repository\ShiftRuleRepository;
+use Uhifadhi\Roster\Repository\StationRuleExceptionRepository;
 use Uhifadhi\Roster\Repository\StationWatchRepository;
 use Uhifadhi\Roster\Repository\SwapRepository;
 use Uhifadhi\Roster\Service\CyclePlanner;
 use Uhifadhi\Roster\Service\DayBoardService;
+use Uhifadhi\Roster\Service\PatternService;
 use Uhifadhi\Roster\Service\PresenceReader;
 use Uhifadhi\Roster\Service\RosterCalendar;
 use Uhifadhi\Roster\Service\RosteredPeople;
@@ -36,6 +40,7 @@ use Uhifadhi\Roster\Service\RotaService;
 use Uhifadhi\Roster\Service\RotationEditor;
 use Uhifadhi\Roster\Service\RotationGenerator;
 use Uhifadhi\Roster\Service\RotationPreview;
+use Uhifadhi\Roster\Service\ShiftRuleService;
 use Uhifadhi\Roster\Service\ShiftVocabularyService;
 use Uhifadhi\Roster\Service\StationWatchService;
 use Uhifadhi\Roster\Service\SwapCostService;
@@ -82,6 +87,9 @@ return static function (ContainerConfigurator $container): void {
         StationWatchRepository::class,
         AreaRosterSettingsRepository::class,
         SwapRepository::class,
+        PatternRepository::class,
+        ShiftRuleRepository::class,
+        StationRuleExceptionRepository::class,
     ] as $repository) {
         $services->set($repository)
             ->args([service('doctrine')])
@@ -137,6 +145,33 @@ return static function (ContainerConfigurator $container): void {
             service(StationService::class),
             param('roster.default_silence_window_minutes'),
             param('roster.default_offline_after_minutes'),
+        ]);
+
+    /*
+     * THE FIVE RULES AND WHAT EACH STATION DOES DIFFERENTLY — and the one
+     * writer of the three columns the live surfaces still read.
+     */
+    $services->set('roster.shift_rules', ShiftRuleService::class)
+        ->args([
+            service('doctrine.orm.entity_manager'),
+            service(ShiftRuleRepository::class),
+            service(StationRuleExceptionRepository::class),
+            service(StationWatchRepository::class),
+            service(StationService::class),
+            service('roster.settings'),
+        ]);
+
+    /*
+     * THE CYCLES AN AREA FILLS FROM. It takes the vocabulary because a
+     * pattern's NAME is derived from this area's own shift names on every
+     * read — there is no name column and nobody types one.
+     */
+    $services->set('roster.patterns', PatternService::class)
+        ->args([
+            service('doctrine.orm.entity_manager'),
+            service(PatternRepository::class),
+            service(StationWatchRepository::class),
+            service('roster.shift_vocabulary'),
         ]);
 
     /*

@@ -235,6 +235,10 @@ final class TestKernel extends Kernel
             \Uhifadhi\Roster\Service\RosterSettingsService::class => 'roster.settings',
             \Uhifadhi\Roster\Service\ShiftVocabularyService::class => 'roster.shift_vocabulary',
             \Uhifadhi\Roster\Service\StationWatchService::class => 'roster.station_watches',
+            // The five rules and their per-station exceptions, and the
+            // cycles an area fills a station from.
+            \Uhifadhi\Roster\Service\ShiftRuleService::class => 'roster.shift_rules',
+            \Uhifadhi\Roster\Service\PatternService::class => 'roster.patterns',
             \Uhifadhi\Roster\Service\RosterIdentityService::class => 'roster.identity',
             \Uhifadhi\Roster\Shell\RosterModuleTabs::class => 'roster.module_tabs',
             \Uhifadhi\Roster\Shell\RosterConfigurationSections::class => 'roster.configuration_sections',
